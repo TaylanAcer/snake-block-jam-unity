@@ -58,7 +58,7 @@ namespace SnakeBlockJam.Core
 
             foreach (var snake in level.Snakes)
             {
-                if (snake == null || snake.Id <= 0)
+                if (snake == null || snake.Id <= 0 || snake.Body.Count == 0)
                     throw new ArgumentException("Invalid snake.");
 
                 if (_activeSnakes.ContainsKey(snake.Id))
@@ -78,7 +78,12 @@ namespace SnakeBlockJam.Core
 
                 _activeSnakes.Add(snake.Id, snake);
             }
+
+            Map = new BoardMap(level);
         }
+
+        // Statik mekanik araması; MoveSimulator kullanır.
+        internal BoardMap Map { get; }
 
         public bool IsInside(Cell cell)
         {
@@ -99,6 +104,34 @@ namespace SnakeBlockJam.Core
         public SnakeDefinition GetSnake(int snakeId)
         {
             return _activeSnakes[snakeId];
+        }
+
+        // Bir hamlenin tek giriş noktası. Önce bütün kontroller yapılır, sonra
+        // durum değişir; kontrol başarısızsa hiçbir şey değişmez.
+        // Playing iken hamle hakkı vardır (Lost değil) ve yılan aktifse
+        // ConsumeMove/EscapeSnake throw edemez, yani işlem bölünmez.
+        // Son hamle tahtayı temizlerse Status Won olur (R-WIN-04).
+        // Sonuç, aynı durum üzerinde MoveSimulator.Simulate ile hemen önce
+        // hesaplanmış olmalıdır.
+        public void Apply(MoveResult result)
+        {
+            if (result == null)
+                throw new ArgumentNullException(nameof(result));
+
+            if (Status != GameStatus.Playing)
+                throw new InvalidOperationException(
+                    $"Cannot apply a move when status is {Status}."
+                );
+
+            if (!_activeSnakes.ContainsKey(result.SnakeId))
+                throw new InvalidOperationException(
+                    $"Snake {result.SnakeId} is not active."
+                );
+
+            ConsumeMove();
+
+            if (result.IsEscaped)
+                EscapeSnake(result.SnakeId);
         }
 
         // Başarılı kaçış: yılan modelden anında kalkar (R-CON-04), sayaç artar.

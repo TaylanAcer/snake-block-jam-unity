@@ -5,6 +5,12 @@ using SnakeBlockJam.Core;
 
 public class BoardStateTests
 {
+    // BridgeTop segmenti yalnızca köprü hücresinde olabilir (BoardMap doğrulaması).
+    private static readonly BridgeDefinition[] BridgeOver34 =
+    {
+        new BridgeDefinition(new[] { new Cell(2, 4), new Cell(3, 4) })
+    };
+
     [Test]
     public void Constructor_StartsWithAllSnakesActive()
     {
@@ -78,7 +84,7 @@ public class BoardStateTests
         );
 
         var state = new BoardState(new LevelDefinition(
-            8, 10, snakes: new[] { snake1, snake2 }
+            8, 10, snakes: new[] { snake1, snake2 }, bridges: BridgeOver34
         ));
 
         Assert.That(state.GetOccupant(ground), Is.EqualTo(1));
@@ -101,7 +107,7 @@ public class BoardStateTests
         );
 
         var state = new BoardState(new LevelDefinition(
-            8, 10, snakes: new[] { snake }
+            8, 10, snakes: new[] { snake }, bridges: BridgeOver34
         ));
 
         Assert.That(state.GetOccupant(ground), Is.EqualTo(1));
@@ -264,7 +270,7 @@ public class BoardStateTests
         var over = new SnakeDefinition(2, Direction.Right, new[] { top });
 
         var state = new BoardState(new LevelDefinition(
-            8, 10, snakes: new[] { under, over }
+            8, 10, snakes: new[] { under, over }, bridges: BridgeOver34
         ));
 
         state.EscapeSnake(1);
@@ -280,10 +286,11 @@ public class BoardStateTests
         var ground = new LayeredCell(new Cell(3, 4), BoardLayer.Ground);
         var top = new LayeredCell(new Cell(3, 4), BoardLayer.BridgeTop);
 
-        var snake = new SnakeDefinition(1, Direction.Up, new[] { top, ground });
+        // Köprüdeki baş yol boyunca bakmalı (R-BRG-08); köprü yatay.
+        var snake = new SnakeDefinition(1, Direction.Right, new[] { top, ground });
 
         var state = new BoardState(new LevelDefinition(
-            8, 10, snakes: new[] { snake }
+            8, 10, snakes: new[] { snake }, bridges: BridgeOver34
         ));
 
         state.EscapeSnake(1);
@@ -361,7 +368,8 @@ public class BoardStateTests
                 }),
                 Snake(3, 6, 6),
                 Snake(4, 0, 9)
-            }
+            },
+            bridges: BridgeOver34
         );
 
         var state = new BoardState(level);

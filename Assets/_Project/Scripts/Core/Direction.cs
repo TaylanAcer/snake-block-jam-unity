@@ -35,6 +35,27 @@ namespace SnakeBlockJam.Core
             }
         }
 
+        // Komşu iki hücre arasındaki adım yönü (köprü yolu, view izi).
+        public static Direction Between(Cell from, Cell to)
+        {
+            int dx = to.X - from.X;
+            int dy = to.Y - from.Y;
+
+            if (dx == 0 && dy == 1) return Direction.Up;
+            if (dx == 1 && dy == 0) return Direction.Right;
+            if (dx == 0 && dy == -1) return Direction.Down;
+            if (dx == -1 && dy == 0) return Direction.Left;
+
+            throw new ArgumentException($"Cells {from} and {to} are not adjacent.");
+        }
+
+        public static BridgeAxis ToAxis(this Direction direction)
+        {
+            return direction == Direction.Up || direction == Direction.Down
+                ? BridgeAxis.Vertical
+                : BridgeAxis.Horizontal;
+        }
+
         public static Direction Opposite(this Direction direction)
         {
             switch (direction)

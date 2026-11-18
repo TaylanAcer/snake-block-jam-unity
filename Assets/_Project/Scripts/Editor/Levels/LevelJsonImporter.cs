@@ -125,9 +125,28 @@ namespace SnakeBlockJam.EditorTools
         [MenuItem("Snake Block Jam/Levels/Import Level 1 From JSON")]
         private static void ImportLevel1()
         {
-            var asset = ImportToAsset(1);
+            ImportAndSelect(1);
+        }
+        [MenuItem("Snake Block Jam/Levels/Import Level 2 From JSON")]
+        private static void ImportLevel2()
+        {
+            ImportAndSelect(2);
+        }
+        [MenuItem("Snake Block Jam/Levels/Import Level 3 From JSON")]
+        private static void ImportLevel3()
+        {
+            ImportAndSelect(3);
+        }
+
+        private static void ImportAndSelect(int levelNumber)
+        {
+            var asset = ImportToAsset(levelNumber);
+
             Selection.activeObject = asset;
-            Debug.Log($"Imported {AssetPath(1)} from {SourcePath}.");
+
+            Debug.Log(
+                $"Imported {AssetPath(levelNumber)} from {SourcePath}."
+            );
         }
 
         // --- Level ----------------------------------------------------------

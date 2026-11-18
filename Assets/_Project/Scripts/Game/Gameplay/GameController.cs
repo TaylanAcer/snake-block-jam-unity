@@ -10,7 +10,9 @@ namespace SnakeBlockJam.Game
     //
     // Model A' (spec §5): hamle dokunulduğu anda çözülür ve uygulanır; view
     // sonucu sonradan oynatır. Kaçışlar input'u kilitlemez ve paralel oynar
-    // (R-CON-03); kaçan yılan modelden anında silinir (R-CON-04).
+    // (R-CON-03); kaçan yılan modelden anında silinir (R-CON-04). Başarısız
+    // hamlede input, çarpma animasyonunun dönüşü bitene kadar kilitlidir
+    // (R-CON-01/02/05).
     public sealed class GameController : MonoBehaviour
     {
         [SerializeField] private LevelData level;
@@ -32,8 +34,18 @@ namespace SnakeBlockJam.Game
         public Camera GameCamera => gameCamera;
         public bool IsLevelClearShown { get; private set; }
 
+        // Başarısız hamlenin gidiş + dönüşü sürüyor; yılan dokunuşları reddedilir.
+        public bool IsInputLocked { get; private set; }
+
         private void Start()
         {
+            LoadLevel();
+        }
+
+        // Başka bir level'ı yükler (testler; ileride level geçişi).
+        public void LoadLevel(LevelData newLevel)
+        {
+            level = newLevel;
             LoadLevel();
         }
 
@@ -54,6 +66,7 @@ namespace SnakeBlockJam.Game
         {
             StopAllCoroutines();
             IsLevelClearShown = false;
+            IsInputLocked = false;
 
             State = new BoardState(level.ToDefinition());
             boardView.Build(level, State);
@@ -86,10 +99,11 @@ namespace SnakeBlockJam.Game
 
         // Yılanın herhangi bir segmentine dokunuş hamledir (R-INP-02).
         // Boş hücre hiçbir şey yapmaz, hamle harcamaz (R-MV-03).
+        // Kilitliyken dokunuş kabul edilmez ve hamle harcamaz (R-CON-01, R-MV-04).
         // Hamle oynandıysa true döner.
         public bool HandleCellTap(Cell cell)
         {
-            if (State == null || State.Status != GameStatus.Playing)
+            if (State == null || State.Status != GameStatus.Playing || IsInputLocked)
                 return false;
 
             if (!TryGetSnakeAt(cell, out int snakeId))
@@ -98,10 +112,16 @@ namespace SnakeBlockJam.Game
             MoveResult result = MoveSimulator.Simulate(State, snakeId);
             State.Apply(result);
 
-            // Blocked: geometri değişmez (R-COL-02); çarpma animasyonu ve input
-            // kilidi Faz 5'te eklenecek.
             if (result.IsEscaped)
+            {
                 boardView.PlayEscape(result, feel.escapeSpeed, gameCamera);
+            }
+            else
+            {
+                // Blocked: geometri değişmez, hamle yine harcandı (R-COL-02, R-MV-02).
+                // Kilit sonuca göre verilir ve dönüş bitince açılır (R-CON-02/05).
+                IsInputLocked = boardView.PlayBlocked(result, feel.escapeSpeed, UnlockInput);
+            }
 
             Debug.Log($"Snake {snakeId}: {result.Outcome}. " +
                       $"Active {State.ActiveSnakeCount}, moves {State.RemainingMoves?.ToString() ?? "∞"}, " +
@@ -111,6 +131,11 @@ namespace SnakeBlockJam.Game
                 StartCoroutine(ShowLevelClear());
 
             return true;
+        }
+
+        private void UnlockInput()
+        {
+            IsInputLocked = false;
         }
 
         // Kazanma modelde anındadır; ALL CLEAR son kaçış ekrandan çıktıktan

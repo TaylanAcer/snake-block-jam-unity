@@ -11,6 +11,10 @@ using UnityEngine;
 public class LevelDataTests
 {
     private const string Level01Path = "Assets/_Project/Data/Levels/Level_01.asset";
+    private const string Level02Path =
+    "Assets/_Project/Data/Levels/Level_02.asset";
+    private const string Level03Path =
+    "Assets/_Project/Data/Levels/Level_03.asset";
 
     private readonly List<Object> _created = new List<Object>();
 
@@ -168,5 +172,67 @@ public class LevelDataTests
         Assert.IsTrue(level.TryGetSnake(2, out var found));
         Assert.AreEqual(SnakeColor.Teal, found.color);
         Assert.IsFalse(level.TryGetSnake(9, out _));
+    }
+    [TestCase(1, 3)]
+    [TestCase(2, 3)]
+    [TestCase(4, 2)]
+    public void Level02Asset_OpeningMoveIsBlocked(
+    int snakeId,
+    int blockerId)
+    {
+        var asset =
+            AssetDatabase.LoadAssetAtPath<LevelData>(Level02Path);
+
+        Assert.IsNotNull(asset);
+
+        var state = new BoardState(asset.ToDefinition());
+
+        MoveResult result =
+            MoveSimulator.Simulate(state, snakeId);
+
+        Assert.AreEqual(MoveOutcome.Blocked, result.Outcome);
+        Assert.AreEqual(blockerId, result.BlockerSnakeId);
+        Assert.AreEqual(1, result.HeadPath.Count);
+    }
+    [Test]
+    public void Level02Asset_MatchesSourceJson()
+    {
+        var asset = AssetDatabase.LoadAssetAtPath<LevelData>(Level02Path);
+
+        Assert.IsNotNull(asset);
+
+        var source = LevelJsonImporter.Parse(
+            File.ReadAllText(LevelJsonImporter.SourcePath)
+        );
+
+        _created.AddRange(source);
+
+        Assert.AreEqual(
+            EditorJsonUtility.ToJson(source[1]),
+            EditorJsonUtility.ToJson(asset)
+        );
+    }
+    [Test]
+    public void Level02Asset_Snake3CanEscape()
+    {
+        var asset = AssetDatabase.LoadAssetAtPath<LevelData>(Level02Path);
+
+        Assert.IsNotNull(asset);
+
+        var state = new BoardState(asset.ToDefinition());
+
+        Assert.AreEqual(9, state.Level.Width);
+        Assert.AreEqual(11, state.Level.Height);
+        Assert.AreEqual(4, state.ActiveSnakeCount);
+        Assert.IsNull(state.RemainingMoves);
+
+        var result = MoveSimulator.Simulate(state, 3);
+
+        Assert.AreEqual(MoveOutcome.EscapedOffBoard, result.Outcome);
+
+        state.Apply(result);
+
+        Assert.AreEqual(3, state.ActiveSnakeCount);
+        Assert.AreEqual(GameStatus.Playing, state.Status);
     }
 }

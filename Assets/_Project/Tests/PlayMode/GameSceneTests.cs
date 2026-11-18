@@ -286,6 +286,189 @@ public class GameSceneTests
         Assert.IsFalse(_controller.IsLevelClearShown, "old level's ALL CLEAR is cancelled");
     }
 
+    // --- Başarısız hamle ve input kilidi (Faz 5) --------------------------------
+    // Level 2 açılışı: 1→3, 2→3, 4→2 çarpar (HeadPath 1 hücre); 3 kaçar.
+    // Mor yılan 1: baş (2,6), aşağı bakıyor; (2,5) boş, (2,4) sarı yılan 3.
+
+    private const string Level02Path = "Assets/_Project/Data/Levels/Level_02.asset";
+    private static readonly Cell Purple1Head = new Cell(2, 6);
+    private static readonly Cell Yellow3Head = new Cell(0, 0);
+
+    // Sabit kare süresi: çarpma ~2 hücrelik, 60 hücre/sn'de birkaç karelik bir
+    // hareket; ölçümün kare hızına bağlı olmaması için.
+    private const float FixedFrame = 1f / 240f;
+
+    private static LevelData LoadLevel02Asset()
+    {
+        LevelData asset = null;
+#if UNITY_EDITOR
+        asset = UnityEditor.AssetDatabase.LoadAssetAtPath<LevelData>(Level02Path);
+#endif
+        Assert.IsNotNull(asset, "Run 'Snake Block Jam/Levels/Import Level 2' first.");
+        return asset;
+    }
+
+    private IEnumerator LoadLevel(LevelData level)
+    {
+        _controller.LoadLevel(level);
+        yield return null; // önceki level'ın view'ları kare sonunda yok edilir
+        Assert.AreEqual(level.snakes.Count, _controller.BoardView.SnakeViewCount);
+    }
+
+    // R-COL-01/02/05, R-COL-04: temasa kadar gider, aynı izden döner; iki yön
+    // de kaçış hızıyla. Model değişmez.
+    [UnityTest]
+    public IEnumerator Blocked_SnakeBumpsToContactAndReturnsToStart()
+    {
+        yield return LoadLevel(LoadLevel02Asset());
+        Time.captureDeltaTime = FixedFrame;
+
+        try
+        {
+            SnakeView purple = FindView(1);
+            Vector3 start = purple.Segments[0].position;
+            Vector3 lastFree = _controller.BoardView.Geometry.CellToWorld(new Cell(2, 5));
+            float peak = 1f + SnakeView.ContactGap;
+
+            Assert.IsTrue(_input.HandlePress(ScreenPointOf(Purple1Head.X, Purple1Head.Y)));
+
+            Assert.IsTrue(_controller.State.IsActive(1), "blocked snake stays on the board");
+            Assert.AreEqual(1, _controller.State.GetOccupant(new LayeredCell(Purple1Head, BoardLayer.Ground)));
+            Assert.IsTrue(_controller.IsInputLocked);
+            Assert.AreEqual(1, _controller.BoardView.BlockedSnakeCount);
+            Assert.IsTrue(purple.IsBlockedMoving);
+
+            float maxTravel = 0f;
+            float minHeadZ = start.z;
+            int frames = 0;
+
+            while (purple.IsMoving && frames < 240)
+            {
+                yield return null;
+                frames++;
+                maxTravel = Mathf.Max(maxTravel, purple.Travel);
+                minHeadZ = Mathf.Min(minHeadZ, purple.Segments[0].position.z);
+            }
+
+            Assert.IsFalse(purple.IsMoving);
+            Assert.LessOrEqual(maxTravel, peak + 1e-4f, "never passes the contact point");
+            Assert.Greater(maxTravel, peak - 60f * FixedFrame - 1e-4f, "reaches the contact point");
+            Assert.GreaterOrEqual(minHeadZ, lastFree.z - SnakeView.ContactGap - 1e-4f, "head stops at the blocker's face");
+
+            // Gidiş + dönüş = 2 × tepe mesafesi, sabit hızda (en fazla bir kare fark).
+            float expected = 2f * peak / _controller.Feel.escapeSpeed;
+            Assert.AreEqual(expected, frames * FixedFrame, FixedFrame + 1e-4f);
+
+            Vector3 end = purple.Segments[0].position;
+            Assert.AreEqual(start.x, end.x, 1e-4f);
+            Assert.AreEqual(start.z, end.z, 1e-4f);
+            Assert.IsFalse(_controller.IsInputLocked);
+            Assert.AreEqual(0, _controller.BoardView.BlockedSnakeCount);
+        }
+        finally
+        {
+            Time.captureDeltaTime = 0f;
+        }
+    }
+
+    // R-CON-01/02: dönüş sürerken dokunuş reddedilir; bitince kabul edilir.
+    [UnityTest]
+    public IEnumerator Blocked_LocksInputUntilReturnFinishes()
+    {
+        yield return LoadLevel(LoadLevel02Asset());
+        Time.captureDeltaTime = FixedFrame;
+
+        try
+        {
+            Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
+            yield return null;
+
+            Assert.IsFalse(_controller.HandleCellTap(Yellow3Head), "other snake rejected while locked");
+            Assert.IsFalse(_controller.HandleCellTap(Purple1Head), "same snake rejected while locked");
+            Assert.IsTrue(_controller.State.IsActive(3));
+
+            yield return WaitUntilOrTimeout(() => !_controller.IsInputLocked, 2f);
+            Assert.IsFalse(_controller.IsInputLocked);
+
+            Assert.IsTrue(_controller.HandleCellTap(Yellow3Head), "accepted after the return");
+            Assert.IsFalse(_controller.State.IsActive(3));
+        }
+        finally
+        {
+            Time.captureDeltaTime = 0f;
+        }
+    }
+
+    // R-MV-02: başarısız hamle de 1 hamle harcar. R-MV-04: kilitliyken
+    // reddedilen dokunuş harcamaz. L2'de sayaç yok; limitli bir kopya kullanılır.
+    [UnityTest]
+    public IEnumerator Blocked_ConsumesMove_RejectedTapDoesNot()
+    {
+        LevelData limited = Object.Instantiate(LoadLevel02Asset());
+        limited.hasMoveLimit = true;
+        limited.moveLimit = 5;
+
+        try
+        {
+            yield return LoadLevel(limited);
+
+            Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
+            Assert.AreEqual(4, _controller.State.RemainingMoves);
+
+            Assert.IsFalse(_controller.HandleCellTap(Yellow3Head));
+            Assert.AreEqual(4, _controller.State.RemainingMoves);
+
+            yield return WaitUntilOrTimeout(() => !_controller.IsInputLocked, 2f);
+
+            Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
+            Assert.AreEqual(3, _controller.State.RemainingMoves);
+        }
+        finally
+        {
+            Object.Destroy(limited);
+        }
+    }
+
+    // R-CON-03/05: kaçış input'u kilitlemez; kaçış sürerken başarısız hamle
+    // kabul edilir ve kilit sadece o hamle için verilir.
+    [UnityTest]
+    public IEnumerator Escape_DoesNotLock_BlockedDuringEscapeIsAccepted()
+    {
+        yield return LoadLevel(LoadLevel02Asset());
+
+        Assert.IsTrue(_controller.HandleCellTap(Yellow3Head));
+        Assert.AreEqual(1, _controller.BoardView.EscapingSnakeCount);
+        Assert.IsFalse(_controller.IsInputLocked, "escape keeps input open");
+
+        Cell blue4Head = _controller.State.GetSnake(4).Body[0].Cell;
+        Assert.IsTrue(_controller.HandleCellTap(blue4Head));
+
+        Assert.IsTrue(_controller.State.IsActive(4), "4 is blocked by 2");
+        Assert.IsTrue(_controller.IsInputLocked);
+        Assert.AreEqual(1, _controller.BoardView.EscapingSnakeCount, "escape still playing");
+        Assert.AreEqual(1, _controller.BoardView.BlockedSnakeCount);
+    }
+
+    [UnityTest]
+    public IEnumerator Restart_DuringBump_UnlocksInput()
+    {
+        yield return LoadLevel(LoadLevel02Asset());
+
+        Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
+        Assert.IsTrue(_controller.IsInputLocked);
+
+        _controller.Restart();
+        yield return null;
+
+        Assert.IsFalse(_controller.IsInputLocked);
+        Assert.AreEqual(0, _controller.BoardView.BlockedSnakeCount);
+        Assert.AreEqual(4, Object.FindObjectsByType<SnakeView>(FindObjectsSortMode.None).Length);
+
+        yield return new WaitForSeconds(0.2f);
+        Assert.IsFalse(_controller.IsInputLocked, "old bump does not touch the new level");
+        Assert.IsTrue(_controller.HandleCellTap(Yellow3Head));
+    }
+
     // --- Gerçek Input System cihazları ----------------------------------------
     // Test sırasında Unity penceresi odakta olmayabilir (batchmode); geçici
     // ayarlarla cihaz girdisi yine de oyuna ulaşır. Proje ayarları değişmez.

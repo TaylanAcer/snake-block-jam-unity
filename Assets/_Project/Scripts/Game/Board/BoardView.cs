@@ -48,6 +48,7 @@ namespace SnakeBlockJam.Game
         // Tahtadaki (aktif) yılanların view'ları; kaçanlar burada değildir.
         private readonly Dictionary<int, SnakeView> _snakes = new Dictionary<int, SnakeView>();
         private readonly List<SnakeView> _escaping = new List<SnakeView>();
+        private readonly List<SnakeView> _blocking = new List<SnakeView>();
         private readonly List<Material> _materials = new List<Material>();
         private Material[] _snakeMaterials;
         private Material _groundMaterial;
@@ -62,6 +63,9 @@ namespace SnakeBlockJam.Game
 
         // Hâlâ ekranda kaçmakta olan yılan sayısı.
         public int EscapingSnakeCount => _escaping.Count;
+
+        // Çarpma animasyonu (gidiş + dönüş) oynayan yılan sayısı.
+        public int BlockedSnakeCount => _blocking.Count;
 
         public bool HasSnakeView(int snakeId)
         {
@@ -79,7 +83,7 @@ namespace SnakeBlockJam.Game
             _content.SetParent(transform, false);
 
             CreateGround();
-            CreateDots();
+            CreateDots(state);
 
             foreach (var snake in state.Level.Snakes)
             {
@@ -116,10 +120,35 @@ namespace SnakeBlockJam.Game
             DestroyObject(view.gameObject);
         }
 
+        // Başarısız hamle: yılan tahtada kalır (model değişmedi, R-COL-02), view
+        // temasa kadar gidip döner. Dönüş bitince 'onFinished' çağrılır. Level
+        // yeniden kurulursa (Clear) eski animasyonun bildirimi iletilmez.
+        // Animasyon başladıysa true döner.
+        public bool PlayBlocked(MoveResult result, float speed, System.Action onFinished)
+        {
+            if (result.Outcome != MoveOutcome.Blocked)
+                throw new System.ArgumentException("Only blocked moves bump.", nameof(result));
+
+            if (!_snakes.TryGetValue(result.SnakeId, out var view))
+                return false;
+
+            var track = SnakeTrack.ForMove(view.Definition, result, Geometry, 0);
+            float peak = result.HeadPath.Count + SnakeView.ContactGap;
+
+            _blocking.Add(view);
+            view.PlayBlocked(track, peak, speed, finished =>
+            {
+                if (_blocking.Remove(finished))
+                    onFinished?.Invoke();
+            });
+            return true;
+        }
+
         public void Clear()
         {
             _snakes.Clear();
             _escaping.Clear();
+            _blocking.Clear();
 
             if (_content != null)
                 DestroyObject(_content.gameObject);
@@ -174,10 +203,25 @@ namespace SnakeBlockJam.Game
             t.localScale = new Vector3(GroundSize, GroundSize, 1f);
         }
 
-        // Nokta sadece çift (x, y) hücrelerde; yılanların altında da var
-        // (BoardGeometry.HasGridDot, R-MOV-07).
-        // Not: büyük level'larda (27×31) ~200 obje; gerekirse tek mesh'e çevrilir.
-        private void CreateDots()
+        // Bu hücrede grid noktası var mı? 'initialState' level'ın başlangıç durumu
+        // olmalıdır. Nokta = çift (x, y) hücre (BoardGeometry.HasGridDot) VE
+        // başlangıçta bir yılanın altında. Noktalar yılan kaçınca görünür (R-MOV-07).
+        //
+        // INFERRED: noktalar tahtanın kendi hücrelerinde; elimizdeki level'larda
+        // tahta şekli pratikte başlangıçtaki yılan hücreleri. Kanıt: 20 başlangıç
+        // karesinin 19'unda hiç nokta yok; L2 videosunda ~3 sn beklenince boş
+        // hücrelerde nokta belirmiyor. Bilinen istisna: Level_15.png'de yılansız
+        // bazı çift hücrelerde nokta var (L15 tahta şekli daha geniş). JSON'da
+        // tahta maskesi olmadığı için bu kural L15'te birebir değildir.
+        public static bool HasDot(BoardState initialState, Cell cell)
+        {
+            return BoardGeometry.HasGridDot(cell)
+                   && (initialState.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)) != 0
+                       || initialState.GetOccupant(new LayeredCell(cell, BoardLayer.BridgeTop)) != 0);
+        }
+
+        // Not: büyük level'larda yüzlerce obje olabilir; gerekirse tek mesh'e çevrilir.
+        private void CreateDots(BoardState initialState)
         {
             var dots = new GameObject("Dots").transform;
             dots.SetParent(_content, false);
@@ -186,7 +230,7 @@ namespace SnakeBlockJam.Game
             {
                 for (int x = 0; x < Geometry.Width; x++)
                 {
-                    if (!BoardGeometry.HasGridDot(new Cell(x, y)))
+                    if (!HasDot(initialState, new Cell(x, y)))
                         continue;
 
                     var dot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

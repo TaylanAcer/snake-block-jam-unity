@@ -11,6 +11,7 @@ namespace SnakeBlockJam.Game
     // Kural bilmez: duruşu bir SnakeTrack üzerindeki 'travel' mesafesinden
     // hesaplanır. Kaçışta Update içinde sabit hızla ilerler (ease yok, R-MOV-05/06),
     // yılan ekrandan çıkınca (R-MOV-07) veya tünele tamamen girince bildirir.
+    // Çarpmada temasa kadar gidip aynı izden döner, dönüş bitince bildirir.
     //
     // Ölçüler hücre biriminde ve Level_01.png'ye göre yaklaşık (OBSERVED).
     public sealed class SnakeView : MonoBehaviour
@@ -29,9 +30,16 @@ namespace SnakeBlockJam.Game
         private const float EyeSpacing = 0.22f;
         private const float PupilSize = 0.22f;
 
+        // Çarpmada baş son boş hücreden bu kadar ileri gider: baş bloğunun ön yüzü
+        // engel bloğunun yüzüne değer (iki blok arası boşluk). INFERRED: R-COL-01
+        // "temasa kadar ilerler"; mesafe referanstan ölçülmedi, blok ölçüsünden türetildi.
+        public const float ContactGap = 1f - BlockWidth;
+
         // Kuyruk ucu kuyruğun ~0,55 hücre gerisinde; ekrandan çıkış bu noktayla ölçülür.
         private const float TrailingReach = 1f;
         private const float ViewportMargin = 0.02f;
+
+        private enum Motion { None, Escape, BlockedForward, BlockedReturn }
 
         // Segment kökleri: zeminde, hücre merkezinde; +z ilerleme yönü.
         private readonly List<Transform> _segments = new List<Transform>();
@@ -40,8 +48,11 @@ namespace SnakeBlockJam.Game
         private readonly List<Transform> _links = new List<Transform>();
         private readonly List<float> _linkOffsets = new List<float>();
 
+        private SnakeTrack _restTrack;
         private SnakeTrack _track;
         private MoveOutcome _outcome;
+        private Motion _motion;
+        private float _peakTravel;
         private float _speed;
         private Camera _viewCamera;
         private Action<SnakeView> _onFinished;
@@ -52,9 +63,13 @@ namespace SnakeBlockJam.Game
         // Baştan kuyruğa segment kökleri.
         public IReadOnlyList<Transform> Segments => _segments;
 
-        public bool IsMoving { get; private set; }
+        public bool IsMoving => _motion != Motion.None;
 
-        // Hareket başından beri kat edilen mesafe (hücre).
+        // Çarpma animasyonu (gidiş veya dönüş) sürüyor.
+        public bool IsBlockedMoving => _motion == Motion.BlockedForward || _motion == Motion.BlockedReturn;
+
+        // Hareket başından beri kat edilen mesafe (hücre). Çarpmada önce artar,
+        // dönüşte 0'a iner.
         public float Travel { get; private set; }
 
         public void Build(
@@ -101,7 +116,8 @@ namespace SnakeBlockJam.Game
                 }
             }
 
-            SetPose(SnakeTrack.ForBody(snake, geometry), 0f);
+            _restTrack = SnakeTrack.ForBody(snake, geometry);
+            SetPose(_restTrack, 0f);
         }
 
         // Kaçış animasyonunu başlatır. Mantıksal kaldırma zaten yapılmıştır
@@ -119,22 +135,71 @@ namespace SnakeBlockJam.Game
             _viewCamera = viewCamera;
             _onFinished = onFinished;
             Travel = 0f;
-            IsMoving = true;
+            _motion = Motion.Escape;
+            SetPose(track, 0f);
+        }
+
+        // Başarısız hamle (R-COL-01/05): yılan 'peakTravel' mesafesine kadar ilerler,
+        // aynı izden başlangıca döner. İki yön de sabit hızla (R-COL-04: gidiş kaçış
+        // hızıyla aynı; dönüşün farklı olduğu ölçülemedi). Model değişmedi (R-COL-02).
+        public void PlayBlocked(SnakeTrack track, float peakTravel, float speed, Action<SnakeView> onFinished)
+        {
+            _track = track;
+            _outcome = MoveOutcome.Blocked;
+            _peakTravel = Mathf.Clamp(peakTravel, 0f, track.Length);
+            _speed = speed;
+            _viewCamera = null;
+            _onFinished = onFinished;
+            Travel = 0f;
+            _motion = Motion.BlockedForward;
             SetPose(track, 0f);
         }
 
         private void Update()
         {
-            if (!IsMoving)
-                return;
+            switch (_motion)
+            {
+                case Motion.Escape:
+                    Travel += _speed * Time.deltaTime;
+                    SetPose(_track, Travel);
 
-            Travel += _speed * Time.deltaTime;
-            SetPose(_track, Travel);
+                    if (HasLeft())
+                        Finish();
+                    break;
 
-            if (!HasLeft())
-                return;
+                case Motion.BlockedForward:
+                    Travel += _speed * Time.deltaTime;
 
-            IsMoving = false;
+                    // Tepeyi geçen mesafe aynı karede geri dönüşe sayılır.
+                    if (Travel >= _peakTravel)
+                    {
+                        Travel = Mathf.Max(0f, 2f * _peakTravel - Travel);
+                        _motion = Motion.BlockedReturn;
+                    }
+
+                    SetPose(_track, Travel);
+                    break;
+
+                case Motion.BlockedReturn:
+                    Travel -= _speed * Time.deltaTime;
+
+                    if (Travel > 0f)
+                    {
+                        SetPose(_track, Travel);
+                        break;
+                    }
+
+                    // Başlangıç duruşu (hareket izinin 0 noktasıyla aynı yerler).
+                    Travel = 0f;
+                    SetPose(_restTrack, 0f);
+                    Finish();
+                    break;
+            }
+        }
+
+        private void Finish()
+        {
+            _motion = Motion.None;
             Action<SnakeView> onFinished = _onFinished;
             _onFinished = null;
             onFinished?.Invoke(this);

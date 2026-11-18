@@ -46,10 +46,29 @@ namespace SnakeBlockJam.Game
                     $"Result belongs to snake {result.SnakeId}, not {snake.Id}.", nameof(result));
 
             bool offBoard = result.Outcome == MoveOutcome.EscapedOffBoard;
-            var points = BodyPoints(snake, geometry, result.HeadPath.Count + (offBoard ? extensionCells : 0));
+            bool blocked = result.Outcome == MoveOutcome.Blocked;
+
+            var points = BodyPoints(
+                snake,
+                geometry,
+                result.HeadPath.Count
+                    + (offBoard ? extensionCells : 0)
+                    + (blocked ? 1 : 0)
+            );
 
             foreach (var step in result.HeadPath)
                 points.Add(geometry.CellToWorld(step.Cell, step.Layer));
+            if (blocked)
+            {
+                LayeredCell blockedCell = result.BlockedAt.Value;
+
+                points.Add(
+                    geometry.CellToWorld(
+                        blockedCell.Cell,
+                        blockedCell.Layer
+                    )
+                );
+            }
 
             if (offBoard)
             {

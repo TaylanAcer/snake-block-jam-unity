@@ -120,26 +120,15 @@ public class BoardGeometryTests
         Assert.AreEqual(expected, BoardGeometry.HasGridDot(new Cell(x, y)));
     }
 
-    private static int CountFreeDotCells(int levelNumber, int? row = null)
+    // Kaynak JSON'dan level'ın başlangıç durumu.
+    private static BoardState InitialState(int levelNumber)
     {
         var levels = SnakeBlockJam.EditorTools.LevelJsonImporter.Parse(
             System.IO.File.ReadAllText(SnakeBlockJam.EditorTools.LevelJsonImporter.SourcePath));
 
         try
         {
-            var state = new BoardState(levels[levelNumber - 1].ToDefinition());
-            int free = 0;
-
-            for (int y = 0; y < state.Level.Height; y++)
-                for (int x = 0; x < state.Level.Width; x++)
-                {
-                    var cell = new Cell(x, y);
-                    if ((row == null || row == y) && BoardGeometry.HasGridDot(cell) &&
-                        state.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)) == 0)
-                        free++;
-                }
-
-            return free;
+            return new BoardState(levels[levelNumber - 1].ToDefinition());
         }
         finally
         {
@@ -148,17 +137,66 @@ public class BoardGeometryTests
         }
     }
 
-    [Test]
-    public void Level01_EveryDotIsUnderASnake_SoNoneIsVisibleAtStart()
+    private static int CountDots(BoardState state)
     {
-        Assert.AreEqual(0, CountFreeDotCells(1));
+        int count = 0;
+
+        for (int y = 0; y < state.Level.Height; y++)
+            for (int x = 0; x < state.Level.Width; x++)
+                if (BoardView.HasDot(state, new Cell(x, y)))
+                    count++;
+
+        return count;
+    }
+
+    // L1: 4 × 5 = 20 çift hücrenin hepsi yılan altında → hepsi nokta, hiçbiri
+    // başlangıçta görünmez (Level_01.png).
+    [Test]
+    public void Level01_AllEvenCellsAreUnderSnakes_AllHaveDots()
+    {
+        Assert.AreEqual(20, CountDots(InitialState(1)));
+    }
+
+    // L2: yılansız çift hücrelerde nokta yok (Level_02.png ve L2 videosu ~3. sn).
+    [TestCase(0, 6)]
+    [TestCase(0, 8)]
+    [TestCase(0, 10)]
+    [TestCase(8, 6)]
+    [TestCase(8, 8)]
+    [TestCase(8, 10)]
+    public void Level02_EmptyEvenCellsHaveNoDot(int x, int y)
+    {
+        var state = InitialState(2);
+
+        Assert.AreEqual(0, state.GetOccupant(new LayeredCell(new Cell(x, y), BoardLayer.Ground)), "cell is empty");
+        Assert.IsFalse(BoardView.HasDot(state, new Cell(x, y)));
     }
 
     [Test]
-    public void Level15_VisibleDotsMatchReferenceStartFrame()
+    public void Level02_EvenCellUnderSnakeHasDot_OddCellHasNone()
     {
-        Assert.AreEqual(6, CountFreeDotCells(15, row: 24), "top row: x = 0, 16, 18, 20, 22, 24");
-        Assert.AreEqual(10, CountFreeDotCells(15, row: 0), "bottom row: 5 + 5 dots");
+        var state = InitialState(2);
+
+        Assert.IsTrue(BoardView.HasDot(state, new Cell(0, 0)), "yellow snake 3 head");
+        Assert.IsFalse(BoardView.HasDot(state, new Cell(3, 0)), "odd x, under yellow snake 4");
+    }
+
+    // Aralık kuralının (çift x, çift y) kanıtı: Level_15.png'de yılansız hücrelerde
+    // görünen noktalar tam bu hücreler. Bilinen veri eksiği: L15'in tahta şekli
+    // yılanlardan geniş ve JSON'da tahta maskesi yok, bu yüzden HasDot bu
+    // noktaları çizmez (BoardView.HasDot yorumu).
+    [Test]
+    public void Level15_ReferenceDotsSitOnFreeEvenCells()
+    {
+        var state = InitialState(15);
+        int[] topRow = { 0, 16, 18, 20, 22, 24 };
+
+        foreach (int x in topRow)
+        {
+            var cell = new Cell(x, 24);
+            Assert.IsTrue(BoardGeometry.HasGridDot(cell), $"x {x}");
+            Assert.AreEqual(0, state.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)), $"x {x} free");
+        }
     }
 
     [Test]

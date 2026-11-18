@@ -137,6 +137,52 @@ public class SnakeTrackTests
         AssertVector(At(geometry, 4, 1), track.Sample(track.Length));
     }
 
+    // --- Çarpışma izi (Faz 5) --------------------------------------------------
+    // Blocked: iz, çarpılan hücrenin merkezinde biter. Animasyon bu noktaya kadar
+    // gitmez; temas payı kadar ilerleyip aynı izden geri döner (R-COL-01/05).
+
+    private static (BoardState state, BoardGeometry geometry) BoardWithBlocker(
+        SnakeDefinition mover, SnakeDefinition blocker)
+    {
+        var level = new LevelDefinition(6, 3, null, new[] { mover, blocker }, null, null, null);
+        return (new BoardState(level), new BoardGeometry(6, 3));
+    }
+
+    [Test]
+    public void ForMove_Blocked_TrackEndsAtBlockedCell()
+    {
+        var (state, geometry) = BoardWithBlocker(
+            new SnakeDefinition(1, Direction.Right, new[] { new Cell(1, 1), new Cell(0, 1) }),
+            new SnakeDefinition(2, Direction.Up, new[] { new Cell(4, 1), new Cell(4, 0) }));
+        var result = MoveSimulator.Simulate(state, 1);
+        var track = SnakeTrack.ForMove(state.GetSnake(1), result, geometry, extensionCells: 10);
+
+        Assert.AreEqual(MoveOutcome.Blocked, result.Outcome);
+        Assert.AreEqual(2, result.HeadPath.Count);
+
+        // (N - 1) + HeadPath + çarpılan hücre; uzatma eklenmez.
+        Assert.AreEqual(1 + 2 + 1, track.Length, 1e-4f);
+        AssertVector(At(geometry, 3, 1), track.Sample(track.SegmentDistance(0, result.HeadPath.Count)), "last free cell");
+        AssertVector(At(geometry, 4, 1), track.Sample(track.Length), "blocked cell");
+    }
+
+    [Test]
+    public void ForMove_Blocked_AdjacentBlocker_TrackIsBodyPlusBlockedCell()
+    {
+        var (state, geometry) = BoardWithBlocker(
+            new SnakeDefinition(1, Direction.Right, new[] { new Cell(1, 1), new Cell(0, 1) }),
+            new SnakeDefinition(2, Direction.Up, new[] { new Cell(2, 1), new Cell(2, 0) }));
+        var result = MoveSimulator.Simulate(state, 1);
+        var track = SnakeTrack.ForMove(state.GetSnake(1), result, geometry, extensionCells: 10);
+
+        Assert.AreEqual(MoveOutcome.Blocked, result.Outcome);
+        Assert.AreEqual(0, result.HeadPath.Count);
+        Assert.AreEqual(1 + 0 + 1, track.Length, 1e-4f);
+        AssertVector(At(geometry, 1, 1), track.Sample(track.SegmentDistance(0, 0f)), "head at rest");
+        AssertVector(At(geometry, 2, 1), track.Sample(track.Length), "blocked cell");
+        AssertVector(Vector3.right, track.Direction(track.SegmentDistance(0, 0f)));
+    }
+
     [Test]
     public void ForMove_ResultOfAnotherSnake_Throws()
     {

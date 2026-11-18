@@ -3,15 +3,19 @@
     "rootNamespace": "",
     "references": [
         "GUID:5650d0107b8283c4ea62e9183b4a6a7a",
-        "GUID:8aa0aaa8402d6d94e83dad213d3621a2"
+        "GUID:8aa0aaa8402d6d94e83dad213d3621a2",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:2bafac87e7f4b9b418d9448d219b01ab"
     ],
     "includePlatforms": [
         "Editor"
     ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll"
+    ],
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],

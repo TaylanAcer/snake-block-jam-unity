@@ -93,7 +93,13 @@ namespace SnakeBlockJam.Game
             return BodyLength - 1 - segmentIndex + travel;
         }
 
-        // İz üzerindeki nokta; uçlarda sabitlenir.
+        // Köprüye çıkış/iniş: yükseklik değişimi hücrenin bu kadarında biter.
+        // Doğrusal olsaydı başın ön yüzü tablanın ön kenarına girerdi (tabla uç
+        // hücre merkezinden 0,15 önce başlıyor, baş yarı genişliği 0,44).
+        public const float RampPortion = 0.4f;
+
+        // İz üzerindeki nokta; uçlarda sabitlenir. Yatayda doğrusal; katman
+        // değişen parçada yükseklik çıkışta başta, inişte sonda değişir.
         public Vector3 Sample(float distance)
         {
             if (distance <= 0f)
@@ -105,7 +111,17 @@ namespace SnakeBlockJam.Game
                 return _points[last];
 
             int index = (int)distance;
-            return Vector3.Lerp(_points[index], _points[index + 1], distance - index);
+            float t = distance - index;
+            Vector3 from = _points[index];
+            Vector3 to = _points[index + 1];
+            Vector3 point = Vector3.Lerp(from, to, t);
+
+            if (to.y > from.y)
+                point.y = Mathf.Lerp(from.y, to.y, Mathf.Clamp01(t / RampPortion));
+            else if (to.y < from.y)
+                point.y = Mathf.Lerp(from.y, to.y, Mathf.Clamp01((t - (1f - RampPortion)) / RampPortion));
+
+            return point;
         }
 
         // O noktadaki yatay ilerleme yönü. Tam köşe noktasında ileri parça.

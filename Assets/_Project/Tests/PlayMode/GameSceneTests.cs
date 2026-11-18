@@ -469,6 +469,300 @@ public class GameSceneTests
         Assert.IsTrue(_controller.HandleCellTap(Yellow3Head));
     }
 
+    // --- HUD, kazanma ve kaybetme (Faz 6) --------------------------------------
+
+    private LevelData CatalogLevel(int number)
+    {
+        foreach (var level in _controller.Catalog.levels)
+        {
+            if (level.levelNumber == number)
+                return level;
+        }
+
+        Assert.Fail($"Level {number} is not in the catalog.");
+        return null;
+    }
+
+    private static GameObject FindChild(string parent, string child)
+    {
+        return GameObject.Find(parent).transform.Find(child).gameObject;
+    }
+
+    private static Text ResultText(string path)
+    {
+        return GameObject.Find("Result").transform.Find(path).GetComponent<Text>();
+    }
+
+    // Kaçabilen ilk yılanın başına dokunur. Kaçabilen yoksa false.
+    private bool TapFirstEscapingSnake()
+    {
+        foreach (var snake in _controller.State.Level.Snakes)
+        {
+            if (!_controller.State.IsActive(snake.Id))
+                continue;
+
+            if (MoveSimulator.Simulate(_controller.State, snake.Id).IsEscaped)
+                return _controller.HandleCellTap(_controller.State.GetSnake(snake.Id).Body[0].Cell);
+        }
+
+        return false;
+    }
+
+    // R-MV-05: L1–L5'te sayaç yok; referansta HUD kutusu görünmüyor.
+    [Test]
+    public void Hud_NoMoveLimit_HidesCounter()
+    {
+        Assert.IsFalse(FindChild("Hud", "MovesPanel").activeSelf);
+        Assert.IsFalse(FindChild("Hud", "AllClear").activeSelf);
+        Assert.IsFalse(FindChild("Result", "Overlay").activeSelf);
+    }
+
+    // R-MV-01/02: `Hamle: N` + `Seviye N`; kabul edilen dokunuşla azalır.
+    [UnityTest]
+    public IEnumerator Hud_Level07_ShowsMovesAndLevel_CountsDown()
+    {
+        yield return LoadLevel(CatalogLevel(7));
+
+        var movesText = GameObject.Find("Hud").transform.Find("MovesPanel/Box/Label").GetComponent<Text>();
+        var levelText = GameObject.Find("Hud").transform.Find("MovesPanel/LevelRibbon/Label").GetComponent<Text>();
+
+        Assert.IsTrue(FindChild("Hud", "MovesPanel").activeSelf);
+        Assert.AreEqual("Hamle: 31", movesText.text);
+        Assert.AreEqual("Seviye 7", levelText.text);
+
+        Assert.IsTrue(TapFirstEscapingSnake());
+        Assert.AreEqual("Hamle: 30", movesText.text);
+    }
+
+    // R-LOS-01/02: son hamle başarısız → hareket biter + bekleme → HAMLE YOK.
+    // Tekrar Dene level'ı baştan kurar (spec §13). L2'nin 1 hamlelik kopyası.
+    [UnityTest]
+    public IEnumerator OutOfMoves_ShowsWindowAfterBump_RetryRestarts()
+    {
+        LevelData limited = Object.Instantiate(LoadLevel02Asset());
+        limited.hasMoveLimit = true;
+        limited.moveLimit = 1;
+
+        try
+        {
+            yield return LoadLevel(limited);
+
+            Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
+            Assert.AreEqual(GameStatus.Lost, _controller.State.Status, "model loses at once");
+            Assert.AreEqual(GamePhase.Playing, _controller.Phase, "window waits for the bump");
+            float tapTime = Time.time;
+
+            yield return WaitUntilOrTimeout(() => _controller.Phase == GamePhase.OutOfMoves, 3f);
+
+            Assert.AreEqual(GamePhase.OutOfMoves, _controller.Phase);
+            Assert.GreaterOrEqual(Time.time - tapTime, _controller.Feel.outOfMovesDelay - 0.02f);
+            Assert.IsTrue(FindChild("Result", "Overlay").activeSelf);
+            Assert.AreEqual("HAMLE YOK!", ResultText("Overlay/Card/Header/Title").text);
+            Assert.AreEqual("Tekrar Dene", ResultText("Overlay/Card/Button/Label").text);
+            Assert.IsTrue(_input.IsOverUI(ScreenPointOf(Yellow3Head.X, Yellow3Head.Y)), "window blocks the board");
+
+            GameObject.Find("Result").transform.Find("Overlay/Card/Button").GetComponent<Button>().onClick.Invoke();
+            yield return null;
+
+            Assert.AreEqual(GamePhase.Playing, _controller.Phase);
+            Assert.AreEqual(1, _controller.State.RemainingMoves);
+            Assert.AreEqual(4, _controller.State.ActiveSnakeCount);
+            Assert.IsFalse(FindChild("Result", "Overlay").activeSelf);
+        }
+        finally
+        {
+            Object.Destroy(limited);
+        }
+    }
+
+    // R-WIN-02/03, R-TRN-07: L1–L4'te ALL CLEAR'dan sonra TAMAMLANDI yok,
+    // sonraki level doğrudan açılır.
+    [UnityTest]
+    public IEnumerator Win_Level01_AllClearThenNextLevelDirectly()
+    {
+        LevelData next = _controller.Catalog.GetNext(_controller.Level);
+        bool sawCompleted = false;
+        bool sawAllClearText = false;
+        _controller.Changed += () =>
+        {
+            sawCompleted |= _controller.Phase == GamePhase.Completed;
+            sawAllClearText |= _controller.Phase == GamePhase.AllClear && FindChild("Hud", "AllClear").activeSelf;
+        };
+
+        Assert.IsTrue(_controller.HandleCellTap(new Cell(0, 8)));
+        Assert.IsTrue(_controller.HandleCellTap(new Cell(6, 8)));
+        Assert.IsTrue(_controller.HandleCellTap(new Cell(0, 0)));
+
+        yield return WaitUntilOrTimeout(() => _controller.Level == next, 5f);
+
+        Assert.AreSame(next, _controller.Level);
+        Assert.IsTrue(sawAllClearText, "ALL CLEAR shown on every level");
+        Assert.IsFalse(sawCompleted, "no TAMAMLANDI before level 5");
+        Assert.AreEqual(GamePhase.Playing, _controller.Phase);
+        Assert.IsFalse(FindChild("Hud", "AllClear").activeSelf);
+    }
+
+    // R-WIN-03, R-TRN-04: L5+ → ALL CLEAR → TAMAMLANDI → Devam → sonraki level.
+    [UnityTest]
+    public IEnumerator Win_Level07_CompletedWindow_ContinueLoadsNext()
+    {
+        LevelData level07 = CatalogLevel(7);
+        yield return LoadLevel(level07);
+
+        while (_controller.State.Status == GameStatus.Playing)
+            Assert.IsTrue(TapFirstEscapingSnake(), "greedy escape exists");
+
+        Assert.AreEqual(GameStatus.Won, _controller.State.Status);
+
+        yield return WaitUntilOrTimeout(() => _controller.Phase == GamePhase.Completed, 8f);
+
+        Assert.AreEqual(GamePhase.Completed, _controller.Phase);
+        Assert.IsTrue(FindChild("Result", "Overlay").activeSelf);
+        Assert.IsFalse(FindChild("Hud", "AllClear").activeSelf, "ALL CLEAR gone when the window opens");
+        Assert.AreEqual("TAMAMLANDI", ResultText("Overlay/Card/Header/Title").text);
+        Assert.AreEqual("Devam", ResultText("Overlay/Card/Button/Label").text);
+
+        GameObject.Find("Result").transform.Find("Overlay/Card/Button").GetComponent<Button>().onClick.Invoke();
+        yield return null;
+
+        Assert.AreSame(_controller.Catalog.GetNext(level07), _controller.Level);
+        Assert.AreEqual(GamePhase.Playing, _controller.Phase);
+        Assert.IsFalse(FindChild("Result", "Overlay").activeSelf);
+    }
+
+    // --- Köprü görseli ve dokunma ------------------------------------------------
+
+    // R-BRG-02: L5'te bir düz köprü çizilir.
+    [UnityTest]
+    public IEnumerator Bridge_Level05_DrawsOneBridge()
+    {
+        yield return LoadLevel(CatalogLevel(5));
+
+        Assert.AreEqual(1, _controller.BoardView.BridgeCount);
+        Assert.AreEqual(1, Object.FindObjectsByType<BridgeView>(FindObjectsSortMode.None).Length);
+    }
+
+    private static Bounds PieceBounds(string pieceName)
+    {
+        var bridge = Object.FindAnyObjectByType<BridgeView>();
+
+        foreach (var renderer in bridge.GetComponentsInChildren<MeshRenderer>())
+        {
+            if (renderer.name == pieceName)
+                return renderer.bounds;
+        }
+
+        Assert.Fail($"{pieceName} not found");
+        return default;
+    }
+
+    // Çizilen tabla gerçekten BridgeTopHeight'ta: üstteki yılan asfaltın üstünde,
+    // tabla da zemin yılanının üstünde (R-BRG-03). Hata: yükseklik iki kez
+    // eklenince tabla üstteki yılanı örtüyordu.
+    [UnityTest]
+    public IEnumerator Bridge_TopSnakeIsDrawnAboveTheDeck()
+    {
+        LevelData level = BridgeTestLevel();
+
+        try
+        {
+            yield return LoadLevel(level);
+
+            Bounds asphalt = PieceBounds("Asphalt");
+            Bounds deck = PieceBounds("Deck");
+            Bounds topBlock = FindView(1).Segments[1].GetComponentInChildren<MeshRenderer>().bounds;
+            Bounds groundBlock = FindView(2).Segments[0].GetComponentInChildren<MeshRenderer>().bounds;
+
+            Assert.AreEqual(BoardGeometry.BridgeTopHeight, asphalt.max.y, 1e-3f);
+            Assert.GreaterOrEqual(topBlock.min.y, asphalt.max.y - 1e-3f, "top snake on the asphalt");
+            Assert.Greater(deck.min.y, groundBlock.max.y, "deck above the snake under it");
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
+    }
+
+    private static SegmentData Seg(int x, int y, BoardLayer layer)
+    {
+        return new SegmentData { cell = new Vector2Int(x, y), layer = layer };
+    }
+
+    // 7×7: (1,3)…(5,3) yatay köprü. Yılan 1 üstte (R-BRG-03), yılan 2 aynı
+    // (3,3) hücresinden altta geçiyor (R-BRG-04).
+    private static LevelData BridgeTestLevel()
+    {
+        var level = ScriptableObject.CreateInstance<LevelData>();
+        level.levelNumber = 99;
+        level.width = 7;
+        level.height = 7;
+
+        var bridge = new BridgeData();
+        for (int x = 1; x <= 5; x++)
+            bridge.path.Add(new Vector2Int(x, 3));
+        level.bridges.Add(bridge);
+
+        var top = new SnakeData { id = 1, color = SnakeColor.Yellow, direction = Direction.Right };
+        top.body.AddRange(new[]
+        {
+            Seg(4, 3, BoardLayer.BridgeTop), Seg(3, 3, BoardLayer.BridgeTop), Seg(2, 3, BoardLayer.BridgeTop)
+        });
+
+        var under = new SnakeData { id = 2, color = SnakeColor.Blue, direction = Direction.Up };
+        under.body.AddRange(new[]
+        {
+            Seg(3, 3, BoardLayer.Ground), Seg(3, 2, BoardLayer.Ground), Seg(3, 1, BoardLayer.Ground)
+        });
+
+        level.snakes.Add(top);
+        level.snakes.Add(under);
+        return level;
+    }
+
+    // R-BRG-04/08: üstteki yılana dokunmak onu oynatır. Dokunuş yılanın üst
+    // yüzüne yapılır; köprü yüksek olduğu için düz zemin düzlemi yanlış hücre verirdi.
+    [UnityTest]
+    public IEnumerator Bridge_TapOnTopSnake_MovesTopSnake()
+    {
+        LevelData level = BridgeTestLevel();
+
+        try
+        {
+            yield return LoadLevel(level);
+            Vector3 topHead = _controller.BoardView.Geometry.CellToWorld(new Cell(4, 3), BoardLayer.BridgeTop)
+                              + Vector3.up * SnakeView.BlockHeight;
+
+            Assert.IsTrue(_input.HandlePress(_controller.GameCamera.WorldToScreenPoint(topHead)));
+
+            Assert.IsFalse(_controller.State.IsActive(1), "top snake escaped");
+            Assert.IsTrue(_controller.State.IsActive(2), "snake under the bridge stays");
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
+    }
+
+    // Köprü dışındaki zemin yılanı eskisi gibi seçilir.
+    [UnityTest]
+    public IEnumerator Bridge_TapOnGroundSnakeOutsideBridge_MovesIt()
+    {
+        LevelData level = BridgeTestLevel();
+
+        try
+        {
+            yield return LoadLevel(level);
+
+            Assert.IsTrue(_input.HandlePress(ScreenPointOf(3, 1)));
+            Assert.IsTrue(_controller.State.IsActive(1));
+            Assert.IsFalse(_controller.State.IsActive(2), "snake 2 passes under and escapes up");
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
+    }
+
     // --- Gerçek Input System cihazları ----------------------------------------
     // Test sırasında Unity penceresi odakta olmayabilir (batchmode); geçici
     // ayarlarla cihaz girdisi yine de oyuna ulaşır. Proje ayarları değişmez.

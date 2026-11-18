@@ -10,9 +10,10 @@ namespace SnakeBlockJam.Game
     // grid y → dünya z. Bir hücre = 1 dünya birimi.
     public sealed class BoardGeometry
     {
-        // Köprü üstündeki segmentlerin yükseltisi (R-BRG-03). Köprü görseli
-        // geldiğinde ayarlanacak; L1'de köprü yok.
-        public const float BridgeTopHeight = 0.6f;
+        // Köprü tablasının üst yüzü = üst kattaki segmentlerin tabanı (R-BRG-03).
+        // Tabla, altından geçen zemin yılanını gözleri dahil örtmeli: blok 0,6,
+        // göz tepesi ~0,82; tabla altı 0,95 − 0,02 − 0,10 = 0,83 (BridgeView).
+        public const float BridgeTopHeight = 0.95f;
 
         public int Width { get; }
         public int Height { get; }

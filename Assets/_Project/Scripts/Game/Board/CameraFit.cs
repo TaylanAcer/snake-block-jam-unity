@@ -5,29 +5,34 @@ namespace SnakeBlockJam.Game
 {
     // Tahtayı portre ekrana yerleştiren saf hesaplar.
     //
-    // Referans ölçüleri (OBSERVED, 720×1616 başlangıç kareleri): L1 (7×9)
-    // ≈ 40 px/hücre, L16 (27×31) ≈ 24,8 px/hücre; tahta yatayda ortada.
-    // Orijinal oyunun tam yerleştirme kuralı UNKNOWN; değerler ayardır.
+    // Referans ölçüleri (OBSERVED, 720×1616 başlangıç kareleri, 20 level):
+    // hücre boyutu sadece tahta GENİŞLİĞİNE bağlı; yükseklik 23×35'e kadar
+    // sınırlamıyor. W=7–9 → ~41 px (üst sınır), 13 → 35,3, 19 → 29,1,
+    // 21–23 → ~27, 25–27 → ~25. En küçük kareler: hücre = ekran × (a + b / W),
+    // 20 level'da hata ±%3,2 (INFERRED; orijinal formül UNKNOWN).
     public static class CameraFit
     {
         [Serializable]
         public struct Settings
         {
-            // Hücrenin en fazla ekran genişliğine oranı (L1: 40,3 / 720).
+            // Hücrenin en fazla ekran genişliğine oranı (L1, L2: ~41 / 720).
             public float MaxCellWidthFraction;
 
-            // Tahtanın kaplayabileceği en fazla ekran genişliği (L16: 670 / 720).
-            public float BoardWidthFill;
+            // hücre / ekran genişliği = CellWidthBase + CellWidthPerColumn / W.
+            public float CellWidthBase;
+            public float CellWidthPerColumn;
 
-            // Tahtanın kaplayabileceği en fazla ekran yüksekliği (HUD ve alt
-            // booster alanı için pay bırakır).
+            // Tahtanın kaplayabileceği en fazla ekran yüksekliği. Referans
+            // portrede bu sınıra hiç ulaşmıyor (L10: %58); yatay pencere ve
+            // çok uzun tahtalar için güvenlik.
             public float BoardHeightFill;
 
             public static Settings Default => new Settings
             {
-                MaxCellWidthFraction = 0.056f,
-                BoardWidthFill = 0.93f,
-                BoardHeightFill = 0.54f
+                MaxCellWidthFraction = 0.057f,
+                CellWidthBase = 0.02039f,
+                CellWidthPerColumn = 0.3722f,
+                BoardHeightFill = 0.62f
             };
         }
 
@@ -37,7 +42,7 @@ namespace SnakeBlockJam.Game
             int boardWidth, int boardHeight, Settings settings)
         {
             float byMax = settings.MaxCellWidthFraction * screenWidth;
-            float byWidth = settings.BoardWidthFill * screenWidth / boardWidth;
+            float byWidth = (settings.CellWidthBase + settings.CellWidthPerColumn / boardWidth) * screenWidth;
             float byHeight = settings.BoardHeightFill * screenHeight / boardHeight;
 
             return Mathf.Min(byMax, Mathf.Min(byWidth, byHeight));

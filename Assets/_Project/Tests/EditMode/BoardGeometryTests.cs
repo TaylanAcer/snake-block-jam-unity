@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using SnakeBlockJam.Core;
 using SnakeBlockJam.Game;
@@ -181,22 +182,97 @@ public class BoardGeometryTests
         Assert.IsFalse(BoardView.HasDot(state, new Cell(3, 0)), "odd x, under yellow snake 4");
     }
 
-    // Aralık kuralının (çift x, çift y) kanıtı: Level_15.png'de yılansız hücrelerde
-    // görünen noktalar tam bu hücreler. Bilinen veri eksiği: L15'in tahta şekli
-    // yılanlardan geniş ve JSON'da tahta maskesi yok, bu yüzden HasDot bu
-    // noktaları çizmez (BoardView.HasDot yorumu).
-    [Test]
-    public void Level15_ReferenceDotsSitOnFreeEvenCells()
+    // Level_15.png: yılansız 24 çift (x, y) hücrenin hepsinde nokta var →
+    // dikdörtgen tahta. Hücreler kareden piksel → hücre eşlemesiyle okundu.
+    private static readonly Cell[] Level15VisibleDots =
     {
-        var state = InitialState(15);
-        int[] topRow = { 0, 16, 18, 20, 22, 24 };
+        new Cell(0, 0), new Cell(0, 16), new Cell(0, 18), new Cell(0, 20), new Cell(0, 22), new Cell(0, 24),
+        new Cell(2, 0), new Cell(4, 0), new Cell(6, 0), new Cell(8, 0), new Cell(10, 8), new Cell(10, 16),
+        new Cell(12, 8), new Cell(14, 8), new Cell(16, 0), new Cell(16, 24), new Cell(18, 0), new Cell(18, 24),
+        new Cell(20, 0), new Cell(20, 24), new Cell(22, 0), new Cell(22, 24), new Cell(24, 0), new Cell(24, 24)
+    };
 
-        foreach (int x in topRow)
+    private static List<LevelData> SourceLevels()
+    {
+        return SnakeBlockJam.EditorTools.LevelJsonImporter.Parse(
+            System.IO.File.ReadAllText(SnakeBlockJam.EditorTools.LevelJsonImporter.SourcePath));
+    }
+
+    private static List<Cell> VisibleDotsAtStart(LevelData level)
+    {
+        var state = new BoardState(level.ToDefinition());
+        var visible = new List<Cell>();
+
+        for (int y = 0; y < level.height; y++)
+            for (int x = 0; x < level.width; x++)
+            {
+                var cell = new Cell(x, y);
+                bool covered = state.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)) != 0
+                               || state.GetOccupant(new LayeredCell(cell, BoardLayer.BridgeTop)) != 0;
+
+                if (!covered && BoardView.HasDot(state, cell, level.isRectangularBoard))
+                    visible.Add(cell);
+            }
+
+        return visible;
+    }
+
+    [Test]
+    public void Level15_RectangularBoard_ShowsExactlyTheReferenceDots()
+    {
+        var levels = SourceLevels();
+
+        try
         {
-            var cell = new Cell(x, 24);
-            Assert.IsTrue(BoardGeometry.HasGridDot(cell), $"x {x}");
-            Assert.AreEqual(0, state.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)), $"x {x} free");
+            Assert.IsTrue(levels[14].isRectangularBoard);
+            CollectionAssert.AreEquivalent(Level15VisibleDots, VisibleDotsAtStart(levels[14]));
         }
+        finally
+        {
+            foreach (var level in levels)
+                Object.DestroyImmediate(level);
+        }
+    }
+
+    // Diğer 19 başlangıç karesinde yılansız hücrede nokta yok.
+    [Test]
+    public void OtherLevels_ShowNoDotsAtStart()
+    {
+        var levels = SourceLevels();
+
+        try
+        {
+            foreach (var level in levels)
+            {
+                if (level.levelNumber == 15)
+                    continue;
+
+                Assert.IsFalse(level.isRectangularBoard, $"L{level.levelNumber}");
+                CollectionAssert.IsEmpty(VisibleDotsAtStart(level), $"L{level.levelNumber}");
+            }
+        }
+        finally
+        {
+            foreach (var level in levels)
+                Object.DestroyImmediate(level);
+        }
+    }
+
+    // Level_16.png açılış animasyonunda çekilmiş (R-TRN-06): 6 yılanın başı henüz
+    // çizilmemiş ve altındaki noktalar görünüyor. Hepsi yılan hücresi ve noktalı.
+    [TestCase(6, 24)]
+    [TestCase(16, 24)]
+    [TestCase(20, 24)]
+    [TestCase(12, 16)]
+    [TestCase(20, 14)]
+    [TestCase(8, 10)]
+    public void Level16_DotsSeenUnderUndrawnHeads_AreDotCellsUnderSnakes(int x, int y)
+    {
+        var state = InitialState(16);
+        var cell = new Cell(x, y);
+
+        Assert.AreNotEqual(0, state.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)), "snake cell");
+        Assert.IsTrue(BoardView.HasDot(state, cell));
     }
 
     [Test]

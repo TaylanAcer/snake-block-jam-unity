@@ -23,6 +23,13 @@ namespace SnakeBlockJam.EditorTools
         public const string SourcePath = "Assets/_Project/Data/Source/levels_L1-L20.json";
         public const string LevelFolder = "Assets/_Project/Data/Levels";
 
+        // Tahtası bütün W × H dikdörtgen olan level'lar (JSON'da tahta şekli yok).
+        // OBSERVED: Level_15.png'de yılansız 24 çift (x, y) hücrenin 24'ünde de
+        // nokta var. Diğer 19 başlangıç karesinde yılansız hücrede nokta yok
+        // (L16'daki 6 nokta, açılış animasyonunda henüz çizilmemiş yılan
+        // başlarının altında). Level Editor'de tahta maskesi gelince kalkacak.
+        public static readonly int[] RectangularBoardLevels = { 15 };
+
         // "meta" (açıklamalar) ve "validation" (çözücü çıktısı) türetilmiş
         // bilgidir, level verisi değildir: varlıkları kontrol edilir, içerikleri okunmaz.
         private static readonly string[] RootKeys = { "meta", "levels" };
@@ -137,6 +144,26 @@ namespace SnakeBlockJam.EditorTools
         {
             ImportAndSelect(3);
         }
+        [MenuItem("Snake Block Jam/Levels/Import Level 4 From JSON")]
+        private static void ImportLevel4()
+        {
+            ImportAndSelect(4);
+        }
+        [MenuItem("Snake Block Jam/Levels/Import Level 5 From JSON")]
+        private static void ImportLevel5()
+        {
+            ImportAndSelect(5);
+        }
+        [MenuItem("Snake Block Jam/Levels/Import Level 6 From JSON")]
+        private static void ImportLevel6()
+        {
+            ImportAndSelect(6);
+        }
+        [MenuItem("Snake Block Jam/Levels/Import Level 7 From JSON")]
+        private static void ImportLevel7()
+        {
+            ImportAndSelect(7);
+        }
 
         private static void ImportAndSelect(int levelNumber)
         {
@@ -179,6 +206,7 @@ namespace SnakeBlockJam.EditorTools
                     level.moveLimit = ToInt(moveLimit, $"{context} 'moveLimit'");
 
                 level.isHard = ReadBool(json, "hard", context);
+                level.isRectangularBoard = System.Array.IndexOf(RectangularBoardLevels, expectedNumber) >= 0;
 
                 foreach (var token in RequireArray(json, "snakes", context))
                     level.snakes.Add(ParseSnake(RequireObject(token, $"{context} snake"), context));

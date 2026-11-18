@@ -30,6 +30,11 @@ namespace SnakeBlockJam.Game
         [SerializeField] private Color eyeWhiteColor = Color.white;
         [SerializeField] private Color pupilColor = new Color32(0x1E, 0x1E, 0x2A, 0xFF);
 
+        [Header("Bridge (Level_05.png, L14_L_kopru_kivrim_v15.png; yaklaşık)")]
+        [SerializeField] private Color bridgeDeckColor = new Color32(0xE9, 0xD9, 0xBF, 0xFF);
+        [SerializeField] private Color bridgeAsphaltColor = new Color32(0x4D, 0x50, 0x57, 0xFF);
+        [SerializeField] private Color bridgeDashColor = new Color32(0xC8, 0xCA, 0xCE, 0xFF);
+
         [Header("Camera (referans: hafif açılı perspektif, R-BRD-03)")]
         [SerializeField] private float cameraFieldOfView = 30f;
         [Tooltip("Yataydan aşağı bakış açısı. 90 = tam tepeden. Level_01.png'de satır aralığı " +
@@ -55,7 +60,15 @@ namespace SnakeBlockJam.Game
         private Material _dotMaterial;
         private Material _eyeWhiteMaterial;
         private Material _pupilMaterial;
+        private Material _bridgeDeckMaterial;
+        private Material _bridgeAsphaltMaterial;
+        private Material _bridgeDashMaterial;
         private Transform _content;
+
+        // Köprü yolu üzerindeki hücreler: dokunuş önce köprü üstü yüksekliğinde aranır.
+        private readonly HashSet<Cell> _bridgeCells = new HashSet<Cell>();
+
+        public int BridgeCount { get; private set; }
 
         public BoardGeometry Geometry { get; private set; }
 
@@ -83,7 +96,8 @@ namespace SnakeBlockJam.Game
             _content.SetParent(transform, false);
 
             CreateGround();
-            CreateDots(state);
+            CreateDots(state, level.isRectangularBoard);
+            CreateBridges(state.Level.Bridges);
 
             foreach (var snake in state.Level.Snakes)
             {
@@ -149,6 +163,8 @@ namespace SnakeBlockJam.Game
             _snakes.Clear();
             _escaping.Clear();
             _blocking.Clear();
+            _bridgeCells.Clear();
+            BridgeCount = 0;
 
             if (_content != null)
                 DestroyObject(_content.gameObject);
@@ -177,7 +193,9 @@ namespace SnakeBlockJam.Game
         }
 
         // Ekran noktası → hücre. Düzlem blokların üst yüzünde: oyuncu eğik
-        // kamerada yılanın üst yüzüne dokunur.
+        // kamerada yılanın üst yüzüne dokunur. Köprü daha yüksekte olduğu için
+        // önce köprü üstündeki yılanın üst yüzü denenir; ışın orada bir köprü
+        // hücresine düşüyorsa kameraya en yakın görünen yüzey odur.
         public bool TryScreenToCell(Camera sourceCamera, Vector2 screenPosition, out Cell cell)
         {
             if (Geometry == null)
@@ -186,8 +204,29 @@ namespace SnakeBlockJam.Game
                 return false;
             }
 
-            return Geometry.TryRayToCell(
-                sourceCamera.ScreenPointToRay(screenPosition), SnakeView.BlockHeight, out cell);
+            Ray ray = sourceCamera.ScreenPointToRay(screenPosition);
+
+            if (_bridgeCells.Count > 0 &&
+                Geometry.TryRayToCell(ray, BoardGeometry.BridgeTopHeight + SnakeView.BlockHeight, out cell) &&
+                _bridgeCells.Contains(cell))
+                return true;
+
+            return Geometry.TryRayToCell(ray, SnakeView.BlockHeight, out cell);
+        }
+
+        private void CreateBridges(IReadOnlyList<BridgeDefinition> bridges)
+        {
+            foreach (var bridge in bridges)
+            {
+                var view = new GameObject().AddComponent<BridgeView>();
+                view.transform.SetParent(_content, false);
+                view.Build(bridge, Geometry, _bridgeDeckMaterial, _bridgeAsphaltMaterial, _bridgeDashMaterial);
+
+                foreach (var cell in bridge.Path)
+                    _bridgeCells.Add(cell);
+            }
+
+            BridgeCount = bridges.Count;
         }
 
         private void CreateGround()
@@ -205,23 +244,27 @@ namespace SnakeBlockJam.Game
 
         // Bu hücrede grid noktası var mı? 'initialState' level'ın başlangıç durumu
         // olmalıdır. Nokta = çift (x, y) hücre (BoardGeometry.HasGridDot) VE
-        // başlangıçta bir yılanın altında. Noktalar yılan kaçınca görünür (R-MOV-07).
+        // tahtanın hücresi. Tahta: dikdörtgen level'da bütün W × H, diğerlerinde
+        // başlangıçta yılanların kapladığı hücreler. Yılan altındaki nokta yılan
+        // kaçınca görünür (R-MOV-07).
         //
-        // INFERRED: noktalar tahtanın kendi hücrelerinde; elimizdeki level'larda
-        // tahta şekli pratikte başlangıçtaki yılan hücreleri. Kanıt: 20 başlangıç
-        // karesinin 19'unda hiç nokta yok; L2 videosunda ~3 sn beklenince boş
-        // hücrelerde nokta belirmiyor. Bilinen istisna: Level_15.png'de yılansız
-        // bazı çift hücrelerde nokta var (L15 tahta şekli daha geniş). JSON'da
-        // tahta maskesi olmadığı için bu kural L15'te birebir değildir.
-        public static bool HasDot(BoardState initialState, Cell cell)
+        // Kanıt (20 başlangıç karesi, piksel → hücre eşlemesiyle kontrol edildi):
+        // 18 karede hiç nokta yok; L16'daki 6 nokta açılış animasyonunda henüz
+        // çizilmemiş yılan başlarının altında, hepsi çift (x, y); L15'te yılansız
+        // 24 çift hücrenin 24'ünde de nokta var (dikdörtgen tahta). L2 videosunda
+        // boş köşelerde nokta yok. Tahta şekli JSON'da yok → INFERRED.
+        public static bool HasDot(BoardState initialState, Cell cell, bool rectangularBoard = false)
         {
-            return BoardGeometry.HasGridDot(cell)
-                   && (initialState.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)) != 0
-                       || initialState.GetOccupant(new LayeredCell(cell, BoardLayer.BridgeTop)) != 0);
+            if (!BoardGeometry.HasGridDot(cell))
+                return false;
+
+            return rectangularBoard
+                   || initialState.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)) != 0
+                   || initialState.GetOccupant(new LayeredCell(cell, BoardLayer.BridgeTop)) != 0;
         }
 
         // Not: büyük level'larda yüzlerce obje olabilir; gerekirse tek mesh'e çevrilir.
-        private void CreateDots(BoardState initialState)
+        private void CreateDots(BoardState initialState, bool rectangularBoard)
         {
             var dots = new GameObject("Dots").transform;
             dots.SetParent(_content, false);
@@ -230,7 +273,7 @@ namespace SnakeBlockJam.Game
             {
                 for (int x = 0; x < Geometry.Width; x++)
                 {
-                    if (!HasDot(initialState, new Cell(x, y)))
+                    if (!HasDot(initialState, new Cell(x, y), rectangularBoard))
                         continue;
 
                     var dot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -263,6 +306,9 @@ namespace SnakeBlockJam.Game
             _dotMaterial = CreateMaterial("Dot", dotColor);
             _eyeWhiteMaterial = CreateMaterial("EyeWhite", eyeWhiteColor);
             _pupilMaterial = CreateMaterial("Pupil", pupilColor);
+            _bridgeDeckMaterial = CreateMaterial("BridgeDeck", bridgeDeckColor);
+            _bridgeAsphaltMaterial = CreateMaterial("BridgeAsphalt", bridgeAsphaltColor);
+            _bridgeDashMaterial = CreateMaterial("BridgeDash", bridgeDashColor);
         }
 
         private Material CreateMaterial(string materialName, Color color)

@@ -20,6 +20,12 @@ namespace SnakeBlockJam.EditorTools
         public const string ScenePath = "Assets/_Project/Scenes/Game.unity";
         public const string BlockMaterialPath = "Assets/_Project/Art/Materials/Block.mat";
         public const string FeelSettingsPath = "Assets/_Project/Data/FeelSettings.asset";
+        public const string LevelCatalogPath = "Assets/_Project/Data/LevelCatalog.asset";
+
+        // Kataloğun ilk içeriği (oynanış sırası). L4'ün 2 hücresi kayıt balonu
+        // altında, süreklilikten çıkarıldı (INFERRED, spec §14.3). L5/L6 köprülü:
+        // mantık hazır, köprü görseli sonraki iş.
+        public static readonly int[] InitialCatalogLevels = { 1, 2, 3, 4, 5, 6, 7 };
 
         private static readonly Color Background = new Color32(0xE4, 0xF1, 0xFA, 0xFF);
 
@@ -40,6 +46,7 @@ namespace SnakeBlockJam.EditorTools
 
             var blockMaterial = EnsureBlockMaterial();
             var feel = EnsureFeelSettings();
+            var catalog = EnsureLevelCatalog();
 
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = AmbientMode.Flat;
@@ -54,6 +61,7 @@ namespace SnakeBlockJam.EditorTools
             var controllerObject = new GameObject("GameController");
             var controller = controllerObject.AddComponent<GameController>();
             SetReference(controller, "level", level);
+            SetReference(controller, "catalog", catalog);
             SetReference(controller, "feel", feel);
             SetReference(controller, "boardView", board);
             SetReference(controller, "gameCamera", camera);
@@ -62,7 +70,9 @@ namespace SnakeBlockJam.EditorTools
             SetReference(input, "controller", controller);
 
             CreateEventSystem();
-            CreateCanvas(controller);
+            Transform canvas = CreateCanvas(controller);
+            CreateHud(canvas, controller);
+            CreateResultWindow(canvas, controller);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
         }
@@ -84,7 +94,9 @@ namespace SnakeBlockJam.EditorTools
         {
             try
             {
-                LevelJsonImporter.ImportToAsset(1);
+                foreach (int levelNumber in InitialCatalogLevels)
+                    LevelJsonImporter.ImportToAsset(levelNumber);
+
                 BuildGameScene();
                 ApplyProjectSettings();
                 EditorApplication.Exit(0);
@@ -107,6 +119,31 @@ namespace SnakeBlockJam.EditorTools
             feel = ScriptableObject.CreateInstance<FeelSettings>();
             AssetDatabase.CreateAsset(feel, FeelSettingsPath);
             return feel;
+        }
+
+        // Varsa dokunulmaz: Inspector'da düzenlenmiş sıra korunur.
+        private static LevelCatalog EnsureLevelCatalog()
+        {
+            var catalog = AssetDatabase.LoadAssetAtPath<LevelCatalog>(LevelCatalogPath);
+
+            if (catalog != null)
+                return catalog;
+
+            catalog = ScriptableObject.CreateInstance<LevelCatalog>();
+
+            foreach (int levelNumber in InitialCatalogLevels)
+            {
+                var level = AssetDatabase.LoadAssetAtPath<LevelData>(LevelJsonImporter.AssetPath(levelNumber));
+
+                if (level == null)
+                    level = LevelJsonImporter.ImportToAsset(levelNumber);
+
+                catalog.levels.Add(level);
+            }
+
+            AssetDatabase.CreateAsset(catalog, LevelCatalogPath);
+            AssetDatabase.SaveAssets();
+            return catalog;
         }
 
         private static Material EnsureBlockMaterial()
@@ -159,8 +196,8 @@ namespace SnakeBlockJam.EditorTools
             new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
         }
 
-        // Faz 3 UI: sadece Restart. HUD (hamle, seviye, sonuç ekranları) sonraki faz.
-        private static void CreateCanvas(GameController controller)
+        // Canvas ve Restart butonu (referanstaki ayarlar dişlisinin yeri).
+        private static Transform CreateCanvas(GameController controller)
         {
             var canvasObject = new GameObject("Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasObject.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
@@ -198,6 +235,158 @@ namespace SnakeBlockJam.EditorTools
             label.alignment = TextAnchor.MiddleCenter;
             label.color = new Color32(0x33, 0x3A, 0x48, 0xFF);
             label.raycastTarget = false;
+
+            return canvasObject.transform;
+        }
+
+        // --- HUD ve sonuç penceresi (Faz 6) -----------------------------------
+        // Yerleşim ve renkler Level_07.png ve L7_hamle_yok_v07.png'den yaklaşık
+        // (720 × 1600 kare → 1080 × 1920 referans çözünürlük).
+
+        private static readonly Color HudTeal = new Color32(0x45, 0xB4, 0xCB, 0xFF);
+        private static readonly Color HudGreen = new Color32(0x55, 0xD4, 0x4B, 0xFF);
+        private static readonly Color HudDarkGreen = new Color32(0x2E, 0x7D, 0x1F, 0xFF);
+        private static readonly Color TextOutline = new Color32(0x1D, 0x3A, 0x4F, 0xFF);
+        private static readonly Color AllClearYellow = new Color32(0xFF, 0xD2, 0x3F, 0xFF);
+        private static readonly Color AllClearOutline = new Color32(0x2B, 0x5F, 0xB8, 0xFF);
+        private static readonly Color WindowBody = new Color32(0xEA, 0xF4, 0xFB, 0xFF);
+        private static readonly Color WindowHeader = new Color32(0x2F, 0x7B, 0xE0, 0xFF);
+        private static readonly Color DarkText = new Color32(0x33, 0x3A, 0x48, 0xFF);
+
+        private static void CreateHud(Transform canvas, GameController controller)
+        {
+            // HudView kökte; açılıp kapanan parçalar alt objelerde (kapanan objenin
+            // OnDisable'ı olay aboneliğini koparırdı).
+            RectTransform root = CreateRect("Hud", canvas);
+            Stretch(root);
+
+            RectTransform moves = CreateRect("MovesPanel", root);
+            moves.anchorMin = moves.anchorMax = new Vector2(0.5f, 1f);
+            moves.anchoredPosition = new Vector2(0f, -146f);
+            moves.sizeDelta = new Vector2(330f, 100f);
+
+            RectTransform ribbon = CreateRect("LevelRibbon", moves);
+            ribbon.anchorMin = ribbon.anchorMax = new Vector2(0.5f, 0f);
+            ribbon.anchoredPosition = new Vector2(0f, -22f);
+            ribbon.sizeDelta = new Vector2(230f, 52f);
+            CreateImage(ribbon, HudGreen);
+            Text levelText = CreateText("Label", ribbon, "Seviye 1", 34, HudDarkGreen);
+
+            // Kutu şeritten sonra: şeridin üstünde çizilir.
+            RectTransform box = CreateRect("Box", moves);
+            Stretch(box);
+            Image background = CreateImage(box, HudTeal);
+            Text movesText = CreateText("Label", box, "Hamle: 0", 54, Color.white);
+            movesText.gameObject.AddComponent<Outline>().effectColor = TextOutline;
+
+            RectTransform allClear = CreateRect("AllClear", root);
+            allClear.anchorMin = allClear.anchorMax = new Vector2(0.5f, 0.62f);
+            // Referansta iki satır ("ALL" / "CLEAR!"), ekran genişliğinin ~%40'ı.
+            allClear.sizeDelta = new Vector2(520f, 300f);
+            Text allClearText = CreateText("Label", allClear, "ALL\nCLEAR!", 120, AllClearYellow);
+            allClearText.lineSpacing = 0.85f;
+            allClearText.verticalOverflow = VerticalWrapMode.Overflow;
+            var allClearOutline = allClearText.gameObject.AddComponent<Outline>();
+            allClearOutline.effectColor = AllClearOutline;
+            allClearOutline.effectDistance = new Vector2(5f, -5f);
+            allClear.gameObject.SetActive(false);
+
+            var hud = root.gameObject.AddComponent<HudView>();
+            SetReference(hud, "controller", controller);
+            SetReference(hud, "movesPanel", moves.gameObject);
+            SetReference(hud, "movesBackground", background);
+            SetReference(hud, "movesText", movesText);
+            SetReference(hud, "levelText", levelText);
+            SetReference(hud, "allClear", allClear);
+        }
+
+        private static void CreateResultWindow(Transform canvas, GameController controller)
+        {
+            RectTransform root = CreateRect("Result", canvas);
+            Stretch(root);
+
+            // Overlay ışın yakalar: pencere açıkken tahtaya dokunuş geçmez.
+            RectTransform overlay = CreateRect("Overlay", root);
+            Stretch(overlay);
+            CreateImage(overlay, new Color(0f, 0f, 0f, 0.65f)).raycastTarget = true;
+
+            RectTransform card = CreateRect("Card", overlay);
+            card.sizeDelta = new Vector2(820f, 600f);
+            CreateImage(card, WindowBody);
+
+            RectTransform header = CreateRect("Header", card);
+            header.anchorMin = header.anchorMax = new Vector2(0.5f, 1f);
+            header.sizeDelta = new Vector2(560f, 110f);
+            CreateImage(header, WindowHeader);
+            Text title = CreateText("Title", header, "TAMAMLANDI", 60, Color.white);
+            title.gameObject.AddComponent<Outline>().effectColor = TextOutline;
+
+            RectTransform messageRect = CreateRect("Message", card);
+            messageRect.anchoredPosition = new Vector2(0f, 40f);
+            messageRect.sizeDelta = new Vector2(720f, 160f);
+            Text message = CreateText("Label", messageRect, "", 52, DarkText);
+
+            RectTransform buttonRect = CreateRect("Button", card);
+            buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0.5f, 0f);
+            buttonRect.anchoredPosition = new Vector2(0f, 120f);
+            buttonRect.sizeDelta = new Vector2(480f, 130f);
+            Image buttonImage = CreateImage(buttonRect, HudGreen);
+            buttonImage.raycastTarget = true;
+            var button = buttonRect.gameObject.AddComponent<Button>();
+            button.targetGraphic = buttonImage;
+            Text buttonLabel = CreateText("Label", buttonRect, "Devam", 58, Color.white);
+            buttonLabel.gameObject.AddComponent<Outline>().effectColor = HudDarkGreen;
+
+            overlay.gameObject.SetActive(false);
+
+            var view = root.gameObject.AddComponent<ResultView>();
+            SetReference(view, "controller", controller);
+            SetReference(view, "panel", overlay.gameObject);
+            SetReference(view, "titleText", title);
+            SetReference(view, "messageText", message);
+            SetReference(view, "buttonText", buttonLabel);
+            UnityEventTools.AddPersistentListener(button.onClick, view.OnButton);
+        }
+
+        private static RectTransform CreateRect(string objectName, Transform parent)
+        {
+            var rect = new GameObject(objectName, typeof(RectTransform)).GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            return rect;
+        }
+
+        private static void Stretch(RectTransform rect)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+        }
+
+        private static Image CreateImage(RectTransform rect, Color color)
+        {
+            var image = rect.gameObject.AddComponent<Image>();
+            image.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            image.type = Image.Type.Sliced;
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private static Text CreateText(string objectName, RectTransform parent, string text, int size, Color color)
+        {
+            RectTransform rect = CreateRect(objectName, parent);
+            Stretch(rect);
+
+            var label = rect.gameObject.AddComponent<Text>();
+            label.text = text;
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = size;
+            label.fontStyle = FontStyle.Bold;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.horizontalOverflow = HorizontalWrapMode.Overflow;
+            label.color = color;
+            label.raycastTarget = false;
+            return label;
         }
 
         private static void SetReference(UnityEngine.Object target, string field, UnityEngine.Object value)

@@ -66,6 +66,12 @@ namespace SnakeBlockJam.Game
         // "Hard" level (R-HRD-01): sadece sunum, oynanışa etkisi yok.
         public bool isHard;
 
+        // Tahtanın şekli (sadece sunum: grid noktaları). false: tahta =
+        // başlangıçta yılanların kapladığı hücreler. true: bütün W × H dikdörtgen.
+        // JSON'da yok; importer kanıta göre doldurur (LevelJsonImporter).
+        [Tooltip("true: grid noktaları bütün W×H dikdörtgende (L15). false: sadece başlangıçta yılan altındaki hücrelerde.")]
+        public bool isRectangularBoard;
+
         public List<SnakeData> snakes = new List<SnakeData>();
         public List<BridgeData> bridges = new List<BridgeData>();
         public List<Vector2Int> burrows = new List<Vector2Int>();

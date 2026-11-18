@@ -2,28 +2,41 @@ using NUnit.Framework;
 using SnakeBlockJam.Game;
 using UnityEngine;
 
-// Portre ekranda hücre boyutu ve kamera mesafesi (OBSERVED referans ölçüleri, 720 px genişlik).
+// Portre ekranda hücre boyutu ve kamera mesafesi. Beklenen değerler 720×1616
+// referans başlangıç karelerinden ölçüldü (OBSERVED); formül ±%3,2 içinde.
 public class CameraFitTests
 {
     private static readonly CameraFit.Settings Defaults = CameraFit.Settings.Default;
 
-    // L1 (7×9): referansta ~40 px/hücre; küçük tahtalar bu üst sınırda kalır.
-    [Test]
-    public void CellPixels_SmallBoard_UsesMaxCellSize()
+    private static float Cell(int width, int height)
     {
-        float px = CameraFit.CellPixels(720f, 1616f, 7, 9, Defaults);
-
-        Assert.AreEqual(40.3f, px, 0.2f);
+        return CameraFit.CellPixels(720f, 1616f, width, height, Defaults);
     }
 
-    // L16 (27×31): referansta ~24,8 px/hücre; genişlik sınırlı.
+    // L1 (7×9), L2 (9×11): referansta ~41 px; küçük tahtalar üst sınırda.
     [Test]
-    public void CellPixels_WideBoard_FitsWidth()
+    public void CellPixels_SmallBoards_UseMaxCellSize()
     {
-        float px = CameraFit.CellPixels(720f, 1616f, 27, 31, Defaults);
+        Assert.AreEqual(41.0f, Cell(7, 9), 0.2f);
+        Assert.AreEqual(41.0f, Cell(9, 11), 0.2f);
+    }
 
-        Assert.AreEqual(24.8f, px, 0.2f);
-        Assert.LessOrEqual(px * 27, 720f);
+    // Referans ölçüleri: (genişlik, yükseklik, px/hücre).
+    [TestCase(13, 21, 35.3f)] // L5, L6
+    [TestCase(19, 29, 29.1f)] // L9, L20
+    [TestCase(21, 29, 27.0f)] // L7, L8, L18
+    [TestCase(23, 35, 26.7f)] // L10: yükseklik sınırlamıyor
+    [TestCase(25, 33, 25.0f)] // L12
+    [TestCase(27, 31, 25.1f)] // L16
+    public void CellPixels_MatchesReferenceWithin4Percent(int width, int height, float reference)
+    {
+        Assert.AreEqual(reference, Cell(width, height), reference * 0.04f);
+    }
+
+    [Test]
+    public void CellPixels_BoardFitsScreenWidth()
+    {
+        Assert.LessOrEqual(Cell(27, 31) * 27, 720f);
     }
 
     // Yatay pencere (Editor Game view): tahta yüksekliğe sığar.

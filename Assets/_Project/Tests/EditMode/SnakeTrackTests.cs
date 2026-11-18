@@ -196,6 +196,34 @@ public class SnakeTrackTests
 
     // --- Örnekleme ------------------------------------------------------------
 
+    // Köprüye çıkışta baş, tablanın ön kenarına varmadan üst yüksekliğe ulaşır;
+    // inişte tablanın arka kenarını geçene kadar üstte kalır.
+    [Test]
+    public void Sample_LayerChange_ClimbsEarlyAndDescendsLate()
+    {
+        var snake = new SnakeDefinition(1, Direction.Right, new[]
+        {
+            new LayeredCell(new Cell(1, 0), BoardLayer.BridgeTop),
+            new LayeredCell(new Cell(0, 0), BoardLayer.Ground)
+        });
+        var track = SnakeTrack.ForBody(snake, new BoardGeometry(3, 1)); // (0,0)G → (1,0)T → (2,0)T
+        float top = BoardGeometry.BridgeTopHeight;
+
+        Assert.AreEqual(top, track.Sample(SnakeTrack.RampPortion).y, 1e-4f, "up by 40 %");
+        Assert.AreEqual(top * 0.5f, track.Sample(SnakeTrack.RampPortion * 0.5f).y, 1e-4f);
+        Assert.AreEqual(0.5f, track.Sample(0.5f).x - track.Sample(0f).x, 1e-4f, "horizontal stays linear");
+
+        var down = new SnakeDefinition(2, Direction.Right, new[]
+        {
+            new LayeredCell(new Cell(1, 0), BoardLayer.Ground),
+            new LayeredCell(new Cell(0, 0), BoardLayer.BridgeTop)
+        });
+        var downTrack = SnakeTrack.ForBody(down, new BoardGeometry(3, 1));
+
+        Assert.AreEqual(top, downTrack.Sample(1f - SnakeTrack.RampPortion).y, 1e-4f, "still up at 60 %");
+        Assert.AreEqual(0f, downTrack.Sample(1f).y, 1e-4f);
+    }
+
     [Test]
     public void Sample_InterpolatesBetweenCellsAndClampsAtEnds()
     {

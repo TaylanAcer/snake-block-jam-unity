@@ -1109,6 +1109,100 @@ public class GameSceneTests
         }
     }
 
+    // --- His ve ses (Faz 11) ---------------------------------------------------
+
+    // R-COL-03/06/07/08: temas anında çarpılan bloğun göçüğü, hareket eden yılanın
+    // renginde küpler, sersem gözler, kırmızı vinyet ve çarpma sesi; hepsi söner.
+    [UnityTest]
+    public IEnumerator Blocked_ContactFeedback_DentDebrisStunVignetteSound()
+    {
+        yield return LoadLevel(LoadLevel02Asset());
+        MoveResult contact = null;
+        _controller.BoardView.BlockedContact += result => contact = result;
+        var feedback = Object.FindAnyObjectByType<FeedbackView>();
+        var sfx = Object.FindAnyObjectByType<SfxPlayer>();
+        Assert.IsNotNull(feedback, "FeedbackView missing; run Build Game Scene");
+        Assert.IsNotNull(sfx, "SfxPlayer missing; run Build Game Scene");
+
+        SnakeView mover = FindView(1);
+        Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
+        Assert.AreEqual("Tap", sfx.LastPlayed, "soft tap first (R-FX-11)");
+
+        yield return WaitUntilOrTimeout(() => contact != null, 1f);
+        Assert.IsNotNull(contact, "contact reached");
+
+        SnakeView blocker = FindView(contact.BlockerSnakeId);
+        Assert.IsTrue(blocker.IsDented, "blocker block is pushed");
+        Assert.IsTrue(mover.IsStunned, "mover's eyes are stunned");
+        Assert.IsNotNull(Object.FindAnyObjectByType<DebrisBurst>(), "cubes scatter");
+        Assert.AreEqual("Bump", sfx.LastPlayed, "loud bump at contact (R-FX-11)");
+
+        float peakVignette = 0f;
+        float end = Time.realtimeSinceStartup + 0.5f;
+
+        while (Time.realtimeSinceStartup < end)
+        {
+            peakVignette = Mathf.Max(peakVignette, feedback.VignetteAlphaNow);
+            yield return null;
+        }
+
+        Assert.Greater(peakVignette, 0.3f, "red vignette shows");
+
+        yield return new WaitForSeconds(1f);
+
+        Assert.IsFalse(blocker.IsDented, "dent springs back");
+        Assert.IsFalse(mover.IsStunned, "stun ends");
+        Assert.IsTrue(Object.FindAnyObjectByType<DebrisBurst>() == null, "cubes gone");
+        Assert.AreEqual(0f, feedback.VignetteAlphaNow, 1e-4f);
+    }
+
+    // R-FX-01/06: level'daki 3. başarılı kaçışta "Great!", ~0,13 sn sonra, ~1 sn kalır.
+    [UnityTest]
+    public IEnumerator Streak_ThirdEscapeShowsGreat()
+    {
+        yield return LoadLevel(CatalogLevel(7));
+        var feedback = Object.FindAnyObjectByType<FeedbackView>();
+
+        Assert.IsTrue(TapFirstEscapingSnake());
+        Assert.IsTrue(TapFirstEscapingSnake());
+        yield return new WaitForSeconds(0.3f);
+        Assert.IsNull(feedback.CurrentStreakText, "no text after 2 escapes");
+
+        Assert.IsTrue(TapFirstEscapingSnake());
+        Assert.IsNull(feedback.CurrentStreakText, "text waits for the delay");
+
+        yield return new WaitForSeconds(_controller.Feel.streakDelay + 0.1f);
+        Assert.AreEqual("Great!", feedback.CurrentStreakText);
+
+        yield return new WaitForSeconds(_controller.Feel.streakDuration + 0.2f);
+        Assert.IsNull(feedback.CurrentStreakText, "text disappears");
+    }
+
+    // R-TRN-02/03/04: ALL CLEAR → nokta dalgası (ALL CLEAR kalkar) → noktalar ve
+    // köprüler kaybolur → TAMAMLANDI kartı büyükten yerine oturur.
+    [UnityTest]
+    public IEnumerator LevelEnd_WaveThenCompletedWithScaleIn()
+    {
+        yield return LoadLevel(CatalogLevel(6)); // köprülü, TAMAMLANDI'lı (L5+)
+
+        while (_controller.State.Status == GameStatus.Playing)
+            Assert.IsTrue(TapFirstEscapingSnake(), "greedy escape exists");
+
+        yield return WaitUntilOrTimeout(() => _controller.Phase == GamePhase.ClearWave, 6f);
+        Assert.AreEqual(GamePhase.ClearWave, _controller.Phase);
+        Assert.IsFalse(FindChild("Hud", "AllClear").activeSelf, "ALL CLEAR is gone during the wave");
+
+        yield return WaitUntilOrTimeout(() => _controller.Phase == GamePhase.Completed, 2f);
+        Assert.AreEqual(GamePhase.Completed, _controller.Phase);
+
+        var bridge = Object.FindAnyObjectByType<BridgeView>();
+        Assert.AreEqual(0f, bridge.transform.localScale.x, 1e-4f, "bridges shrank away");
+
+        Transform card = GameObject.Find("Result").transform.Find("Overlay/Card");
+        yield return new WaitForSeconds(ResultView.ScaleInTime + 0.05f);
+        Assert.AreEqual(1f, card.localScale.x, 1e-3f, "card settles at full size");
+    }
+
     // --- Gerçek Input System cihazları ----------------------------------------
     // Test sırasında Unity penceresi odakta olmayabilir (batchmode); geçici
     // ayarlarla cihaz girdisi yine de oyuna ulaşır. Proje ayarları değişmez.

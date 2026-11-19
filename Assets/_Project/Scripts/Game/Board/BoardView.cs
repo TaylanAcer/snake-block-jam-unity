@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using SnakeBlockJam.Core;
 using UnityEngine;
@@ -101,6 +102,12 @@ namespace SnakeBlockJam.Game
         // Köprü yolu üzerindeki hücreler: dokunuş önce köprü üstü yüksekliğinde aranır.
         private readonly HashSet<Cell> _bridgeCells = new HashSet<Cell>();
 
+        // Level sonu (R-TRN-03): noktalar dalgalanır, tahta objeleri küçülüp kaybolur.
+        private readonly List<Transform> _dots = new List<Transform>();
+        private readonly List<Transform> _markers = new List<Transform>();
+
+        public int DotCount => _dots.Count;
+
         public int BridgeCount { get; private set; }
         public int BurrowCount { get; private set; }
         public int ArrowCount { get; private set; }
@@ -185,7 +192,7 @@ namespace SnakeBlockJam.Game
         // temasa kadar gidip döner. Dönüş bitince 'onFinished' çağrılır. Level
         // yeniden kurulursa (Clear) eski animasyonun bildirimi iletilmez.
         // Animasyon başladıysa true döner.
-        public bool PlayBlocked(MoveResult result, float speed, System.Action onFinished)
+        public bool PlayBlocked(MoveResult result, float speed, System.Action onFinished, FeelSettings feel = null)
         {
             if (result.Outcome != MoveOutcome.Blocked)
                 throw new System.ArgumentException("Only blocked moves bump.", nameof(result));
@@ -201,8 +208,48 @@ namespace SnakeBlockJam.Game
             {
                 if (_blocking.Remove(finished))
                     onFinished?.Invoke();
-            });
+            }, mover => OnContact(mover, result, feel));
             return true;
+        }
+
+        // Başarısız hamlede temas anı (R-COL-08). Ses ve test için olay.
+        public event System.Action<MoveResult> BlockedContact;
+
+        // Çarpma geri bildirimi (R-COL-06/07): çarpılan bloğun göçüğü, hareket eden
+        // yılanın renginde küpler, hareket eden yılanda sersem gözler.
+        private void OnContact(SnakeView mover, MoveResult result, FeelSettings feel)
+        {
+            if (feel != null && result.BlockedAt.HasValue)
+            {
+                LayeredCell hit = result.BlockedAt.Value;
+                Vector3 direction = BoardGeometry.DirectionToWorld(result.FinalDirection);
+
+                if (_snakes.TryGetValue(result.BlockerSnakeId, out var blocker))
+                {
+                    int index = SegmentIndexAt(blocker.Definition, hit);
+                    blocker.PlayDent(index, direction, feel.dentDistance, feel.dentDuration);
+                }
+
+                Vector3 contact = Geometry.CellToWorld(hit.Cell, hit.Layer) - direction * 0.5f
+                                  + Vector3.up * (SnakeView.BlockHeight * 0.5f);
+                DebrisBurst.Spawn(_content, contact, direction, mover.BodyMaterial, feel.debrisDuration,
+                    seed: result.SnakeId * 31 + result.BlockerSnakeId);
+
+                mover.PlayStun(feel.stunDuration);
+            }
+
+            BlockedContact?.Invoke(result);
+        }
+
+        private static int SegmentIndexAt(SnakeDefinition snake, LayeredCell cell)
+        {
+            for (int i = 0; i < snake.Body.Count; i++)
+            {
+                if (snake.Body[i].Equals(cell))
+                    return i;
+            }
+
+            return -1;
         }
 
         // Kürek: model yılanı zaten kaldırdı (BoardState.RemoveSnake). View tahtadaki
@@ -274,6 +321,8 @@ namespace SnakeBlockJam.Game
             _blocking.Clear();
             _removing.Clear();
             _highlighted = null;
+            _dots.Clear();
+            _markers.Clear();
             _bridgeCells.Clear();
             BridgeCount = 0;
             BurrowCount = 0;
@@ -334,6 +383,7 @@ namespace SnakeBlockJam.Game
                 var view = new GameObject().AddComponent<BridgeView>();
                 view.transform.SetParent(_content, false);
                 view.Build(bridge, Geometry, _bridgeDeckMaterial, _bridgeAsphaltMaterial, _bridgeDashMaterial);
+                _markers.Add(view.transform);
 
                 foreach (var cell in bridge.Path)
                     _bridgeCells.Add(cell);
@@ -354,6 +404,7 @@ namespace SnakeBlockJam.Game
 
                 CreateFlatDisk(root, "Rim", BurrowRimSize, RimHeight, _burrowRimMaterial);
                 CreateFlatDisk(root, "Hole", BurrowSize, HoleHeight, _burrowMaterial);
+                _markers.Add(root);
             }
 
             BurrowCount = burrows.Count;
@@ -381,6 +432,7 @@ namespace SnakeBlockJam.Game
                 t.SetPositionAndRotation(
                     Geometry.CellToWorld(arrow.Position) + Vector3.up * ArrowHeight,
                     Quaternion.LookRotation(BoardGeometry.DirectionToWorld(arrow.Direction)));
+                _markers.Add(t);
             }
 
             ArrowCount = arrows.Count;
@@ -457,8 +509,85 @@ namespace SnakeBlockJam.Game
                     t.SetParent(dots, false);
                     t.position = Geometry.CellToWorld(new Cell(x, y)) + Vector3.up * 0.002f;
                     t.localScale = new Vector3(DotSize, 0.002f, DotSize);
+                    _dots.Add(t);
                 }
             }
+        }
+
+        // --- Level sonu (R-TRN-03) ----------------------------------------------
+
+        // Dalgada bir noktanın en büyük ölçeği (referansta "büyüyerek dalgalanır";
+        // oran ölçülmedi, ASSUMED).
+        public const float WavePeakScale = 1.8f;
+
+        // Dalganın bir noktadan geçiş genişliği (dalga süresine oranla).
+        private const float WaveWidth = 0.45f;
+
+        // Dalga tahta merkezinden dışa doğru yayılır. Yön referansta belirtilmedi
+        // (ASSUMED). 'distance01': noktanın merkeze uzaklığı (0 merkez, 1 köşe).
+        public static float WaveScale(float time01, float distance01)
+        {
+            float start = distance01 * (1f - WaveWidth);
+            float u = (time01 - start) / WaveWidth;
+
+            if (u <= 0f || u >= 1f)
+                return 1f;
+
+            return 1f + (WavePeakScale - 1f) * Mathf.Sin(Mathf.PI * u);
+        }
+
+        // ALL CLEAR'dan sonra: noktalar dalgalanır (waveDuration), sonra noktalar
+        // ve köprü/tünel/ok küçülüp kaybolur (fadeDuration). GameController'ın
+        // coroutine'i içinde çalışır; level yeniden kurulursa birlikte durur.
+        public IEnumerator PlayClearWave(float waveDuration, float fadeDuration)
+        {
+            if (Geometry == null)
+                yield break;
+
+            float maxDistance = new Vector2(Geometry.Width, Geometry.Height).magnitude * 0.5f;
+            var distances = new float[_dots.Count];
+            var dotScales = new Vector3[_dots.Count];
+
+            for (int i = 0; i < _dots.Count; i++)
+            {
+                Vector3 p = _dots[i].localPosition;
+                distances[i] = Mathf.Clamp01(new Vector2(p.x, p.z).magnitude / Mathf.Max(0.01f, maxDistance));
+                dotScales[i] = _dots[i].localScale;
+            }
+
+            for (float t = 0f; t < waveDuration; t += Time.deltaTime)
+            {
+                for (int i = 0; i < _dots.Count; i++)
+                {
+                    float scale = WaveScale(t / waveDuration, distances[i]);
+                    _dots[i].localScale = new Vector3(dotScales[i].x * scale, dotScales[i].y, dotScales[i].z * scale);
+                }
+
+                yield return null;
+            }
+
+            var markerScales = new Vector3[_markers.Count];
+
+            for (int i = 0; i < _markers.Count; i++)
+                markerScales[i] = _markers[i].localScale;
+
+            for (float t = 0f; t < fadeDuration; t += Time.deltaTime)
+            {
+                float k = 1f - t / fadeDuration;
+                SetScales(k, dotScales, markerScales);
+                yield return null;
+            }
+
+            SetScales(0f, dotScales, markerScales);
+        }
+
+        private void SetScales(float factor, Vector3[] dotScales, Vector3[] markerScales)
+        {
+            for (int i = 0; i < _dots.Count; i++)
+                _dots[i].localScale = new Vector3(dotScales[i].x * factor, dotScales[i].y, dotScales[i].z * factor);
+
+            for (int i = 0; i < _markers.Count; i++)
+                _markers[i].localScale = markerScales[i] * factor;
         }
 
         private void EnsureMaterials()

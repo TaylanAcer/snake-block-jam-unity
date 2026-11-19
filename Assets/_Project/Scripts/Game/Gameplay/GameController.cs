@@ -15,6 +15,9 @@ namespace SnakeBlockJam.Game
         // ALL CLEAR yazısı ekranda (R-WIN-02, R-TRN-01/02).
         AllClear,
 
+        // ALL CLEAR kalktı; grid nokta dalgası ve tahta objeleri kayboluyor (R-TRN-03).
+        ClearWave,
+
         // TAMAMLANDI penceresi, Devam butonu (R-WIN-03, R-TRN-04). Sadece L5+.
         Completed,
 
@@ -57,6 +60,13 @@ namespace SnakeBlockJam.Game
         // Tahta temizlenip son kaçış ekrandan çıktıktan sonra (R-TRN-01).
         public event Action LevelCleared;
 
+        // Kabul edilen her yılan dokunuşu, State'e uygulandıktan sonra. Geri
+        // bildirim (vinyet, seri yazısı, ses) bunu dinler; kural bilmez.
+        public event Action<MoveResult> MovePlayed;
+
+        // İpucu veya Kürek kullanıldı (ses).
+        public event Action BoosterUsed;
+
         public BoardState State { get; private set; }
         public LevelData Level => level;
         public LevelCatalog Catalog => catalog;
@@ -64,7 +74,8 @@ namespace SnakeBlockJam.Game
         public BoardView BoardView => boardView;
         public Camera GameCamera => gameCamera;
         public GamePhase Phase { get; private set; }
-        public bool IsLevelClearShown => Phase == GamePhase.AllClear || Phase == GamePhase.Completed;
+        public bool IsLevelClearShown =>
+            Phase == GamePhase.AllClear || Phase == GamePhase.ClearWave || Phase == GamePhase.Completed;
 
         // Başarısız hamlenin gidiş + dönüşü sürüyor; yılan dokunuşları reddedilir.
         public bool IsInputLocked { get; private set; }
@@ -202,7 +213,7 @@ namespace SnakeBlockJam.Game
             {
                 // Blocked: geometri değişmez, hamle yine harcandı (R-COL-02, R-MV-02).
                 // Kilit sonuca göre verilir ve dönüş bitince açılır (R-CON-02/05).
-                IsInputLocked = boardView.PlayBlocked(result, feel.escapeSpeed, UnlockInput);
+                IsInputLocked = boardView.PlayBlocked(result, feel.escapeSpeed, UnlockInput, feel);
             }
 
             Debug.Log($"Snake {snakeId}: {result.Outcome}. " +
@@ -215,6 +226,7 @@ namespace SnakeBlockJam.Game
             else if (State.Status == GameStatus.Lost)
                 StartCoroutine(ShowOutOfMoves());
 
+            MovePlayed?.Invoke(result);
             Changed?.Invoke();
             return true;
         }
@@ -239,6 +251,7 @@ namespace SnakeBlockJam.Game
             HintsLeft--;
             HintedSnakeId = snakeId;
             boardView.SetHighlight(snakeId, feel.hintPulsePeriod);
+            BoosterUsed?.Invoke();
             Changed?.Invoke();
             return true;
         }
@@ -278,6 +291,7 @@ namespace SnakeBlockJam.Game
                 HintedSnakeId = 0;
 
             boardView.PlayShovel(snakeId, feel.shovelSegmentTime);
+            BoosterUsed?.Invoke();
             Debug.Log($"Snake {snakeId}: removed by shovel. Active {State.ActiveSnakeCount}.");
 
             if (State.Status == GameStatus.Won)
@@ -291,7 +305,8 @@ namespace SnakeBlockJam.Game
         // ~0,28 sn sonra gelir (R-TRN-01) ve ~1,3 sn kalır (R-TRN-02). Sonra L5+
         // için TAMAMLANDI (R-TRN-04), L1–L4 için doğrudan sonraki level (R-TRN-07;
         // bu level'larda ara süre UNKNOWN, ALL CLEAR süresi kullanıldı).
-        // Nokta dalgası (R-TRN-03) henüz yok.
+        // ALL CLEAR'dan sonra grid nokta dalgası ve tahta objelerinin kaybolması
+        // (R-TRN-03), sonra TAMAMLANDI'ya sert kesme (R-TRN-04).
         private IEnumerator PlayLevelEnd()
         {
             yield return new WaitUntil(() =>
@@ -303,6 +318,9 @@ namespace SnakeBlockJam.Game
             LevelCleared?.Invoke();
 
             yield return new WaitForSeconds(feel.allClearDuration);
+
+            SetPhase(GamePhase.ClearWave);
+            yield return boardView.PlayClearWave(feel.clearWaveDuration, feel.clearFadeDuration);
 
             if (level.levelNumber >= FirstLevelWithCompletedScreen)
                 SetPhase(GamePhase.Completed);

@@ -54,6 +54,27 @@ namespace SnakeBlockJam.Game
         private SnakeTrack _restTrack;
         private float _removeElapsed;
         private float _removeSegmentTime;
+
+        // Çarpma: tepe noktasında (temas) bir kez çağrılır.
+        private Action<SnakeView> _onContact;
+
+        // Göçük (R-COL-06): çarpılan yılanda tek segment kısa süre itilir.
+        private Transform _dentSegment;
+        private Vector3 _dentBase;
+        private Vector3 _dentOffset;
+        private float _dentTime = -1f;
+        private float _dentDuration;
+
+        // Sersem gözler (R-COL-07): göz bebekleri göz çevresinde döner.
+        private readonly List<Transform> _pupils = new List<Transform>();
+        private readonly List<Vector3> _pupilRest = new List<Vector3>();
+        private float _stunTime = -1f;
+        private float _stunDuration;
+
+        // Sersemlikte göz bebeğinin dönme yarıçapı ve hızı (tur/sn). Referansta
+        // spiral göz var; burada döner bebek (ASSUMED yaklaşım).
+        private const float StunRadius = 0.07f;
+        private const float StunTurnsPerSecond = 3f;
         private SnakeTrack _track;
         private MoveOutcome _outcome;
         private Motion _motion;
@@ -158,7 +179,8 @@ namespace SnakeBlockJam.Game
         // Başarısız hamle (R-COL-01/05): yılan 'peakTravel' mesafesine kadar ilerler,
         // aynı izden başlangıca döner. İki yön de sabit hızla (R-COL-04: gidiş kaçış
         // hızıyla aynı; dönüşün farklı olduğu ölçülemedi). Model değişmedi (R-COL-02).
-        public void PlayBlocked(SnakeTrack track, float peakTravel, float speed, Action<SnakeView> onFinished)
+        public void PlayBlocked(SnakeTrack track, float peakTravel, float speed, Action<SnakeView> onFinished,
+                                Action<SnakeView> onContact = null)
         {
             _track = track;
             _outcome = MoveOutcome.Blocked;
@@ -166,6 +188,7 @@ namespace SnakeBlockJam.Game
             _speed = speed;
             _viewCamera = null;
             _onFinished = onFinished;
+            _onContact = onContact;
             Travel = 0f;
             _motion = Motion.BlockedForward;
             SetPose(track, 0f);
@@ -215,8 +238,103 @@ namespace SnakeBlockJam.Game
                 Finish();
         }
 
+        // Çarpılan yılan (R-COL-06): segment 'direction' yönünde 'distance' kadar
+        // itilir ve 'duration' içinde yerine yaylanır. Yılan dururken oynar.
+        public void PlayDent(int segmentIndex, Vector3 direction, float distance, float duration)
+        {
+            if (segmentIndex < 0 || segmentIndex >= _segments.Count || _motion != Motion.None)
+                return;
+
+            EndDent();
+            _dentSegment = _segments[segmentIndex];
+            _dentBase = _dentSegment.position;
+            _dentOffset = direction.normalized * distance;
+            _dentDuration = Mathf.Max(0.01f, duration);
+            _dentTime = 0f;
+        }
+
+        // 0 → 1 (hızlı itilme, ilk %20) → 0, küçük bir geri sekme ile (yaylanma).
+        public static float DentCurve(float normalizedTime)
+        {
+            float u = Mathf.Clamp01(normalizedTime);
+
+            if (u < 0.2f)
+                return u / 0.2f;
+
+            float s = (u - 0.2f) / 0.8f;
+            return (1f - s) * Mathf.Cos(Mathf.PI * s);
+        }
+
+        public bool IsDented => _dentTime >= 0f;
+
+        // Sersem gözler (R-COL-07): çarpmadan sonra 'duration' boyunca.
+        public void PlayStun(float duration)
+        {
+            if (duration <= 0f || _pupils.Count == 0)
+                return;
+
+            _stunDuration = duration;
+            _stunTime = 0f;
+        }
+
+        public bool IsStunned => _stunTime >= 0f;
+
+        private void UpdateDent()
+        {
+            if (_dentTime < 0f)
+                return;
+
+            _dentTime += Time.deltaTime;
+
+            if (_dentTime >= _dentDuration || _motion != Motion.None)
+            {
+                EndDent();
+                return;
+            }
+
+            _dentSegment.position = _dentBase + _dentOffset * DentCurve(_dentTime / _dentDuration);
+        }
+
+        private void EndDent()
+        {
+            if (_dentTime >= 0f && _dentSegment != null && _motion == Motion.None)
+                _dentSegment.position = _dentBase;
+
+            _dentTime = -1f;
+            _dentSegment = null;
+        }
+
+        private void UpdateStun()
+        {
+            if (_stunTime < 0f)
+                return;
+
+            _stunTime += Time.deltaTime;
+            bool done = _stunTime >= _stunDuration;
+
+            for (int i = 0; i < _pupils.Count; i++)
+            {
+                if (done)
+                {
+                    _pupils[i].localPosition = _pupilRest[i];
+                    continue;
+                }
+
+                // İki göz zıt yönde döner.
+                float angle = 2f * Mathf.PI * StunTurnsPerSecond * _stunTime * (i % 2 == 0 ? 1f : -1f);
+                _pupils[i].localPosition = _pupilRest[i] +
+                                           new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * StunRadius;
+            }
+
+            if (done)
+                _stunTime = -1f;
+        }
+
         private void Update()
         {
+            UpdateDent();
+            UpdateStun();
+
             switch (_motion)
             {
                 case Motion.Remove:
@@ -239,6 +357,11 @@ namespace SnakeBlockJam.Game
                     {
                         Travel = Mathf.Max(0f, 2f * _peakTravel - Travel);
                         _motion = Motion.BlockedReturn;
+
+                        // Temas (R-COL-08: göçük, küpler, vinyet bu anda başlar).
+                        Action<SnakeView> onContact = _onContact;
+                        _onContact = null;
+                        onContact?.Invoke(this);
                     }
 
                     SetPose(_track, Travel);
@@ -324,8 +447,11 @@ namespace SnakeBlockJam.Game
 
                 CreatePiece(head, "Eye", eye, Vector3.one * EyeSize, eyeWhite,
                     PrimitiveType.Sphere, castShadows: false);
-                CreatePiece(head, "Pupil", eye + new Vector3(0f, 0.08f, 0.13f), Vector3.one * PupilSize, pupil,
-                    PrimitiveType.Sphere, castShadows: false);
+                MeshRenderer pupilPiece = CreatePiece(head, "Pupil", eye + new Vector3(0f, 0.08f, 0.13f),
+                    Vector3.one * PupilSize, pupil, PrimitiveType.Sphere, castShadows: false);
+
+                _pupils.Add(pupilPiece.transform);
+                _pupilRest.Add(pupilPiece.transform.localPosition);
             }
         }
 

@@ -23,6 +23,39 @@ namespace SnakeBlockJam.Game
                  "sayaç 0 → pencere ~1 sn; hareket evresi dışındaki kısım ~0,6.")]
         [Min(0f)] public float outOfMovesDelay = 0.6f;
 
+        [Header("Çarpma geri bildirimi (R-COL-03/06/07/08)")]
+        [Tooltip("Çarpılan yılanın temas bloğunun itilme mesafesi (hücre). R-COL-06: ~½ (OBSERVED).")]
+        [Min(0f)] public float dentDistance = 0.5f;
+
+        [Tooltip("Göçüğün yerine yaylanma süresi (sn). R-COL-06: ~0,15–0,2.")]
+        [Min(0.01f)] public float dentDuration = 0.18f;
+
+        [Tooltip("Saçılan küplerin kaybolma süresi (sn). R-COL-06: ~0,6.")]
+        [Min(0.01f)] public float debrisDuration = 0.6f;
+
+        [Tooltip("Sersem gözlerin süresi (sn). R-COL-07: ≥0,8 (üst sınır UNKNOWN).")]
+        [Min(0f)] public float stunDuration = 0.9f;
+
+        [Tooltip("Kırmızı vinyet: dokunuştan başlangıç / tepe / bitiş (sn). R-COL-03: +0,125 / +0,24 / " +
+                 "eşik üstünde 0,22–0,40 → ~+0,55'te söner (sönme süresi UNKNOWN).")]
+        public float vignetteStart = 0.125f;
+        public float vignettePeak = 0.24f;
+        public float vignetteEnd = 0.55f;
+
+        [Header("Seri yazıları (R-FX-01–06)")]
+        [Tooltip("Eşiği geçiren dokunuştan yazıya kadar (sn). R-FX-06: 0,10–0,17.")]
+        [Min(0f)] public float streakDelay = 0.13f;
+
+        [Tooltip("Yazının ekranda kalma süresi (sn). R-FX-06: ~1.")]
+        [Min(0.1f)] public float streakDuration = 1f;
+
+        [Header("Level sonu (R-TRN-03/04)")]
+        [Tooltip("ALL CLEAR'dan sonra grid nokta dalgası (sn). R-TRN-03: ~0,27.")]
+        [Min(0f)] public float clearWaveDuration = 0.27f;
+
+        [Tooltip("Tahta objeleri küçülüp kaybolur, noktalar söner (sn). R-TRN-03: ~0,16.")]
+        [Min(0f)] public float clearFadeDuration = 0.16f;
+
         [Header("Boosters")]
         [Tooltip("İpucu vurgusunun nabız periyodu (sn). R-HNT-02: v14'te parlak anlar ~7,15 / ~8,75 / ~10,5 sn " +
                  "(OBSERVED, kaba).")]

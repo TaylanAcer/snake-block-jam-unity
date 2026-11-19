@@ -73,7 +73,9 @@ namespace SnakeBlockJam.EditorTools
             Transform canvas = CreateCanvas(controller);
             CreateHud(canvas, controller);
             CreateBoosters(canvas, controller);
+            FeedbackView feedback = CreateFeedback(canvas, controller);
             CreateResultWindow(canvas, controller);
+            CreateSfxPlayer(controllerObject, controller, feedback);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
         }
@@ -403,6 +405,53 @@ namespace SnakeBlockJam.EditorTools
             count = CreateText("Count", badge, "1", 36, Color.white);
 
             return button;
+        }
+
+        // --- Geri bildirim ve ses (Faz 11) --------------------------------------
+        // Vinyet tam ekran (R-COL-03); seri yazısı HUD şeridinin altında, ortada
+        // (banners_group4: 720 × 1616 karede yazı merkezi y ≈ 233, şeritten ~45 px
+        // aşağıda; harf yüksekliği ~50 px). Canvas ölçeği 720 × 1616'da ~0,75.
+
+        private static FeedbackView CreateFeedback(Transform canvas, GameController controller)
+        {
+            RectTransform root = CreateRect("Feedback", canvas);
+            Stretch(root);
+            var view = root.gameObject.AddComponent<FeedbackView>();
+
+            RectTransform vignetteRect = CreateRect("Vignette", root);
+            Stretch(vignetteRect);
+            var vignette = vignetteRect.gameObject.AddComponent<Image>();
+            vignette.raycastTarget = false;
+
+            RectTransform streak = CreateRect("Streak", root);
+            streak.anchorMin = streak.anchorMax = new Vector2(0.5f, 1f);
+            streak.anchoredPosition = new Vector2(0f, -315f);
+            streak.sizeDelta = new Vector2(760f, 110f);
+
+            RectTransform glowRect = CreateRect("Glow", streak);
+            glowRect.sizeDelta = new Vector2(820f, 120f);
+            var glow = glowRect.gameObject.AddComponent<Image>();
+            glow.raycastTarget = false;
+
+            Text label = CreateText("Label", streak, "Great!", 80, Color.white);
+            var outline = label.gameObject.AddComponent<Outline>();
+            outline.effectDistance = new Vector2(5f, -5f);
+            streak.gameObject.SetActive(false);
+
+            SetReference(view, "controller", controller);
+            SetReference(view, "vignette", vignette);
+            SetReference(view, "streakRoot", streak);
+            SetReference(view, "streakGlow", glow);
+            SetReference(view, "streakText", label);
+            SetReference(view, "streakOutline", outline);
+            return view;
+        }
+
+        private static void CreateSfxPlayer(GameObject host, GameController controller, FeedbackView feedback)
+        {
+            var player = host.AddComponent<SfxPlayer>(); // AudioSource RequireComponent ile gelir
+            SetReference(player, "controller", controller);
+            SetReference(player, "feedback", feedback);
         }
 
         private static void CreateResultWindow(Transform canvas, GameController controller)

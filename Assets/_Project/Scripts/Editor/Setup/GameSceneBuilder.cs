@@ -319,7 +319,7 @@ namespace SnakeBlockJam.EditorTools
             Image background = CreateImage(face, HudTeal, "Panel");
             var skull = Icon("Hard", moves, "Skull", 60f, 0f, 51f);
 
-            Text movesText = CreateText("Label", box, "Hamle: 0", 45, Color.white);
+            Text movesText = CreateText("Label", box, "Hamle: 0", 50, Color.white);
             OutlineText(movesText, 2.5f);
 
             RectTransform allClear = CreateRect("AllClear", root);
@@ -336,13 +336,13 @@ namespace SnakeBlockJam.EditorTools
             RectTransform strip = CreateRect("Band", hard);
             strip.anchorMin = new Vector2(0f, 0.5f);
             strip.anchorMax = new Vector2(1f, 0.5f);
-            strip.sizeDelta = new Vector2(0f, 245f);
-            CreateImage(strip, new Color32(166, 24, 32, 230), "Panel");
-            Icon("Skull", strip, "Skull", 194f, 0f, 66f);
+            strip.sizeDelta = new Vector2(0f, 280f);
+            CreateImage(strip, Color.white, "HardBand");
+            Icon("Skull", strip, "Skull", 268f, 0f, 154f);
             RectTransform hardLabel = CreateRect("Text", strip);
-            hardLabel.anchoredPosition = new Vector2(0f, -65f);
-            hardLabel.sizeDelta = new Vector2(300f, 75f);
-            OutlineText(CreateText("Label", hardLabel, "Hard", 64, Color.white), 3f);
+            hardLabel.anchoredPosition = new Vector2(0f, -38f);
+            hardLabel.sizeDelta = new Vector2(330f, 112f);
+            OutlineText(CreateText("Label", hardLabel, "Hard", 72, Color.white), 3f);
             hard.gameObject.SetActive(false);
 
             var hud = root.gameObject.AddComponent<HudView>();
@@ -525,6 +525,10 @@ namespace SnakeBlockJam.EditorTools
             Text title = CreateText("Title", header, "TAMAMLANDI", 60, Color.white);
             title.gameObject.AddComponent<Outline>().effectColor = TextOutline;
 
+            var retrySymbol = Icon("RetrySymbol", card, "Restart", 175f, 0f, 112f);
+            var trophy = Icon("Trophy", card, "Trophy", 690f, 0f, 50f);
+            trophy.gameObject.SetActive(false);
+
             RectTransform messageRect = CreateRect("Message", card);
             messageRect.anchoredPosition = new Vector2(0f, 40f);
             messageRect.sizeDelta = new Vector2(720f, 160f);
@@ -550,6 +554,8 @@ namespace SnakeBlockJam.EditorTools
             SetReference(view, "messageText", message);
             SetReference(view, "buttonText", buttonLabel);
             SetReference(view, "paper", inner.gameObject);
+            SetReference(view, "retrySymbol", retrySymbol.gameObject);
+            SetReference(view, "trophy", trophy.gameObject);
             SetReference(view, "completedRibbon", InterfaceSprite("Ribbon"));
             UnityEventTools.AddPersistentListener(button.onClick, view.OnButton);
         }
@@ -585,29 +591,33 @@ namespace SnakeBlockJam.EditorTools
             Stretch(overlay);
             CreateImage(overlay, new Color(0f, 0f, 0f, 0.982f)).raycastTarget = true;
             RectTransform card = CreateRect("Card", overlay);
-            card.sizeDelta = new Vector2(865f, 1150f);
-            CreateImage(card, Color.white, "Violet");
+            card.sizeDelta = new Vector2(884f, 1174f);
+            CreateImage(card, Color.white, "TutorialCard");
+            AddTutorialShadow(card, new Vector2(0f, -9f));
             RectTransform header = CreateRect("Header", card);
-            header.anchoredPosition = new Vector2(0f, 555f);
-            header.sizeDelta = new Vector2(565f, 132f);
-            CreateImage(header, Color.white, "Glass");
+            header.anchoredPosition = new Vector2(0f, 568f);
+            header.sizeDelta = new Vector2(608f, 154f);
+            CreateImage(header, Color.white, "TutorialHeader");
+            AddTutorialShadow(header, new Vector2(0f, -7f));
             Text title = CreateText("Title", header, "", 54, Color.white);
             OutlineText(title, 3f);
-            var picture = Icon("Picture", card, "Bridge", 450f, 0f, 120f);
+            var picture = Icon("Picture", card, "Bridge", 605f, 0f, 120f);
+            picture.GetComponent<Image>().preserveAspect = true;
             RectTransform line = CreateRect("Description", card);
             line.sizeDelta = new Vector2(745f, 190f);
             line.anchoredPosition = new Vector2(0f, -205f);
-            Text description = CreateText("Label", line, "", 42, Color.white);
+            Text description = CreateText("Label", line, "", 46, Color.white);
             description.horizontalOverflow = HorizontalWrapMode.Wrap;
             OutlineText(description, 2f);
             RectTransform accept = CreateRect("Accept", card);
-            accept.sizeDelta = new Vector2(490f, 143f);
+            accept.sizeDelta = new Vector2(528f, 166f);
             accept.anchoredPosition = new Vector2(0f, -433f);
-            Image face = CreateImage(accept, Color.white, "Action");
+            Image face = CreateImage(accept, Color.white, "TutorialAccept");
+            AddTutorialShadow(accept, new Vector2(1f, -8f));
             face.raycastTarget = true;
             var button = accept.gameObject.AddComponent<Button>();
             button.targetGraphic = face;
-            OutlineText(CreateText("Label", accept, "TAMAM", 54, Color.white), 3f);
+            OutlineText(CreateText("Label", accept, "TAMAM", 62, Color.white), 3f);
             UnityEventTools.AddPersistentListener(button.onClick, view.Dismiss);
             RectTransform guide = CreateRect("FreeGuide", root);
             guide.sizeDelta = new Vector2(150f, 175f);
@@ -630,6 +640,13 @@ namespace SnakeBlockJam.EditorTools
                 new[] { InterfaceSprite("Bridge"), InterfaceSprite("Tunnel"), InterfaceSprite("Bulb"),
                         InterfaceSprite("Spade"), InterfaceSprite("Arrow") });
             overlay.gameObject.SetActive(false);
+        }
+
+        private static void AddTutorialShadow(RectTransform rect, Vector2 offset)
+        {
+            var shadow = rect.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color32(22, 13, 62, 138);
+            shadow.effectDistance = offset;
         }
 
         private static void AddGuideShade(RectTransform parent, Vector2 offset, Vector2 size)

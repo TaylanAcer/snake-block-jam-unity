@@ -903,12 +903,18 @@ public class GameSceneTests
             yield return LoadLevel(level);
             SnakeView snake = FindView(1);
             Vector3 arrow = _controller.BoardView.Geometry.CellToWorld(new Cell(4, 3));
+            int passes = 0;
+            _controller.BoardView.ArrowPassed += () => passes++;
 
             Assert.IsTrue(_controller.HandleCellTap(new Cell(2, 3)));
+
+            Assert.AreEqual(0, passes, "ses oka varmadan tetiklenmez");
 
             // Baş (2,3) → (3,3) → (4,3) dönüş → (4,4) → (4,5): travel 4'te iki hücre yukarıda.
             yield return WaitUntilOrTimeout(() => snake.Travel >= 4f, 1f);
 
+            Assert.AreEqual(1, passes, "bir ok geçişi tek ses üretir");
+            Assert.AreEqual("ArrowSlide", Object.FindAnyObjectByType<SfxPlayer>().LastPlayed);
             Vector3 head = snake.Segments[0].position;
             Assert.AreEqual(arrow.x, head.x, 1e-3f, "head turned into the arrow column");
             Assert.Greater(head.z, arrow.z + 1.5f, "head moves up after the arrow");

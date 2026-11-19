@@ -6,6 +6,21 @@ using UnityEngine;
 public class BlockMeshTests
 {
     [Test]
+    public void SnakeCorner_ReachesBothNeighboursAndRoundsTheExposedCorner()
+    {
+        Mesh mesh = BlockMesh.GetSnakeCorner();
+        float end = SnakeView.BlockLength * 0.5f;
+        float outside = -SnakeView.BlockWidth * 0.5f;
+        Assert.AreEqual(end, mesh.bounds.max.x, 1e-4f);
+        Assert.AreEqual(end, mesh.bounds.max.z, 1e-4f);
+        Assert.AreEqual(outside, mesh.bounds.min.x, 1e-4f);
+        Assert.AreEqual(outside, mesh.bounds.min.z, 1e-4f);
+        foreach (Vector3 vertex in mesh.vertices)
+            Assert.IsFalse(vertex.x < outside + 0.06f && vertex.z < outside + 0.06f);
+        Assert.AreSame(mesh, BlockMesh.GetSnakeCorner());
+    }
+
+    [Test]
     public void Bounds_MatchRequestedSize()
     {
         var size = new Vector3(0.88f, 0.6f, 1f);

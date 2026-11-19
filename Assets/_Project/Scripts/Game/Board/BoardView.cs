@@ -123,6 +123,9 @@ namespace SnakeBlockJam.Game
         public int BridgeCount { get; private set; }
         public int BurrowCount { get; private set; }
         public int ArrowCount { get; private set; }
+        public event System.Action ArrowPassed;
+        private IReadOnlyList<ArrowDefinition> _arrows;
+        private void OnArrowPassed() => ArrowPassed?.Invoke();
 
         public BoardGeometry Geometry { get; private set; }
 
@@ -162,7 +165,8 @@ namespace SnakeBlockJam.Game
             CreateDots(state, level.isRectangularBoard);
             CreateBridges(state.Level.Bridges);
             CreateBurrows(state.Level.Burrows);
-            CreateArrows(state.Level.Arrows);
+            _arrows = state.Level.Arrows;
+            CreateArrows(_arrows);
 
             foreach (var snake in state.Level.Snakes)
             {
@@ -180,6 +184,8 @@ namespace SnakeBlockJam.Game
                         _chipsByColor[color] = CreateChips(_snakeMaterials[color]);
                     view.Chips = _chipsByColor[color];
                 }
+                if (_arrows.Count > 0)
+                    view.ArrowPassed += OnArrowPassed;
                 view.BeginReveal();
                 _snakes.Add(snake.Id, view);
             }
@@ -202,7 +208,7 @@ namespace SnakeBlockJam.Game
                 ClearHighlight();
 
             int extension = view.Definition.Body.Count + EscapeMarginCells;
-            var track = SnakeTrack.ForMove(view.Definition, result, Geometry, extension);
+            var track = SnakeTrack.ForMove(view.Definition, result, Geometry, extension, _arrows);
             view.PlayEscape(track, result.Outcome, speed, viewCamera, OnEscapeFinished);
         }
 
@@ -224,7 +230,7 @@ namespace SnakeBlockJam.Game
             if (!_snakes.TryGetValue(result.SnakeId, out var view))
                 return false;
 
-            var track = SnakeTrack.ForMove(view.Definition, result, Geometry, 0);
+            var track = SnakeTrack.ForMove(view.Definition, result, Geometry, 0, _arrows);
             float peak = result.HeadPath.Count + SnakeView.ContactGap;
 
             _blocking.Add(view);
@@ -660,7 +666,7 @@ namespace SnakeBlockJam.Game
                 Material skin = CreateMaterial($"Snake_{(SnakeColor)i}", snakeColors[i]);
                 if (skin.HasProperty("_SideScale"))
                 {
-                    skin.SetFloat("_SideScale", 0.28f);
+                    skin.SetFloat("_SideScale", 0.39f);
                     skin.SetFloat("_SideGamma", 1.27f);
                 }
                 _snakeMaterials[i] = skin;

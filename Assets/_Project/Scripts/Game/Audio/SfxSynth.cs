@@ -41,6 +41,21 @@ namespace SnakeBlockJam.Game
             });
         }
 
+        // Ok hücresindeki kısa kayış: alçalan perdeye hafif sürtünme eşlik eder.
+        public static float[] ArrowSlide()
+        {
+            const float duration = 0.28f;
+            var noise = new System.Random(21);
+            float filtered = 0f;
+            return Render(duration, t =>
+            {
+                float phase = 1120f * t - 660f * t * t / (2f * duration);
+                filtered = Mathf.Lerp(filtered, (float)noise.NextDouble() * 2f - 1f, 0.20f);
+                float envelope = Mathf.Sin(Mathf.PI * t / duration) * Decay(t, 0.26f);
+                return envelope * (0.19f * Mathf.Sin(2f * Mathf.PI * phase) + 0.18f * filtered);
+            });
+        }
+
         // ALL CLEAR: Do-Mi-Sol-Do arpej.
         public static float[] AllClear()
         {

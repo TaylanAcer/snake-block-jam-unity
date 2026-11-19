@@ -18,6 +18,10 @@ namespace SnakeBlockJam.Game
 
         public int BodyLength { get; }
 
+        private List<int> _arrowSteps;
+        public bool HasReachedArrow(int index, float travel) =>
+            _arrowSteps != null && index < _arrowSteps.Count && travel >= _arrowSteps[index];
+
         // İzin toplam uzunluğu (hücre).
         public float Length => _points.Count - 1;
 
@@ -39,7 +43,8 @@ namespace SnakeBlockJam.Game
         // Hamle izi. 'extensionCells' sadece tahtadan kaçışta eklenir; yılanın
         // ekrandan tamamen çıkmasına yetecek kadar uzun olmalıdır (R-MOV-07).
         public static SnakeTrack ForMove(
-            SnakeDefinition snake, MoveResult result, BoardGeometry geometry, int extensionCells)
+            SnakeDefinition snake, MoveResult result, BoardGeometry geometry, int extensionCells,
+            IReadOnlyList<ArrowDefinition> arrows = null)
         {
             if (result.SnakeId != snake.Id)
                 throw new ArgumentException(
@@ -56,8 +61,19 @@ namespace SnakeBlockJam.Game
                     + (blocked ? 1 : 0)
             );
 
-            foreach (var step in result.HeadPath)
+            var track = new SnakeTrack(points, snake.Body.Count);
+            for (int i = 0; i < result.HeadPath.Count; i++)
+            {
+                LayeredCell step = result.HeadPath[i];
                 points.Add(geometry.CellToWorld(step.Cell, step.Layer));
+                for (int j = 0; j < (arrows?.Count ?? 0); j++)
+                {
+                    if (arrows[j].Position != step.Cell)
+                        continue;
+                    (track._arrowSteps ??= new List<int>()).Add(i + 1);
+                    break;
+                }
+            }
             if (blocked)
             {
                 LayeredCell blockedCell = result.BlockedAt.Value;
@@ -84,7 +100,7 @@ namespace SnakeBlockJam.Game
                 }
             }
 
-            return new SnakeTrack(points, snake.Body.Count);
+            return track;
         }
 
         // Segmentin iz üzerindeki mesafesi.

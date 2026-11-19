@@ -20,6 +20,68 @@ namespace SnakeBlockJam.Game
 
         private static readonly Dictionary<Vector4, Mesh> Cache = new Dictionary<Vector4, Mesh>();
 
+        private static Mesh _snakeCorner;
+
+        // +x ve +z kenarları komşu hücreye ulaşır. Karşılarındaki açık köşede
+        // üst ve yan yüz aynı yayı izler. İki dönüş yönü aynı ağı paylaşır.
+        public static Mesh GetSnakeCorner()
+        {
+            if (_snakeCorner != null)
+                return _snakeCorner;
+
+            float half = SnakeView.BlockWidth * 0.5f;
+            float end = SnakeView.BlockLength * 0.5f;
+            float height = SnakeView.BlockHeight * 0.5f;
+            const float bevel = 0.025f;
+            var vertices = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var triangles = new List<int>();
+
+            // Yukarıdan bakınca dört köşeyi saat yönünde dolaş.
+            for (int corner = 0; corner < 4; corner++)
+            {
+                bool right = corner < 2;
+                bool front = corner == 0 || corner == 3;
+                float radius = !right && !front ? 0.26f : bevel;
+                float cx = right ? end - radius : -half + radius;
+                float cz = front ? end - radius : -half + radius;
+                for (int step = 0; step <= RoundSteps; step++)
+                {
+                    float angle = (corner + step / (float)RoundSteps) * Mathf.PI * 0.5f;
+                    Vector3 outward = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle));
+                    Vector3 edge = new Vector3(cx, 0f, cz) + radius * outward;
+                    vertices.Add(edge - height * Vector3.up);
+                    vertices.Add(edge + (height - bevel) * Vector3.up);
+                    vertices.Add(edge - bevel * outward + height * Vector3.up);
+                    normals.Add(outward);
+                    normals.Add(outward);
+                    normals.Add(Vector3.up);
+                }
+            }
+
+            int center = vertices.Count;
+            vertices.Add(Vector3.up * height);
+            normals.Add(Vector3.up);
+            for (int a = 0; a < center; a += 3)
+            {
+                int b = (a + 3) % center;
+                for (int row = 0; row < 2; row++)
+                {
+                    int lo = a + row;
+                    int next = b + row;
+                    triangles.AddRange(new[] { lo, next, next + 1, lo, next + 1, lo + 1 });
+                }
+                triangles.AddRange(new[] { center, a + 2, b + 2 });
+            }
+
+            _snakeCorner = new Mesh { name = "SnakeCorner" };
+            _snakeCorner.SetVertices(vertices);
+            _snakeCorner.SetNormals(normals);
+            _snakeCorner.SetTriangles(triangles, 0);
+            _snakeCorner.RecalculateBounds();
+            return _snakeCorner;
+        }
+
         // 'size': kutunun boyutları; pivot kutunun merkezinde.
         public static Mesh Get(Vector3 size, float radius)
         {

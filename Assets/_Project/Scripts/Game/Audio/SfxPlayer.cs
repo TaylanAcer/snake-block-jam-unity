@@ -14,7 +14,7 @@ namespace SnakeBlockJam.Game
         [Range(0f, 1f)] [SerializeField] private float volume = 0.8f;
 
         private AudioSource _source;
-        private AudioClip _tap, _bump, _escape, _allClear, _streak, _booster, _button;
+        private AudioClip _tap, _bump, _escape, _allClear, _streak, _booster, _button, _arrowSlide;
 
         // Son çalınan sesin adı (testler için; batchmode'da ses aygıtı olmayabilir).
         public string LastPlayed { get; private set; }
@@ -27,6 +27,7 @@ namespace SnakeBlockJam.Game
 
             _tap = SfxSynth.ToClip("Tap", SfxSynth.Tap());
             _bump = SfxSynth.ToClip("Bump", SfxSynth.Bump());
+            _arrowSlide = SfxSynth.ToClip("ArrowSlide", SfxSynth.ArrowSlide());
             _escape = SfxSynth.ToClip("Escape", SfxSynth.Escape());
             _allClear = SfxSynth.ToClip("AllClear", SfxSynth.AllClear());
             _streak = SfxSynth.ToClip("Streak", SfxSynth.Streak());
@@ -39,6 +40,7 @@ namespace SnakeBlockJam.Game
             controller.MovePlayed += OnMovePlayed;
             controller.LevelCleared += OnLevelCleared;
             controller.BoosterUsed += OnBoosterUsed;
+            controller.BoardView.ArrowPassed += OnArrowPassed;
             controller.BoardView.BlockedContact += OnBlockedContact;
 
             if (feedback != null)
@@ -52,7 +54,10 @@ namespace SnakeBlockJam.Game
             controller.BoosterUsed -= OnBoosterUsed;
 
             if (controller.BoardView != null)
+            {
                 controller.BoardView.BlockedContact -= OnBlockedContact;
+                controller.BoardView.ArrowPassed -= OnArrowPassed;
+            }
 
             if (feedback != null)
                 feedback.StreakShown -= OnStreakShown;
@@ -68,6 +73,7 @@ namespace SnakeBlockJam.Game
                 Play(_escape);
         }
 
+        private void OnArrowPassed() => Play(_arrowSlide);
         private void OnBlockedContact(MoveResult result) => Play(_bump);
         private void OnLevelCleared() => Play(_allClear);
         private void OnStreakShown(int index) => Play(_streak);
@@ -83,7 +89,7 @@ namespace SnakeBlockJam.Game
 
         private void OnDestroy()
         {
-            foreach (var clip in new[] { _tap, _bump, _escape, _allClear, _streak, _booster, _button })
+            foreach (var clip in new[] { _tap, _bump, _escape, _allClear, _streak, _booster, _button, _arrowSlide })
             {
                 if (clip != null)
                     Destroy(clip);

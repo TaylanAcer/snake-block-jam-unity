@@ -21,6 +21,8 @@ namespace SnakeBlockJam.Game
 
         [SerializeField] private GameObject paper;
         [SerializeField] private Sprite completedRibbon;
+        [SerializeField] private GameObject trophy;
+        [SerializeField] private GameObject retrySymbol;
         private Sprite blueHeader;
 
         private float _shownTime = -1f;
@@ -99,6 +101,14 @@ namespace SnakeBlockJam.Game
             ((RectTransform)buttonText.transform.parent).anchoredPosition = new Vector2(0f, completed ? 68f : 120f);
             Card.GetComponent<Image>().enabled = !completed;
             paper.SetActive(!completed);
+            if (retrySymbol != null)
+                retrySymbol.SetActive(!completed);
+            if (trophy != null)
+            {
+                trophy.SetActive(completed);
+                ((RectTransform)messageText.transform.parent).anchoredPosition =
+                    new Vector2(0f, completed ? -245f : -80f);
+            }
             messageText.color = completed ? Color.white : new Color32(51, 58, 72, 255);
         }
 

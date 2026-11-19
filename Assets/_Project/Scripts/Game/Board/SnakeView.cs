@@ -16,17 +16,17 @@ namespace SnakeBlockJam.Game
     // Ölçüler hücre biriminde ve Level_01.png'ye göre yaklaşık (OBSERVED).
     public sealed class SnakeView : MonoBehaviour
     {
-        // Blok: yandan yana 0,88, yol boyunca 1 hücre (bloklar uç uca değer).
+        // Blok: yandan yana 0,97, yol boyunca 1 hücre (bloklar uç uca değer).
         // Referansta (Level_13.png, 3× yakın plan) yılanın yanları düz, hücreler
         // arasında yalnızca üstte ince bir dikiş var: kenarları hafif yuvarlak
         // bloklar uç uca gelince üstte ince bir oluk kalıyor.
-        public const float BlockWidth = 0.88f;
+        public const float BlockWidth = 0.97f;
         public const float BlockLength = 1f;
         public const float BlockHeight = 0.6f;
 
         // Kenar yuvarlaklığı (hücre). Büyük olursa yanlarda boğum oluşuyor
         // (0,11 denendi: "boncuk dizisi" görüntüsü).
-        private const float BlockRadius = 0.05f;
+        private const float BlockRadius = 0.025f;
         private const float TipRadius = 0.09f;
         private int _hiddenSegments;
         private float _revealProgress;
@@ -58,13 +58,13 @@ namespace SnakeBlockJam.Game
         // Göz (Level_13.png yakın plan): hücrenin ~yarısı çapında beyaz göz, ince
         // siyah çerçeve, büyük koyu göz bebeği; gözler başın ön kenarında, yan
         // yana neredeyse değiyor.
-        private const float EyeSize = 0.46f;
-        private const float EyeFlatten = 0.7f;
-        private const float EyeRimSize = 0.54f;
+        private const float EyeSize = 0.53f;
+        private const float EyeFlatten = 0.56f;
+        private const float EyeRimSize = 0.57f;
         private const float EyeForward = 0.3f;
-        private const float EyeSpacing = 0.24f;
+        private const float EyeSpacing = 0.29f;
         private const float EyeLift = 0.04f;
-        private const float PupilSize = 0.24f;
+        private const float PupilSize = 0.27f;
 
         // Dil (R-SNK-02 "bazen dil"; başlangıç karelerinde çoğu başta görünüyor):
         // başın önünden çıkan ince kırmızı çatal. Ölçüler yaklaşık (OBSERVED).
@@ -126,6 +126,18 @@ namespace SnakeBlockJam.Game
         private MoveOutcome _outcome;
         private Motion _motion;
         private float _peakTravel;
+        private int _nextArrow;
+        internal event Action ArrowPassed;
+
+        private void AdvanceForward()
+        {
+            Travel += _speed * Time.deltaTime;
+            while (_track.HasReachedArrow(_nextArrow, Travel))
+            {
+                _nextArrow++;
+                ArrowPassed?.Invoke();
+            }
+        }
         private float _speed;
         private Camera _viewCamera;
         private Action<SnakeView> _onFinished;
@@ -182,7 +194,7 @@ namespace SnakeBlockJam.Game
                 if (i == 1 && !isTail)
                 {
                     _straightBlock = filter.sharedMesh;
-                    _cornerBlock = BlockMesh.Get(size, 0.18f);
+                    _cornerBlock = BlockMesh.GetSnakeCorner();
                 }
 
                 // Kuyruk segmenti boyna bakar; uç arkaya (-z) uzanır.
@@ -263,6 +275,7 @@ namespace SnakeBlockJam.Game
 
             RevealTo(0);
             _track = track;
+            _nextArrow = 0;
             _outcome = outcome;
             _speed = speed;
             _viewCamera = viewCamera;
@@ -280,6 +293,7 @@ namespace SnakeBlockJam.Game
         {
             RevealTo(0);
             _track = track;
+            _nextArrow = 0;
             _outcome = MoveOutcome.Blocked;
             _peakTravel = Mathf.Clamp(peakTravel, 0f, track.Length);
             _speed = speed;
@@ -548,7 +562,7 @@ namespace SnakeBlockJam.Game
                     break;
 
                 case Motion.Escape:
-                    Travel += _speed * Time.deltaTime;
+                    AdvanceForward();
                     SetPose(_track, Travel);
 
                     if (_outcome == MoveOutcome.EscapedIntoBurrow)
@@ -564,7 +578,7 @@ namespace SnakeBlockJam.Game
                     break;
 
                 case Motion.BlockedForward:
-                    Travel += _speed * Time.deltaTime;
+                    AdvanceForward();
 
                     // Tepeyi geçen mesafe aynı karede geri dönüşe sayılır.
                     if (Travel >= _peakTravel)
@@ -631,8 +645,14 @@ namespace SnakeBlockJam.Game
                 Place(_segments[i], track, distance, distance <= track.Length);
                 if (i > 0 && i < _segments.Count - 1)
                 {
-                    bool bends = Vector3.Dot(track.Direction(distance), track.Direction(distance - 0.5f)) < 0.5f;
+                    Vector3 forward = track.Direction(distance);
+                    Vector3 incoming = track.Direction(distance - 0.5f);
+                    float turn = Vector3.Cross(incoming, forward).y;
+                    bool bends = Mathf.Abs(turn) > 0.5f;
                     Mesh shape = bends ? _cornerBlock : _straightBlock;
+                    // Köşe ağı +x ve +z ağızlıdır. Diğer dönüşte ağı çeyrek tur çevir.
+                    _bodyMeshes[i].transform.localRotation = bends && turn < 0f
+                        ? Quaternion.Euler(0f, -90f, 0f) : Quaternion.identity;
                     if (_bodyMeshes[i].sharedMesh != shape)
                         _bodyMeshes[i].sharedMesh = shape;
                 }
@@ -682,7 +702,7 @@ namespace SnakeBlockJam.Game
                     PrimitiveType.Sphere, castShadows: false);
                 MeshRenderer pupilPiece = CreatePiece(socket, "Pupil",
                     new Vector3(0f, EyeSize * EyeFlatten * 0.42f, 0.08f),
-                    new Vector3(PupilSize, PupilSize * 0.5f, PupilSize), pupil,
+                    new Vector3(PupilSize, PupilSize * 0.40f, PupilSize), pupil,
                     PrimitiveType.Sphere, castShadows: false);
 
                 MeshFilter eyeMesh = pupilPiece.GetComponent<MeshFilter>();

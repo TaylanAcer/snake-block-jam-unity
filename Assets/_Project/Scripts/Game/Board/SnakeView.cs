@@ -39,7 +39,7 @@ namespace SnakeBlockJam.Game
         private const float TrailingReach = 1f;
         private const float ViewportMargin = 0.02f;
 
-        private enum Motion { None, Escape, BlockedForward, BlockedReturn }
+        private enum Motion { None, Escape, BlockedForward, BlockedReturn, Remove }
 
         // Segment kökleri: zeminde, hücre merkezinde; +z ilerleme yönü.
         private readonly List<Transform> _segments = new List<Transform>();
@@ -48,7 +48,12 @@ namespace SnakeBlockJam.Game
         private readonly List<Transform> _links = new List<Transform>();
         private readonly List<float> _linkOffsets = new List<float>();
 
+        // Gövde rengini taşıyan parçalar (göz hariç): İpucu vurgusu bunları boyar.
+        private readonly List<MeshRenderer> _bodyRenderers = new List<MeshRenderer>();
+
         private SnakeTrack _restTrack;
+        private float _removeElapsed;
+        private float _removeSegmentTime;
         private SnakeTrack _track;
         private MoveOutcome _outcome;
         private Motion _motion;
@@ -59,6 +64,15 @@ namespace SnakeBlockJam.Game
 
         public int SnakeId { get; private set; }
         public SnakeDefinition Definition { get; private set; }
+
+        // Yılanın kendi renk materyali (paylaşılan). Vurgu kalkınca buna dönülür.
+        public Material BodyMaterial { get; private set; }
+
+        // Gövde parçalarının şu an kullandığı materyal (normalde BodyMaterial).
+        public Material CurrentBodyMaterial => _bodyRenderers.Count > 0 ? _bodyRenderers[0].sharedMaterial : null;
+
+        // Kürek animasyonunda kaybolmuş segment sayısı (kuyruktan sayılır).
+        public int RemovedSegmentCount { get; private set; }
 
         // Baştan kuyruğa segment kökleri.
         public IReadOnlyList<Transform> Segments => _segments;
@@ -78,6 +92,7 @@ namespace SnakeBlockJam.Game
         {
             Definition = snake;
             SnakeId = snake.Id;
+            BodyMaterial = body;
             name = $"Snake_{snake.Id}";
 
             int last = snake.Body.Count - 1;
@@ -89,13 +104,14 @@ namespace SnakeBlockJam.Game
                 float height = isTail ? TailHeight : BlockHeight;
 
                 Transform segment = CreateRoot($"Segment_{i}");
-                CreatePiece(segment, "Block", new Vector3(0f, height * 0.5f, 0f),
-                    new Vector3(width, height, width), body);
+                _bodyRenderers.Add(CreatePiece(segment, "Block", new Vector3(0f, height * 0.5f, 0f),
+                    new Vector3(width, height, width), body));
 
                 // Kuyruk segmenti boyna bakar; uç arkaya (-z) uzanır.
                 if (isTail)
-                    CreatePiece(segment, "TailTip", new Vector3(0f, TipHeight * 0.5f, -TipLength * 0.5f),
-                        new Vector3(TipWidth, TipHeight, TipLength), body);
+                    _bodyRenderers.Add(CreatePiece(segment, "TailTip",
+                        new Vector3(0f, TipHeight * 0.5f, -TipLength * 0.5f),
+                        new Vector3(TipWidth, TipHeight, TipLength), body));
 
                 if (i == 0)
                     CreateEyes(segment, eyeWhite, pupil);
@@ -108,8 +124,8 @@ namespace SnakeBlockJam.Game
                 {
                     float gap = 1f - BlockWidth * 0.5f - width * 0.5f;
                     Transform link = CreateRoot($"Link_{i}");
-                    CreatePiece(link, "Block", new Vector3(0f, height * 0.5f, 0f),
-                        new Vector3(width, height, gap), body);
+                    _bodyRenderers.Add(CreatePiece(link, "Block", new Vector3(0f, height * 0.5f, 0f),
+                        new Vector3(width, height, gap), body));
 
                     _links.Add(link);
                     _linkOffsets.Add(width * 0.5f + gap * 0.5f);
@@ -155,10 +171,58 @@ namespace SnakeBlockJam.Game
             SetPose(track, 0f);
         }
 
+        // İpucu vurgusu: gövde parçaları başka bir materyalle çizilir (gözler değişmez).
+        // null → yılanın kendi rengi.
+        public void SetBodyMaterial(Material material)
+        {
+            Material target = material != null ? material : BodyMaterial;
+
+            foreach (var renderer in _bodyRenderers)
+                renderer.sharedMaterial = target;
+        }
+
+        // Kürek (R-SHV-03): segmentler kuyruktan başa doğru teker teker kaybolur;
+        // süre yılan uzunluğuyla orantılı. Model yılanı zaten kaldırdı (R-SHV-01).
+        // Kürek görseli ve parçacıklar yok (görsel tur).
+        public void PlayRemove(float segmentTime, Action<SnakeView> onFinished)
+        {
+            _removeSegmentTime = Mathf.Max(0.01f, segmentTime);
+            _removeElapsed = 0f;
+            RemovedSegmentCount = 0;
+            _onFinished = onFinished;
+            _motion = Motion.Remove;
+        }
+
+        private void UpdateRemove()
+        {
+            _removeElapsed += Time.deltaTime;
+            int removed = Mathf.Min(_segments.Count, Mathf.FloorToInt(_removeElapsed / _removeSegmentTime));
+
+            for (int k = RemovedSegmentCount; k < removed; k++)
+            {
+                int segment = _segments.Count - 1 - k;
+                _segments[segment].gameObject.SetActive(false);
+
+                // Ek parçası arkadaki segmente aittir: _links[segment - 1], segment
+                // ile önündeki arasında.
+                if (segment > 0)
+                    _links[segment - 1].gameObject.SetActive(false);
+            }
+
+            RemovedSegmentCount = removed;
+
+            if (removed >= _segments.Count)
+                Finish();
+        }
+
         private void Update()
         {
             switch (_motion)
             {
+                case Motion.Remove:
+                    UpdateRemove();
+                    break;
+
                 case Motion.Escape:
                     Travel += _speed * Time.deltaTime;
                     SetPose(_track, Travel);
@@ -272,7 +336,7 @@ namespace SnakeBlockJam.Game
             return root;
         }
 
-        private static void CreatePiece(
+        private static MeshRenderer CreatePiece(
             Transform parent, string objectName, Vector3 localPosition, Vector3 scale, Material material,
             PrimitiveType type = PrimitiveType.Cube, bool castShadows = true)
         {
@@ -289,6 +353,7 @@ namespace SnakeBlockJam.Game
             t.SetParent(parent, false);
             t.localPosition = localPosition;
             t.localScale = scale;
+            return renderer;
         }
     }
 }

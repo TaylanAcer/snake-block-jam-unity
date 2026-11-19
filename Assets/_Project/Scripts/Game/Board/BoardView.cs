@@ -42,6 +42,9 @@ namespace SnakeBlockJam.Game
         [Tooltip("Ekranda ≈ RGB(95, 92, 96) görünecek şekilde (Level_20.png).")]
         [SerializeField] private Color arrowColor = new Color32(0x5D, 0x5B, 0x5F, 0xFF);
 
+        [Header("İpucu vurgusu (probe_hint_v14; parlak an ≈ RGB(220, 250, 92))")]
+        [SerializeField] private Color hintColor = new Color32(0xDC, 0xFA, 0x5C, 0xFF);
+
         [Header("Camera (referans: hafif açılı perspektif, R-BRD-03)")]
         [SerializeField] private float cameraFieldOfView = 30f;
         [Tooltip("Yataydan aşağı bakış açısı. 90 = tam tepeden. Level_01.png'de satır aralığı " +
@@ -73,6 +76,13 @@ namespace SnakeBlockJam.Game
         private readonly Dictionary<int, SnakeView> _snakes = new Dictionary<int, SnakeView>();
         private readonly List<SnakeView> _escaping = new List<SnakeView>();
         private readonly List<SnakeView> _blocking = new List<SnakeView>();
+        private readonly List<SnakeView> _removing = new List<SnakeView>();
+
+        // İpucu: vurgulanan yılan ve onun için tek bir nabız materyali.
+        private SnakeView _highlighted;
+        private Material _highlightMaterial;
+        private float _highlightStart;
+        private float _highlightPeriod = 1f;
         private readonly List<Material> _materials = new List<Material>();
         private Material[] _snakeMaterials;
         private Material _groundMaterial;
@@ -104,6 +114,12 @@ namespace SnakeBlockJam.Game
 
         // Çarpma animasyonu (gidiş + dönüş) oynayan yılan sayısı.
         public int BlockedSnakeCount => _blocking.Count;
+
+        // Kürekle kaldırılıp kaybolma animasyonu süren yılan sayısı.
+        public int RemovingSnakeCount => _removing.Count;
+
+        // İpucuyla vurgulanan yılan (0: yok).
+        public int HighlightedSnakeId => _highlighted != null ? _highlighted.SnakeId : 0;
 
         public bool HasSnakeView(int snakeId)
         {
@@ -150,6 +166,10 @@ namespace SnakeBlockJam.Game
             _snakes.Remove(result.SnakeId);
             _escaping.Add(view);
 
+            // R-HNT-02: vurgu, oyuncu o yılana dokununca biter.
+            if (view == _highlighted)
+                ClearHighlight();
+
             int extension = view.Definition.Body.Count + EscapeMarginCells;
             var track = SnakeTrack.ForMove(view.Definition, result, Geometry, extension);
             view.PlayEscape(track, result.Outcome, speed, viewCamera, OnEscapeFinished);
@@ -185,11 +205,75 @@ namespace SnakeBlockJam.Game
             return true;
         }
 
+        // Kürek: model yılanı zaten kaldırdı (BoardState.RemoveSnake). View tahtadaki
+        // yılanlardan ayrılır, kuyruktan başa kaybolur, sonra yok edilir.
+        public bool PlayShovel(int snakeId, float segmentTime)
+        {
+            if (!_snakes.TryGetValue(snakeId, out var view))
+                return false;
+
+            if (view == _highlighted)
+                ClearHighlight();
+
+            _snakes.Remove(snakeId);
+            _removing.Add(view);
+            view.PlayRemove(segmentTime, finished =>
+            {
+                if (_removing.Remove(finished))
+                    DestroyObject(finished.gameObject);
+            });
+            return true;
+        }
+
+        // İpucu (R-HNT-02): yılan kendi rengi ile parlak sarı-yeşil arasında
+        // nabız gibi yanıp söner. Aynı anda tek yılan vurgulanır.
+        public void SetHighlight(int snakeId, float period)
+        {
+            ClearHighlight();
+
+            if (!_snakes.TryGetValue(snakeId, out var view))
+                return;
+
+            if (_highlightMaterial == null)
+                _highlightMaterial = CreateMaterial("Highlight", hintColor);
+
+            _highlighted = view;
+            _highlightStart = Time.time;
+            _highlightPeriod = Mathf.Max(0.1f, period);
+            _highlightMaterial.color = hintColor;
+            view.SetBodyMaterial(_highlightMaterial);
+        }
+
+        public void ClearHighlight()
+        {
+            if (_highlighted != null)
+                _highlighted.SetBodyMaterial(null);
+
+            _highlighted = null;
+        }
+
+        // 0 → yılanın rengi, 1 → vurgu rengi. Parlak başlar (kosinüs).
+        public static float HighlightWeight(float time, float period)
+        {
+            return 0.5f + 0.5f * Mathf.Cos(2f * Mathf.PI * time / period);
+        }
+
+        private void Update()
+        {
+            if (_highlighted == null)
+                return;
+
+            float weight = HighlightWeight(Time.time - _highlightStart, _highlightPeriod);
+            _highlightMaterial.color = Color.Lerp(_highlighted.BodyMaterial.color, hintColor, weight);
+        }
+
         public void Clear()
         {
             _snakes.Clear();
             _escaping.Clear();
             _blocking.Clear();
+            _removing.Clear();
+            _highlighted = null;
             _bridgeCells.Clear();
             BridgeCount = 0;
             BurrowCount = 0;

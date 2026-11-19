@@ -35,6 +35,16 @@ namespace SnakeBlockJam.Game
         // R-WIN-03: TAMAMLANDI L5'ten itibaren; L1–L4'te sonraki level doğrudan açılır.
         public const int FirstLevelWithCompletedScreen = 5;
 
+        // R-FX-08: İpucu L13'te, Kürek L18'de tanıtılıyor; öncesinde butonları yok
+        // (Level_11/12.png'de booster yok, L13–L17'de sadece İpucu, L18+ ikisi).
+        public const int HintUnlockLevel = 13;
+        public const int ShovelUnlockLevel = 18;
+
+        // Her level 1 İpucu + 1 Kürek ile başlar; Restart yeniler. Referansta stok
+        // kalıcı ve coin ile alınıyor (kapsam dışı, spec §13); rozetlerde hep "1"
+        // görüldü. ASSUMED.
+        public const int BoostersPerLevel = 1;
+
         [Tooltip("Başlangıç level'ı. Sonrakiler katalogdan gelir.")]
         [SerializeField] private LevelData level;
         [SerializeField] private LevelCatalog catalog;
@@ -62,6 +72,22 @@ namespace SnakeBlockJam.Game
 
         // Başarısız hamlenin gidiş + dönüşü sürüyor; yılan dokunuşları reddedilir.
         public bool IsInputLocked { get; private set; }
+
+        // --- Boosterlar (Faz 9) ---
+        public bool IsHintUnlocked => level != null && level.levelNumber >= HintUnlockLevel;
+        public bool IsShovelUnlocked => level != null && level.levelNumber >= ShovelUnlockLevel;
+        public int HintsLeft { get; private set; }
+        public int ShovelsLeft { get; private set; }
+
+        // İpucuyla vurgulanan yılan; o yılan tahtadan çıkınca 0 (R-HNT-02).
+        public int HintedSnakeId { get; private set; }
+
+        // Kürek hedef seçme modu (R-SHV-02): sonraki yılan dokunuşu hamle değil, kaldırma.
+        public bool IsShovelTargeting { get; private set; }
+
+        // Booster yalnızca level oynanırken kullanılır (pencere/ALL CLEAR'da değil).
+        public bool CanUseBoosters =>
+            State != null && State.Status == GameStatus.Playing && Phase == GamePhase.Playing;
 
         // Android varsayılanı 30 FPS; ~60 hücre/sn kaçışlar 30 FPS'te kare başına
         // 2 hücre atlar. Editörde VSync açıkken bu değer etkisizdir.
@@ -116,6 +142,11 @@ namespace SnakeBlockJam.Game
             Phase = GamePhase.Playing;
             IsInputLocked = false;
 
+            HintsLeft = IsHintUnlocked ? BoostersPerLevel : 0;
+            ShovelsLeft = IsShovelUnlocked ? BoostersPerLevel : 0;
+            HintedSnakeId = 0;
+            IsShovelTargeting = false;
+
             State = new BoardState(level.ToDefinition());
             boardView.Build(level, State);
             FitCamera();
@@ -158,11 +189,17 @@ namespace SnakeBlockJam.Game
             if (!TryGetSnakeAt(cell, out int snakeId))
                 return false;
 
+            if (IsShovelTargeting)
+                return ShovelSnake(snakeId);
+
             MoveResult result = MoveSimulator.Simulate(State, snakeId);
             State.Apply(result);
 
             if (result.IsEscaped)
             {
+                if (snakeId == HintedSnakeId)
+                    HintedSnakeId = 0;
+
                 boardView.PlayEscape(result, feel.escapeSpeed, gameCamera);
             }
             else
@@ -191,6 +228,69 @@ namespace SnakeBlockJam.Game
             IsInputLocked = false;
         }
 
+        // İpucu (R-HNT-01/05/06): kaçabilen bir yılanı vurgular, hamle harcamaz.
+        // Tekrar kullanılırsa sıradaki kaçabilen yılan (Solver.PickHint).
+        public bool UseHint()
+        {
+            if (!CanUseBoosters || HintsLeft <= 0)
+                return false;
+
+            int snakeId = Solver.PickHint(State, HintedSnakeId);
+
+            if (snakeId == 0)
+                return false;
+
+            HintsLeft--;
+            HintedSnakeId = snakeId;
+            boardView.SetHighlight(snakeId, feel.hintPulsePeriod);
+            Changed?.Invoke();
+            return true;
+        }
+
+        // Kürek butonu → hedef seçme modu (R-SHV-02). Stok, hedef seçilince düşer.
+        public bool BeginShovel()
+        {
+            if (!CanUseBoosters || ShovelsLeft <= 0 || IsShovelTargeting)
+                return false;
+
+            IsShovelTargeting = true;
+            Changed?.Invoke();
+            return true;
+        }
+
+        // Banttaki kırmızı X: mod kapanır, stok harcanmaz.
+        public void CancelShovel()
+        {
+            if (!IsShovelTargeting)
+                return;
+
+            IsShovelTargeting = false;
+            Changed?.Invoke();
+        }
+
+        // R-SHV-01/05: yılan kaldırılır; hamle ve kaçış sayacı değişmez
+        // (BoardState.RemoveSnake). Köprü altı ve tünel yanı dahil her yılan
+        // hedeflenebilir. Son yılan kaldırılırsa level kazanılır (tahta boş);
+        // referansta bu durum görülmedi, ASSUMED.
+        private bool ShovelSnake(int snakeId)
+        {
+            State.RemoveSnake(snakeId);
+            ShovelsLeft--;
+            IsShovelTargeting = false;
+
+            if (snakeId == HintedSnakeId)
+                HintedSnakeId = 0;
+
+            boardView.PlayShovel(snakeId, feel.shovelSegmentTime);
+            Debug.Log($"Snake {snakeId}: removed by shovel. Active {State.ActiveSnakeCount}.");
+
+            if (State.Status == GameStatus.Won)
+                StartCoroutine(PlayLevelEnd());
+
+            Changed?.Invoke();
+            return true;
+        }
+
         // Kazanma modelde anındadır; ALL CLEAR son kaçış ekrandan çıktıktan
         // ~0,28 sn sonra gelir (R-TRN-01) ve ~1,3 sn kalır (R-TRN-02). Sonra L5+
         // için TAMAMLANDI (R-TRN-04), L1–L4 için doğrudan sonraki level (R-TRN-07;
@@ -198,7 +298,8 @@ namespace SnakeBlockJam.Game
         // Nokta dalgası (R-TRN-03) henüz yok.
         private IEnumerator PlayLevelEnd()
         {
-            yield return new WaitUntil(() => boardView.EscapingSnakeCount == 0);
+            yield return new WaitUntil(() =>
+                boardView.EscapingSnakeCount == 0 && boardView.RemovingSnakeCount == 0);
             yield return new WaitForSeconds(feel.allClearDelay);
 
             SetPhase(GamePhase.AllClear);

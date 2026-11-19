@@ -907,6 +907,188 @@ public class GameSceneTests
         }
     }
 
+    // --- Boosterlar (Faz 9) ----------------------------------------------------
+
+    private static GameObject BoosterChild(string path)
+    {
+        return GameObject.Find("Boosters").transform.Find(path).gameObject;
+    }
+
+    // Başı başka yılanın altında/üstünde kalmayan, istenen sonuçlu ilk yılan.
+    private int FindSnake(bool escaping)
+    {
+        foreach (var snake in _controller.State.Level.Snakes)
+        {
+            if (!_controller.State.IsActive(snake.Id))
+                continue;
+
+            Cell head = _controller.State.GetSnake(snake.Id).Body[0].Cell;
+
+            if (_controller.TryGetSnakeAt(head, out int atHead) && atHead == snake.Id &&
+                MoveSimulator.Simulate(_controller.State, snake.Id).IsEscaped == escaping)
+                return snake.Id;
+        }
+
+        Assert.Fail($"no {(escaping ? "escaping" : "blocked")} snake");
+        return 0;
+    }
+
+    private Cell HeadOf(int snakeId)
+    {
+        return _controller.State.GetSnake(snakeId).Body[0].Cell;
+    }
+
+    // R-FX-08: L13'ten önce booster yok; L13–L17 sadece İpucu; L18+ ikisi.
+    [UnityTest]
+    public IEnumerator Boosters_UnlockByLevel()
+    {
+        yield return LoadLevel(CatalogLevel(7));
+        Assert.AreEqual(0, _controller.HintsLeft);
+        Assert.IsFalse(BoosterChild("HintButton").activeSelf);
+        Assert.IsFalse(BoosterChild("ShovelButton").activeSelf);
+
+        yield return LoadLevel(CatalogLevel(13));
+        Assert.AreEqual(1, _controller.HintsLeft);
+        Assert.AreEqual(0, _controller.ShovelsLeft);
+        Assert.IsTrue(BoosterChild("HintButton").activeSelf);
+        Assert.IsFalse(BoosterChild("ShovelButton").activeSelf);
+        Assert.AreEqual(0f, BoosterChild("HintButton").GetComponent<RectTransform>().anchoredPosition.x, 1e-3f,
+            "single button is centered");
+
+        yield return LoadLevel(CatalogLevel(20));
+        Assert.AreEqual(1, _controller.HintsLeft);
+        Assert.AreEqual(1, _controller.ShovelsLeft);
+        Assert.IsTrue(BoosterChild("HintButton").activeSelf);
+        Assert.IsTrue(BoosterChild("ShovelButton").activeSelf);
+        Assert.AreEqual("1", BoosterChild("ShovelButton/Badge/Count").GetComponent<Text>().text);
+    }
+
+    // R-HNT-01/02/05: buton kaçabilen bir yılanı vurgular, hamle harcamaz.
+    [UnityTest]
+    public IEnumerator Hint_ButtonHighlightsEscapableSnake_WithoutUsingAMove()
+    {
+        yield return LoadLevel(CatalogLevel(13));
+        int? moves = _controller.State.RemainingMoves;
+
+        BoosterChild("HintButton").GetComponent<Button>().onClick.Invoke();
+
+        int hinted = _controller.HintedSnakeId;
+        Assert.AreNotEqual(0, hinted);
+        Assert.IsTrue(MoveSimulator.Simulate(_controller.State, hinted).IsEscaped, "hint is an escapable snake");
+        Assert.AreEqual(moves, _controller.State.RemainingMoves, "hint does not use a move");
+        Assert.AreEqual(0, _controller.HintsLeft);
+        Assert.AreEqual(hinted, _controller.BoardView.HighlightedSnakeId);
+
+        SnakeView view = FindView(hinted);
+        Assert.AreNotSame(view.BodyMaterial, view.CurrentBodyMaterial, "body uses the highlight material");
+        Assert.IsFalse(BoosterChild("HintButton").GetComponent<Button>().interactable, "no hints left");
+        Assert.IsFalse(_controller.UseHint());
+    }
+
+    // R-HNT-02: vurgu, o yılan tahtadan çıkınca biter.
+    [UnityTest]
+    public IEnumerator Hint_ClearsWhenHintedSnakeEscapes()
+    {
+        yield return LoadLevel(CatalogLevel(13));
+        Assert.IsTrue(_controller.UseHint());
+        int hinted = _controller.HintedSnakeId;
+        SnakeView view = FindView(hinted);
+
+        Assert.IsTrue(_controller.HandleCellTap(HeadOf(hinted)));
+
+        Assert.AreEqual(0, _controller.HintedSnakeId);
+        Assert.AreEqual(0, _controller.BoardView.HighlightedSnakeId);
+        Assert.AreSame(view.BodyMaterial, view.CurrentBodyMaterial, "escaping snake back to its own color");
+    }
+
+    // R-SHV-01/02/05: kürek modu → yılana dokun → kaldırılır. Engellenmiş yılan
+    // da seçilebilir; hamle ve kaçış sayacı değişmez; view kuyruktan başa kaybolur.
+    [UnityTest]
+    public IEnumerator Shovel_RemovesTappedSnake_WithoutMoveOrEscapeCount()
+    {
+        yield return LoadLevel(CatalogLevel(18));
+        int target = FindSnake(escaping: false);
+        int? moves = _controller.State.RemainingMoves;
+        int escaped = _controller.State.EscapedCount;
+        SnakeView view = FindView(target);
+        int segments = view.Segments.Count;
+
+        BoosterChild("ShovelButton").GetComponent<Button>().onClick.Invoke();
+
+        Assert.IsTrue(_controller.IsShovelTargeting);
+        Assert.IsTrue(BoosterChild("ShovelBanner").activeSelf);
+        Assert.IsFalse(BoosterChild("ShovelButton").activeSelf, "banner replaces the buttons");
+        Assert.AreEqual(1, _controller.ShovelsLeft, "stock is used only when a snake is chosen");
+
+        Assert.IsTrue(_controller.HandleCellTap(HeadOf(target)));
+
+        Assert.IsFalse(_controller.State.IsActive(target));
+        Assert.AreEqual(moves, _controller.State.RemainingMoves, "shovel does not use a move");
+        Assert.AreEqual(escaped, _controller.State.EscapedCount, "shovel is not an escape");
+        Assert.AreEqual(0, _controller.ShovelsLeft);
+        Assert.IsFalse(_controller.IsShovelTargeting);
+        Assert.IsFalse(BoosterChild("ShovelBanner").activeSelf);
+        Assert.AreEqual(1, _controller.BoardView.RemovingSnakeCount);
+
+        // Kuyruktan başa: önce kuyruk kaybolur, baş en son.
+        yield return WaitUntilOrTimeout(() => view == null || view.RemovedSegmentCount >= 1, 1f);
+        Assert.IsFalse(view.Segments[segments - 1].gameObject.activeSelf, "tail goes first");
+        Assert.IsTrue(view.Segments[0].gameObject.activeSelf, "head goes last");
+
+        float start = Time.time;
+        yield return WaitUntilOrTimeout(() => view == null, 5f);
+
+        Assert.IsTrue(view == null, "removed view is destroyed");
+        Assert.AreEqual(0, _controller.BoardView.RemovingSnakeCount);
+        Assert.GreaterOrEqual(Time.time - start + _controller.Feel.shovelSegmentTime,
+            (segments - 1) * _controller.Feel.shovelSegmentTime * 0.9f, "duration grows with length");
+    }
+
+    // X: mod kapanır, stok kalır; sonraki dokunuş normal hamledir.
+    [UnityTest]
+    public IEnumerator Shovel_Cancel_KeepsStockAndNextTapIsAMove()
+    {
+        yield return LoadLevel(CatalogLevel(18));
+        int? moves = _controller.State.RemainingMoves;
+
+        Assert.IsTrue(_controller.BeginShovel());
+        Assert.IsFalse(_controller.HandleCellTap(new Cell(-5, -5)), "tap outside the board does nothing");
+        Assert.IsTrue(_controller.IsShovelTargeting, "still choosing a target");
+
+        BoosterChild("ShovelBanner/CancelButton").GetComponent<Button>().onClick.Invoke();
+
+        Assert.IsFalse(_controller.IsShovelTargeting);
+        Assert.AreEqual(1, _controller.ShovelsLeft);
+        Assert.IsTrue(BoosterChild("ShovelButton").activeSelf);
+
+        int snake = FindSnake(escaping: true);
+        Assert.IsTrue(_controller.HandleCellTap(HeadOf(snake)));
+        Assert.AreEqual(moves - 1, _controller.State.RemainingMoves, "normal move after cancel");
+    }
+
+    // Son yılan kürekle kaldırılırsa tahta boşalır → Won → ALL CLEAR (ASSUMED).
+    [UnityTest]
+    public IEnumerator Shovel_LastSnake_WinsLevel()
+    {
+        LevelData level = BurrowTestLevel(); // numara 98 ≥ 18: kürek açık
+
+        try
+        {
+            yield return LoadLevel(level);
+
+            Assert.IsTrue(_controller.BeginShovel());
+            Assert.IsTrue(_controller.HandleCellTap(new Cell(3, 2)));
+            Assert.AreEqual(GameStatus.Won, _controller.State.Status);
+
+            yield return WaitUntilOrTimeout(() => _controller.Phase == GamePhase.AllClear, 3f);
+            Assert.AreEqual(GamePhase.AllClear, _controller.Phase);
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
+    }
+
     // --- Gerçek Input System cihazları ----------------------------------------
     // Test sırasında Unity penceresi odakta olmayabilir (batchmode); geçici
     // ayarlarla cihaz girdisi yine de oyuna ulaşır. Proje ayarları değişmez.

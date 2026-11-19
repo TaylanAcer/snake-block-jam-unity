@@ -180,36 +180,15 @@ public class LevelJsonImporterTests
     [Test]
     public void AllLevels_AreGreedySolvableWithinMoveLimit()
     {
+        // Solver hamle limitini de uygular: limit yetmezse Solved false.
         foreach (var level in SourceLevels())
         {
-            var state = new BoardState(level.ToDefinition());
-            int moves = 0;
+            var result = Solver.SolveGreedy(level.ToDefinition());
 
-            while (state.ActiveSnakeCount > 0)
-            {
-                int escaped = FindEscapingSnake(state, level);
-                Assert.AreNotEqual(0, escaped, $"Level {level.levelNumber} is stuck.");
-
-                state.Apply(MoveSimulator.Simulate(state, escaped));
-                moves++;
-            }
-
-            Assert.AreEqual(GameStatus.Won, state.Status, $"Level {level.levelNumber}");
-
-            if (level.hasMoveLimit)
-                Assert.LessOrEqual(moves, level.moveLimit, $"Level {level.levelNumber}");
+            Assert.IsTrue(result.Solved,
+                $"Level {level.levelNumber} is stuck with {result.RemainingSnakes} snakes left.");
+            Assert.AreEqual(level.snakes.Count, result.Order.Count, $"Level {level.levelNumber}");
         }
-    }
-
-    private static int FindEscapingSnake(BoardState state, LevelData level)
-    {
-        foreach (var snake in level.snakes)
-        {
-            if (state.IsActive(snake.id) && MoveSimulator.Simulate(state, snake.id).IsEscaped)
-                return snake.id;
-        }
-
-        return 0;
     }
 
     // --- Şema ve tutarlılık hataları ----------------------------------------

@@ -22,5 +22,14 @@ namespace SnakeBlockJam.Game
         [Tooltip("Son animasyon bittikten sonra HAMLE YOK'a kadar bekleme (sn). R-LOS-02 (INFERRED): " +
                  "sayaç 0 → pencere ~1 sn; hareket evresi dışındaki kısım ~0,6.")]
         [Min(0f)] public float outOfMovesDelay = 0.6f;
+
+        [Header("Boosters")]
+        [Tooltip("İpucu vurgusunun nabız periyodu (sn). R-HNT-02: v14'te parlak anlar ~7,15 / ~8,75 / ~10,5 sn " +
+                 "(OBSERVED, kaba).")]
+        [Min(0.1f)] public float hintPulsePeriod = 1.6f;
+
+        [Tooltip("Kürek: kuyruktan başa her segmentin kaybolma süresi (sn). R-SHV-03: yılan uzunluğuna bağlı " +
+                 "~1–2 sn; 15–25 segmentte 1,2–2 sn (ASSUMED).")]
+        [Min(0.01f)] public float shovelSegmentTime = 0.08f;
     }
 }

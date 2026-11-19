@@ -72,6 +72,7 @@ namespace SnakeBlockJam.EditorTools
             CreateEventSystem();
             Transform canvas = CreateCanvas(controller);
             CreateHud(canvas, controller);
+            CreateBoosters(canvas, controller);
             CreateResultWindow(canvas, controller);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -313,6 +314,95 @@ namespace SnakeBlockJam.EditorTools
             SetReference(hud, "movesText", movesText);
             SetReference(hud, "levelText", levelText);
             SetReference(hud, "allClear", allClear);
+        }
+
+        // --- Boosterlar (Faz 9) ------------------------------------------------
+        // Level_20.png (720 × 1616): butonlar ~100 × 95 px, merkezleri alttan ~100 px,
+        // aralarında ~140 px. Kürek bandı image(20261116-205144): ekranın ~%82'si
+        // genişlikte, gri, sol üstte turuncu "Kürek", altında beyaz açıklama, sağda
+        // kırmızı X. İkonlar (ampul, kürek) yok: görsel tur.
+
+        private static readonly Color BoosterButton = new Color32(0x3B, 0xC0, 0xEB, 0xFF);
+        private static readonly Color BoosterBadge = new Color32(0x2F, 0x6F, 0xE0, 0xFF);
+        private static readonly Color BannerBody = new Color32(0x6E, 0x7C, 0x86, 0xF0);
+        private static readonly Color BannerTitle = new Color32(0xFF, 0xC2, 0x3A, 0xFF);
+        private static readonly Color CancelRed = new Color32(0xE0, 0x30, 0x3C, 0xFF);
+
+        private static void CreateBoosters(Transform canvas, GameController controller)
+        {
+            RectTransform root = CreateRect("Boosters", canvas);
+            Stretch(root);
+            var view = root.gameObject.AddComponent<BoosterView>();
+
+            Text hintCount;
+            Text shovelCount;
+            RectTransform hint = CreateBoosterButton(root, "HintButton", "İpucu", out hintCount);
+            RectTransform shovel = CreateBoosterButton(root, "ShovelButton", "Kürek", out shovelCount);
+            UnityEventTools.AddPersistentListener(hint.GetComponent<Button>().onClick, view.OnHint);
+            UnityEventTools.AddPersistentListener(shovel.GetComponent<Button>().onClick, view.OnShovel);
+
+            RectTransform banner = CreateRect("ShovelBanner", root);
+            banner.anchorMin = banner.anchorMax = new Vector2(0.5f, 0f);
+            banner.anchoredPosition = new Vector2(0f, 150f);
+            banner.sizeDelta = new Vector2(890f, 170f);
+            CreateImage(banner, BannerBody).raycastTarget = true;
+
+            RectTransform titleRect = CreateRect("Title", banner);
+            titleRect.anchoredPosition = new Vector2(0f, 32f);
+            titleRect.sizeDelta = new Vector2(700f, 70f);
+            Text title = CreateText("Label", titleRect, "Kürek", 54, BannerTitle);
+            title.gameObject.AddComponent<Outline>().effectColor = TextOutline;
+
+            RectTransform descriptionRect = CreateRect("Description", banner);
+            descriptionRect.anchoredPosition = new Vector2(0f, -32f);
+            descriptionRect.sizeDelta = new Vector2(700f, 60f);
+            CreateText("Label", descriptionRect, "Seçilen yılanı bölümden kaldırır!", 38, Color.white);
+
+            RectTransform cancel = CreateRect("CancelButton", banner);
+            cancel.anchorMin = cancel.anchorMax = new Vector2(1f, 1f);
+            cancel.anchoredPosition = new Vector2(-30f, -30f);
+            cancel.sizeDelta = new Vector2(90f, 90f);
+            Image cancelImage = CreateImage(cancel, CancelRed);
+            cancelImage.raycastTarget = true;
+            var cancelButton = cancel.gameObject.AddComponent<Button>();
+            cancelButton.targetGraphic = cancelImage;
+            CreateText("Label", cancel, "X", 54, Color.white);
+            UnityEventTools.AddPersistentListener(cancelButton.onClick, view.OnCancelShovel);
+
+            banner.gameObject.SetActive(false);
+
+            SetReference(view, "controller", controller);
+            SetReference(view, "hintButton", hint);
+            SetReference(view, "hintCount", hintCount);
+            SetReference(view, "shovelButton", shovel);
+            SetReference(view, "shovelCount", shovelCount);
+            SetReference(view, "shovelBanner", banner.gameObject);
+        }
+
+        private static RectTransform CreateBoosterButton(RectTransform parent, string objectName, string label,
+                                                         out Text count)
+        {
+            RectTransform button = CreateRect(objectName, parent);
+            button.anchorMin = button.anchorMax = new Vector2(0.5f, 0f);
+            button.anchoredPosition = new Vector2(0f, 150f);
+            button.sizeDelta = new Vector2(150f, 140f);
+
+            Image image = CreateImage(button, BoosterButton);
+            image.raycastTarget = true;
+            var component = button.gameObject.AddComponent<Button>();
+            component.targetGraphic = image;
+
+            Text text = CreateText("Label", button, label, 34, Color.white);
+            text.gameObject.AddComponent<Outline>().effectColor = TextOutline;
+
+            RectTransform badge = CreateRect("Badge", button);
+            badge.anchorMin = badge.anchorMax = new Vector2(0.5f, 0f);
+            badge.anchoredPosition = new Vector2(0f, -8f);
+            badge.sizeDelta = new Vector2(56f, 56f);
+            CreateImage(badge, BoosterBadge);
+            count = CreateText("Count", badge, "1", 36, Color.white);
+
+            return button;
         }
 
         private static void CreateResultWindow(Transform canvas, GameController controller)

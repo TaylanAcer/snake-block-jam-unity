@@ -63,6 +63,13 @@ namespace SnakeBlockJam.Game
         // Başarısız hamlenin gidiş + dönüşü sürüyor; yılan dokunuşları reddedilir.
         public bool IsInputLocked { get; private set; }
 
+        // Android varsayılanı 30 FPS; ~60 hücre/sn kaçışlar 30 FPS'te kare başına
+        // 2 hücre atlar. Editörde VSync açıkken bu değer etkisizdir.
+        private void Awake()
+        {
+            Application.targetFrameRate = 60;
+        }
+
         private void Start()
         {
             LoadLevel();

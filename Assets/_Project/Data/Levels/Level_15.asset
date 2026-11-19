@@ -1,0 +1,710 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 939e22d0836c4726b81250ec682ff421, type: 3}
+  m_Name: Level_15
+  m_EditorClassIdentifier: Game::SnakeBlockJam.Game.LevelData
+  levelNumber: 15
+  width: 25
+  height: 25
+  hasMoveLimit: 1
+  moveLimit: 34
+  isHard: 0
+  isRectangularBoard: 1
+  snakes:
+  - id: 1
+    color: 1
+    direction: 3
+    body:
+    - cell: {x: 2, y: 24}
+      layer: 0
+    - cell: {x: 3, y: 24}
+      layer: 0
+    - cell: {x: 4, y: 24}
+      layer: 0
+    - cell: {x: 5, y: 24}
+      layer: 0
+    - cell: {x: 6, y: 24}
+      layer: 0
+    - cell: {x: 7, y: 24}
+      layer: 0
+    - cell: {x: 8, y: 24}
+      layer: 0
+    - cell: {x: 8, y: 23}
+      layer: 0
+    - cell: {x: 8, y: 22}
+      layer: 0
+    - cell: {x: 8, y: 21}
+      layer: 0
+    - cell: {x: 8, y: 20}
+      layer: 0
+    - cell: {x: 8, y: 19}
+      layer: 0
+    - cell: {x: 8, y: 18}
+      layer: 0
+    - cell: {x: 8, y: 17}
+      layer: 0
+    - cell: {x: 8, y: 16}
+      layer: 0
+    - cell: {x: 7, y: 16}
+      layer: 0
+    - cell: {x: 6, y: 16}
+      layer: 0
+    - cell: {x: 5, y: 16}
+      layer: 0
+    - cell: {x: 4, y: 16}
+      layer: 0
+    - cell: {x: 3, y: 16}
+      layer: 0
+    - cell: {x: 2, y: 16}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 2
+    color: 0
+    direction: 0
+    body:
+    - cell: {x: 14, y: 24}
+      layer: 0
+    - cell: {x: 14, y: 23}
+      layer: 0
+    - cell: {x: 14, y: 22}
+      layer: 0
+    - cell: {x: 14, y: 21}
+      layer: 0
+    - cell: {x: 14, y: 20}
+      layer: 0
+    - cell: {x: 14, y: 19}
+      layer: 0
+    - cell: {x: 14, y: 18}
+      layer: 0
+    - cell: {x: 14, y: 17}
+      layer: 0
+    - cell: {x: 14, y: 16}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 3
+    color: 2
+    direction: 1
+    body:
+    - cell: {x: 6, y: 22}
+      layer: 0
+    - cell: {x: 5, y: 22}
+      layer: 0
+    - cell: {x: 4, y: 22}
+      layer: 0
+    - cell: {x: 3, y: 22}
+      layer: 0
+    - cell: {x: 2, y: 22}
+      layer: 0
+    - cell: {x: 2, y: 21}
+      layer: 0
+    - cell: {x: 2, y: 20}
+      layer: 0
+    - cell: {x: 2, y: 19}
+      layer: 0
+    - cell: {x: 2, y: 18}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 4
+    color: 0
+    direction: 0
+    body:
+    - cell: {x: 12, y: 22}
+      layer: 0
+    - cell: {x: 12, y: 21}
+      layer: 0
+    - cell: {x: 12, y: 20}
+      layer: 0
+    - cell: {x: 12, y: 19}
+      layer: 0
+    - cell: {x: 12, y: 18}
+      layer: 0
+    - cell: {x: 12, y: 17}
+      layer: 0
+    - cell: {x: 12, y: 16}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 5
+    color: 2
+    direction: 0
+    body:
+    - cell: {x: 18, y: 22}
+      layer: 0
+    - cell: {x: 18, y: 21}
+      layer: 0
+    - cell: {x: 18, y: 20}
+      layer: 0
+    - cell: {x: 18, y: 19}
+      layer: 0
+    - cell: {x: 18, y: 18}
+      layer: 0
+    - cell: {x: 19, y: 18}
+      layer: 0
+    - cell: {x: 20, y: 18}
+      layer: 0
+    - cell: {x: 21, y: 18}
+      layer: 0
+    - cell: {x: 22, y: 18}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 6
+    color: 1
+    direction: 0
+    body:
+    - cell: {x: 24, y: 22}
+      layer: 0
+    - cell: {x: 24, y: 21}
+      layer: 0
+    - cell: {x: 24, y: 20}
+      layer: 0
+    - cell: {x: 24, y: 19}
+      layer: 0
+    - cell: {x: 24, y: 18}
+      layer: 0
+    - cell: {x: 24, y: 17}
+      layer: 0
+    - cell: {x: 24, y: 16}
+      layer: 0
+    - cell: {x: 23, y: 16}
+      layer: 0
+    - cell: {x: 22, y: 16}
+      layer: 0
+    - cell: {x: 21, y: 16}
+      layer: 0
+    - cell: {x: 20, y: 16}
+      layer: 0
+    - cell: {x: 19, y: 16}
+      layer: 0
+    - cell: {x: 18, y: 16}
+      layer: 0
+    - cell: {x: 17, y: 16}
+      layer: 0
+    - cell: {x: 16, y: 16}
+      layer: 0
+    - cell: {x: 16, y: 17}
+      layer: 0
+    - cell: {x: 16, y: 18}
+      layer: 0
+    - cell: {x: 16, y: 19}
+      layer: 0
+    - cell: {x: 16, y: 20}
+      layer: 0
+    - cell: {x: 16, y: 21}
+      layer: 0
+    - cell: {x: 16, y: 22}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 7
+    color: 2
+    direction: 1
+    body:
+    - cell: {x: 22, y: 20}
+      layer: 0
+    - cell: {x: 21, y: 20}
+      layer: 0
+    - cell: {x: 20, y: 20}
+      layer: 0
+    - cell: {x: 20, y: 21}
+      layer: 0
+    - cell: {x: 20, y: 22}
+      layer: 0
+    - cell: {x: 21, y: 22}
+      layer: 0
+    - cell: {x: 22, y: 22}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 8
+    color: 2
+    direction: 2
+    body:
+    - cell: {x: 6, y: 18}
+      layer: 0
+    - cell: {x: 6, y: 19}
+      layer: 0
+    - cell: {x: 6, y: 20}
+      layer: 0
+    - cell: {x: 5, y: 20}
+      layer: 0
+    - cell: {x: 4, y: 20}
+      layer: 0
+    - cell: {x: 4, y: 19}
+      layer: 0
+    - cell: {x: 4, y: 18}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 9
+    color: 0
+    direction: 2
+    body:
+    - cell: {x: 10, y: 18}
+      layer: 0
+    - cell: {x: 10, y: 19}
+      layer: 0
+    - cell: {x: 10, y: 20}
+      layer: 0
+    - cell: {x: 10, y: 21}
+      layer: 0
+    - cell: {x: 10, y: 22}
+      layer: 0
+    - cell: {x: 10, y: 23}
+      layer: 0
+    - cell: {x: 10, y: 24}
+      layer: 0
+    - cell: {x: 11, y: 24}
+      layer: 0
+    - cell: {x: 12, y: 24}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 10
+    color: 0
+    direction: 3
+    body:
+    - cell: {x: 10, y: 14}
+      layer: 0
+    - cell: {x: 11, y: 14}
+      layer: 0
+    - cell: {x: 12, y: 14}
+      layer: 0
+    - cell: {x: 13, y: 14}
+      layer: 0
+    - cell: {x: 14, y: 14}
+      layer: 0
+    - cell: {x: 15, y: 14}
+      layer: 0
+    - cell: {x: 16, y: 14}
+      layer: 0
+    - cell: {x: 17, y: 14}
+      layer: 0
+    - cell: {x: 18, y: 14}
+      layer: 0
+    - cell: {x: 18, y: 13}
+      layer: 0
+    - cell: {x: 18, y: 12}
+      layer: 0
+    - cell: {x: 18, y: 11}
+      layer: 0
+    - cell: {x: 18, y: 10}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 11
+    color: 0
+    direction: 1
+    body:
+    - cell: {x: 22, y: 12}
+      layer: 0
+    - cell: {x: 21, y: 12}
+      layer: 0
+    - cell: {x: 20, y: 12}
+      layer: 0
+    - cell: {x: 20, y: 11}
+      layer: 0
+    - cell: {x: 20, y: 10}
+      layer: 0
+    - cell: {x: 21, y: 10}
+      layer: 0
+    - cell: {x: 22, y: 10}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 12
+    color: 0
+    direction: 3
+    body:
+    - cell: {x: 0, y: 10}
+      layer: 0
+    - cell: {x: 1, y: 10}
+      layer: 0
+    - cell: {x: 2, y: 10}
+      layer: 0
+    - cell: {x: 3, y: 10}
+      layer: 0
+    - cell: {x: 4, y: 10}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 13
+    color: 0
+    direction: 2
+    body:
+    - cell: {x: 6, y: 10}
+      layer: 0
+    - cell: {x: 6, y: 11}
+      layer: 0
+    - cell: {x: 6, y: 12}
+      layer: 0
+    - cell: {x: 5, y: 12}
+      layer: 0
+    - cell: {x: 4, y: 12}
+      layer: 0
+    - cell: {x: 3, y: 12}
+      layer: 0
+    - cell: {x: 2, y: 12}
+      layer: 0
+    - cell: {x: 1, y: 12}
+      layer: 0
+    - cell: {x: 0, y: 12}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 14
+    color: 0
+    direction: 2
+    body:
+    - cell: {x: 8, y: 10}
+      layer: 0
+    - cell: {x: 8, y: 11}
+      layer: 0
+    - cell: {x: 8, y: 12}
+      layer: 0
+    - cell: {x: 8, y: 13}
+      layer: 0
+    - cell: {x: 8, y: 14}
+      layer: 0
+    - cell: {x: 7, y: 14}
+      layer: 0
+    - cell: {x: 6, y: 14}
+      layer: 0
+    - cell: {x: 5, y: 14}
+      layer: 0
+    - cell: {x: 4, y: 14}
+      layer: 0
+    - cell: {x: 3, y: 14}
+      layer: 0
+    - cell: {x: 2, y: 14}
+      layer: 0
+    - cell: {x: 1, y: 14}
+      layer: 0
+    - cell: {x: 0, y: 14}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 15
+    color: 0
+    direction: 1
+    body:
+    - cell: {x: 14, y: 10}
+      layer: 0
+    - cell: {x: 13, y: 10}
+      layer: 0
+    - cell: {x: 12, y: 10}
+      layer: 0
+    - cell: {x: 11, y: 10}
+      layer: 0
+    - cell: {x: 10, y: 10}
+      layer: 0
+    - cell: {x: 10, y: 11}
+      layer: 0
+    - cell: {x: 10, y: 12}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 16
+    color: 0
+    direction: 2
+    body:
+    - cell: {x: 16, y: 10}
+      layer: 0
+    - cell: {x: 16, y: 11}
+      layer: 0
+    - cell: {x: 16, y: 12}
+      layer: 0
+    - cell: {x: 15, y: 12}
+      layer: 0
+    - cell: {x: 14, y: 12}
+      layer: 0
+    - cell: {x: 13, y: 12}
+      layer: 0
+    - cell: {x: 12, y: 12}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 17
+    color: 0
+    direction: 2
+    body:
+    - cell: {x: 24, y: 10}
+      layer: 0
+    - cell: {x: 24, y: 11}
+      layer: 0
+    - cell: {x: 24, y: 12}
+      layer: 0
+    - cell: {x: 24, y: 13}
+      layer: 0
+    - cell: {x: 24, y: 14}
+      layer: 0
+    - cell: {x: 23, y: 14}
+      layer: 0
+    - cell: {x: 22, y: 14}
+      layer: 0
+    - cell: {x: 21, y: 14}
+      layer: 0
+    - cell: {x: 20, y: 14}
+      layer: 0
+    hiddenCells:
+    - {x: 24, y: 13}
+    - {x: 24, y: 14}
+    notes: []
+  - id: 18
+    color: 2
+    direction: 1
+    body:
+    - cell: {x: 6, y: 6}
+      layer: 0
+    - cell: {x: 5, y: 6}
+      layer: 0
+    - cell: {x: 4, y: 6}
+      layer: 0
+    - cell: {x: 3, y: 6}
+      layer: 0
+    - cell: {x: 2, y: 6}
+      layer: 0
+    - cell: {x: 2, y: 5}
+      layer: 0
+    - cell: {x: 2, y: 4}
+      layer: 0
+    - cell: {x: 2, y: 3}
+      layer: 0
+    - cell: {x: 2, y: 2}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 19
+    color: 0
+    direction: 0
+    body:
+    - cell: {x: 12, y: 6}
+      layer: 0
+    - cell: {x: 12, y: 5}
+      layer: 0
+    - cell: {x: 12, y: 4}
+      layer: 0
+    - cell: {x: 12, y: 3}
+      layer: 0
+    - cell: {x: 12, y: 2}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 20
+    color: 0
+    direction: 0
+    body:
+    - cell: {x: 14, y: 6}
+      layer: 0
+    - cell: {x: 14, y: 5}
+      layer: 0
+    - cell: {x: 14, y: 4}
+      layer: 0
+    - cell: {x: 14, y: 3}
+      layer: 0
+    - cell: {x: 14, y: 2}
+      layer: 0
+    - cell: {x: 14, y: 1}
+      layer: 0
+    - cell: {x: 14, y: 0}
+      layer: 0
+    - cell: {x: 13, y: 0}
+      layer: 0
+    - cell: {x: 12, y: 0}
+      layer: 0
+    - cell: {x: 11, y: 0}
+      layer: 0
+    - cell: {x: 10, y: 0}
+      layer: 0
+    - cell: {x: 10, y: 1}
+      layer: 0
+    - cell: {x: 10, y: 2}
+      layer: 0
+    - cell: {x: 10, y: 3}
+      layer: 0
+    - cell: {x: 10, y: 4}
+      layer: 0
+    - cell: {x: 10, y: 5}
+      layer: 0
+    - cell: {x: 10, y: 6}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 21
+    color: 2
+    direction: 3
+    body:
+    - cell: {x: 4, y: 4}
+      layer: 0
+    - cell: {x: 5, y: 4}
+      layer: 0
+    - cell: {x: 6, y: 4}
+      layer: 0
+    - cell: {x: 6, y: 3}
+      layer: 0
+    - cell: {x: 6, y: 2}
+      layer: 0
+    - cell: {x: 5, y: 2}
+      layer: 0
+    - cell: {x: 4, y: 2}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 22
+    color: 2
+    direction: 0
+    body:
+    - cell: {x: 20, y: 4}
+      layer: 0
+    - cell: {x: 20, y: 3}
+      layer: 0
+    - cell: {x: 20, y: 2}
+      layer: 0
+    - cell: {x: 19, y: 2}
+      layer: 0
+    - cell: {x: 18, y: 2}
+      layer: 0
+    - cell: {x: 18, y: 3}
+      layer: 0
+    - cell: {x: 18, y: 4}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 23
+    color: 1
+    direction: 2
+    body:
+    - cell: {x: 8, y: 2}
+      layer: 0
+    - cell: {x: 8, y: 3}
+      layer: 0
+    - cell: {x: 8, y: 4}
+      layer: 0
+    - cell: {x: 8, y: 5}
+      layer: 0
+    - cell: {x: 8, y: 6}
+      layer: 0
+    - cell: {x: 8, y: 7}
+      layer: 0
+    - cell: {x: 8, y: 8}
+      layer: 0
+    - cell: {x: 7, y: 8}
+      layer: 0
+    - cell: {x: 6, y: 8}
+      layer: 0
+    - cell: {x: 5, y: 8}
+      layer: 0
+    - cell: {x: 4, y: 8}
+      layer: 0
+    - cell: {x: 3, y: 8}
+      layer: 0
+    - cell: {x: 2, y: 8}
+      layer: 0
+    - cell: {x: 1, y: 8}
+      layer: 0
+    - cell: {x: 0, y: 8}
+      layer: 0
+    - cell: {x: 0, y: 7}
+      layer: 0
+    - cell: {x: 0, y: 6}
+      layer: 0
+    - cell: {x: 0, y: 5}
+      layer: 0
+    - cell: {x: 0, y: 4}
+      layer: 0
+    - cell: {x: 0, y: 3}
+      layer: 0
+    - cell: {x: 0, y: 2}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 24
+    color: 2
+    direction: 2
+    body:
+    - cell: {x: 22, y: 2}
+      layer: 0
+    - cell: {x: 22, y: 3}
+      layer: 0
+    - cell: {x: 22, y: 4}
+      layer: 0
+    - cell: {x: 22, y: 5}
+      layer: 0
+    - cell: {x: 22, y: 6}
+      layer: 0
+    - cell: {x: 21, y: 6}
+      layer: 0
+    - cell: {x: 20, y: 6}
+      layer: 0
+    - cell: {x: 19, y: 6}
+      layer: 0
+    - cell: {x: 18, y: 6}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  - id: 25
+    color: 1
+    direction: 2
+    body:
+    - cell: {x: 24, y: 2}
+      layer: 0
+    - cell: {x: 24, y: 3}
+      layer: 0
+    - cell: {x: 24, y: 4}
+      layer: 0
+    - cell: {x: 24, y: 5}
+      layer: 0
+    - cell: {x: 24, y: 6}
+      layer: 0
+    - cell: {x: 24, y: 7}
+      layer: 0
+    - cell: {x: 24, y: 8}
+      layer: 0
+    - cell: {x: 23, y: 8}
+      layer: 0
+    - cell: {x: 22, y: 8}
+      layer: 0
+    - cell: {x: 21, y: 8}
+      layer: 0
+    - cell: {x: 20, y: 8}
+      layer: 0
+    - cell: {x: 19, y: 8}
+      layer: 0
+    - cell: {x: 18, y: 8}
+      layer: 0
+    - cell: {x: 17, y: 8}
+      layer: 0
+    - cell: {x: 16, y: 8}
+      layer: 0
+    - cell: {x: 16, y: 7}
+      layer: 0
+    - cell: {x: 16, y: 6}
+      layer: 0
+    - cell: {x: 16, y: 5}
+      layer: 0
+    - cell: {x: 16, y: 4}
+      layer: 0
+    - cell: {x: 16, y: 3}
+      layer: 0
+    - cell: {x: 16, y: 2}
+      layer: 0
+    hiddenCells: []
+    notes: []
+  bridges: []
+  burrows: []
+  arrows: []
+  notes:
+  - "Sa\u011Fdaki k\u0131rm\u0131z\u0131 y\u0131lan\u0131n 2 h\xFCcresi timer balonu
+    alt\u0131nda; tek y\u0131lan olarak birle\u015Ftirildi"

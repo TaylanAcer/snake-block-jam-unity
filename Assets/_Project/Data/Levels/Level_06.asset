@@ -18,6 +18,7 @@ MonoBehaviour:
   hasMoveLimit: 1
   moveLimit: 25
   isHard: 0
+  isRectangularBoard: 0
   snakes:
   - id: 1
     color: 6

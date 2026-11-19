@@ -14,7 +14,7 @@ namespace SnakeBlockJam.Game
         // Dokunma: çok kısa, yumuşak tık (R-FX-11'in −39 dBFS'lik ilk vuruşu).
         public static float[] Tap()
         {
-            return Render(0.04f, t => Mathf.Sin(2f * Mathf.PI * 1200f * t) * Decay(t, 0.008f) * 0.25f);
+            return Render(0.04f, t => Mathf.Sin(2f * Mathf.PI * 1460f * t) * Decay(t, 0.008f) * 0.06f);
         }
 
         // Çarpma: alçak, tok vuruş + kısa gürültü (R-FX-11'in yüksek ikinci vuruşu).
@@ -33,10 +33,11 @@ namespace SnakeBlockJam.Game
         // Kaçış: yukarı kayan kısa "pop" (R-FX-12: sessiz).
         public static float[] Escape()
         {
-            return Render(0.12f, t =>
+            return Render(0.40f, t =>
             {
-                float pitch = Mathf.Lerp(500f, 1100f, t / 0.12f);
-                return Mathf.Sin(2f * Mathf.PI * pitch * t) * Decay(t, 0.04f) * 0.2f;
+                float beat = t % 0.12f;
+                float phase = 880f * beat + 800f * beat * beat;
+                return Mathf.Sin(2f * Mathf.PI * phase) * Decay(beat, 0.020f) * Decay(t, 0.5f) * 0.09f;
             });
         }
 
@@ -71,14 +72,21 @@ namespace SnakeBlockJam.Game
             });
         }
 
-        // Booster: yukarı kayan ışıltı.
+        // v14 ve v19 onayında iki kısa başlangıç; booster dokunuşunda tek atım.
+        public static float[] Button()
+        {
+            return Render(0.10f, t =>
+            {
+                float second = t - 0.022f;
+                float click = second < 0f ? 0f : Mathf.Sin(2f * Mathf.PI * 366f * second) * Decay(second, 0.017f);
+                return 0.32f * (Mathf.Sin(2f * Mathf.PI * 420f * t) * Decay(t, 0.012f) + click);
+            });
+        }
+
         public static float[] Booster()
         {
-            return Render(0.22f, t =>
-            {
-                float pitch = Mathf.Lerp(800f, 1600f, t / 0.22f);
-                return Mathf.Sin(2f * Mathf.PI * pitch * t) * Decay(t, 0.08f) * 0.22f;
-            });
+            return Render(0.075f, t =>
+                Mathf.Sin(2f * Mathf.PI * (400f * t - 200f * t * t)) * Decay(t, 0.016f) * 0.30f);
         }
 
         public static AudioClip ToClip(string clipName, float[] samples)

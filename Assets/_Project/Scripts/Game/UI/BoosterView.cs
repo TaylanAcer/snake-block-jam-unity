@@ -14,7 +14,7 @@ namespace SnakeBlockJam.Game
     public sealed class BoosterView : MonoBehaviour
     {
         // İki buton yan yanayken merkezden uzaklık (1080 genişlikli referans).
-        public const float ButtonSpacing = 105f;
+        public const float ButtonSpacing = 94f;
 
         public const string EmptyBadgeText = "+";
         private static readonly Color CountBadge = new Color32(0x2F, 0x6F, 0xE0, 0xFF);

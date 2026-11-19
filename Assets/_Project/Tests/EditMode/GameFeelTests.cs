@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityEngine;
 using SnakeBlockJam.Game;
 
 // Faz 11 his eğrileri ve ses üretimi: saf fonksiyonlar (spec §4, §6.1, §12).
@@ -85,7 +86,7 @@ public class GameFeelTests
         foreach (var samples in new[]
                  {
                      SfxSynth.Tap(), SfxSynth.Bump(), SfxSynth.Escape(),
-                     SfxSynth.AllClear(), SfxSynth.Streak(), SfxSynth.Booster()
+                     SfxSynth.AllClear(), SfxSynth.Streak(), SfxSynth.Booster(), SfxSynth.Button()
                  })
         {
             Assert.Greater(samples.Length, 100);
@@ -100,6 +101,21 @@ public class GameFeelTests
     public void SfxSynth_BumpIsLouderThanTap()
     {
         Assert.Greater(Peak(SfxSynth.Bump()), 2f * Peak(SfxSynth.Tap()));
+    }
+
+    [Test]
+    public void Escape_HasSeparatePulses()
+    {
+        var samples = SfxSynth.Escape();
+        for (int i = 1; i <= 3; i++)
+        {
+            int onset = (int)(SfxSynth.SampleRate * i * 0.12f);
+            float peak = 0f;
+            for (int j = 1; j < 200; j++)
+                peak = Mathf.Max(peak, Mathf.Abs(samples[onset + j]));
+            Assert.Greater(peak, 0.025f);
+            Assert.Less(Mathf.Abs(samples[onset - 20]), 0.003f);
+        }
     }
 
     private static float Peak(float[] samples)

@@ -508,6 +508,24 @@ public class GameSceneTests
         return false;
     }
 
+    [UnityTest]
+    public IEnumerator Tutorial_AtFirstHintLevel_BlocksBoardUntilDismissed()
+    {
+        yield return LoadLevel(CatalogLevel(13));
+        Transform overlay = GameObject.Find("Tutorials").transform.Find("Overlay");
+        Assert.IsTrue(overlay.gameObject.activeSelf);
+        Assert.AreEqual("İpucu", overlay.Find("Card/Header/Title").GetComponent<Text>().text);
+        Assert.IsTrue(_input.IsOverUI(ScreenPointOf(3, 4)));
+        overlay.Find("Card/Accept").GetComponent<Button>().onClick.Invoke();
+        Assert.IsFalse(overlay.gameObject.activeSelf);
+        Transform guide = GameObject.Find("Tutorials").transform.Find("FreeGuide");
+        Assert.IsTrue(guide.gameObject.activeSelf);
+        Assert.IsTrue(_controller.UseHint());
+        Assert.IsFalse(guide.gameObject.activeSelf);
+        _controller.Restart();
+        Assert.IsFalse(overlay.gameObject.activeSelf);
+    }
+
     // R-MV-05: L1–L5'te sayaç yok; referansta HUD kutusu görünmüyor.
     [Test]
     public void Hud_NoMoveLimit_HidesCounter()

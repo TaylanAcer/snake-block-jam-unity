@@ -12,17 +12,21 @@ namespace SnakeBlockJam.Game
         [Tooltip("URP Lit tabanlı materyal; renkli kopyaları runtime'da üretilir.")]
         [SerializeField] private Material blockMaterial;
 
+        [Tooltip("Zemin: ekran uzayında degrade + gölge (BoardBackground shader). Boşsa " +
+                 "groundColor ile blok materyali kullanılır.")]
+        [SerializeField] private Material backgroundMaterial;
+
         [Tooltip("SnakeColor sırasıyla: Red, Blue, Yellow, Green, Pink, Purple, Teal, Brown.")]
         [SerializeField] private Color[] snakeColors =
         {
-            new Color32(0xE5, 0x48, 0x4D, 0xFF),
-            new Color32(0x3E, 0x8A, 0xF7, 0xFF),
-            new Color32(0xFD, 0xC3, 0x3C, 0xFF),
-            new Color32(0x5D, 0xC7, 0x5B, 0xFF),
-            new Color32(0xEE, 0x4F, 0xA1, 0xFF),
-            new Color32(0x9A, 0x5C, 0xE3, 0xFF),
-            new Color32(0x3D, 0xCF, 0xB1, 0xFF),
-            new Color32(0xA0, 0x68, 0x3C, 0xFF)
+            new Color32(0xF2, 0x52, 0x52, 0xFF),
+            new Color32(0x54, 0x96, 0xFE, 0xFF),
+            new Color32(0xFE, 0xC6, 0x50, 0xFF),
+            new Color32(0x54, 0xC6, 0x58, 0xFF), // Level_13.png üst yüz (84, 198, 88)
+            new Color32(0xF6, 0x56, 0xAA, 0xFF),
+            new Color32(0xC6, 0x5A, 0xFA, 0xFF),
+            new Color32(0x4E, 0xD6, 0xBE, 0xFF),
+            new Color32(0xBA, 0x62, 0x5A, 0xFF)
         };
 
         [SerializeField] private Color groundColor = new Color32(0xE4, 0xF1, 0xFA, 0xFF);
@@ -30,15 +34,17 @@ namespace SnakeBlockJam.Game
         [SerializeField] private Color dotColor = new Color32(0xB1, 0xC6, 0xD3, 0xFF);
         [SerializeField] private Color eyeWhiteColor = Color.white;
         [SerializeField] private Color pupilColor = new Color32(0x1E, 0x1E, 0x2A, 0xFF);
+        [Tooltip("Yılan dili (Level_13.png: kırmızı çatal).")]
+        [SerializeField] private Color tongueColor = new Color32(0xE8, 0x2A, 0x2A, 0xFF);
 
         [Header("Bridge (Level_05.png, L14_L_kopru_kivrim_v15.png; yaklaşık)")]
         [SerializeField] private Color bridgeDeckColor = new Color32(0xE9, 0xD9, 0xBF, 0xFF);
-        [SerializeField] private Color bridgeAsphaltColor = new Color32(0x4D, 0x50, 0x57, 0xFF);
-        [SerializeField] private Color bridgeDashColor = new Color32(0xC8, 0xCA, 0xCE, 0xFF);
+        [SerializeField] private Color bridgeAsphaltColor = new Color32(0x65, 0x60, 0x61, 0xFF);
+        [SerializeField] private Color bridgeDashColor = new Color32(0x89, 0x84, 0x84, 0xFF);
 
         [Header("Burrow / Arrow (Level_11.png, Level_20.png; yaklaşık)")]
         [SerializeField] private Color burrowColor = Color.black;
-        [Tooltip("Deliğin çevresindeki gri halka (referansta çizgili; desen yok).")]
+        [Tooltip("Deliğin çevresindeki eğimli gri bantların ana rengi.")]
         [SerializeField] private Color burrowRimColor = new Color32(0x9A, 0x9A, 0x9A, 0xFF);
         [Tooltip("Ekranda ≈ RGB(95, 92, 96) görünecek şekilde (Level_20.png).")]
         [SerializeField] private Color arrowColor = new Color32(0x5D, 0x5B, 0x5F, 0xFF);
@@ -86,18 +92,22 @@ namespace SnakeBlockJam.Game
         private float _highlightPeriod = 1f;
         private readonly List<Material> _materials = new List<Material>();
         private Material[] _snakeMaterials;
+        private ParticleSystem[] _chipsByColor;
         private Material _groundMaterial;
         private Material _dotMaterial;
         private Material _eyeWhiteMaterial;
         private Material _pupilMaterial;
+        private Material _tongueMaterial;
         private Material _bridgeDeckMaterial;
         private Material _bridgeAsphaltMaterial;
         private Material _bridgeDashMaterial;
         private Material _burrowMaterial;
         private Material _burrowRimMaterial;
+        [SerializeField] private Sprite shovelSprite;
         private Material _arrowMaterial;
         private Mesh _arrowMesh;
         private Transform _content;
+        private int _levelNumber;
 
         // Köprü yolu üzerindeki hücreler: dokunuş önce köprü üstü yüksekliğinde aranır.
         private readonly HashSet<Cell> _bridgeCells = new HashSet<Cell>();
@@ -139,10 +149,13 @@ namespace SnakeBlockJam.Game
             Clear();
             EnsureMaterials();
 
+            _levelNumber = level.levelNumber;
             Geometry = new BoardGeometry(level.width, level.height);
             _content = new GameObject("Content").transform;
             _content.SetParent(transform, false);
 
+            _chipsByColor = new ParticleSystem[_snakeMaterials.Length];
+            bool usesChips = state.Level.Burrows.Count > 0 || level.levelNumber >= GameController.ShovelUnlockLevel;
             CreateGround();
             CreateDots(state, level.isRectangularBoard);
             CreateBridges(state.Level.Bridges);
@@ -156,7 +169,16 @@ namespace SnakeBlockJam.Game
 
                 var view = new GameObject().AddComponent<SnakeView>();
                 view.transform.SetParent(_content, false);
-                view.Build(snake, Geometry, _snakeMaterials[(int)data.color], _eyeWhiteMaterial, _pupilMaterial);
+                view.Build(snake, Geometry, _snakeMaterials[(int)data.color], _eyeWhiteMaterial, _pupilMaterial,
+                    _tongueMaterial);
+                if (usesChips)
+                {
+                    int color = (int)data.color;
+                    if (_chipsByColor[color] == null)
+                        _chipsByColor[color] = CreateChips(_snakeMaterials[color]);
+                    view.Chips = _chipsByColor[color];
+                }
+                view.BeginReveal();
                 _snakes.Add(snake.Id, view);
             }
         }
@@ -268,7 +290,7 @@ namespace SnakeBlockJam.Game
             {
                 if (_removing.Remove(finished))
                     DestroyObject(finished.gameObject);
-            });
+            }, shovelSprite);
             return true;
         }
 
@@ -343,12 +365,21 @@ namespace SnakeBlockJam.Game
 
             float cellPixels = CameraFit.CellPixels(
                 screenWidth, screenHeight, Geometry.Width, Geometry.Height, fitSettings);
+            float shiftPixels = 0f;
+            if (screenHeight > screenWidth)
+            {
+                var frame = CameraFit.ReferenceFraming(_levelNumber, Geometry.Width, Geometry.Height);
+                cellPixels = Mathf.Min(cellPixels * frame.scale,
+                    fitSettings.BoardHeightFill * screenHeight / Geometry.Height);
+                shiftPixels = screenWidth * frame.downFraction;
+            }
             float distance = CameraFit.DistanceForPixelsPerUnit(
                 cellPixels, screenHeight, cameraFieldOfView);
 
             Quaternion rotation = Quaternion.Euler(cameraPitch, 0f, 0f);
             Vector3 target = Vector3.up * (SnakeView.BlockHeight * 0.5f);
 
+            target += rotation * Vector3.up * (shiftPixels / cellPixels);
             targetCamera.fieldOfView = cameraFieldOfView;
             targetCamera.transform.SetPositionAndRotation(
                 target - rotation * Vector3.forward * distance, rotation);
@@ -452,6 +483,30 @@ namespace SnakeBlockJam.Game
             t.SetParent(parent, false);
             t.localPosition = Vector3.up * height;
             t.localScale = new Vector3(diameter, MarkerThickness, diameter);
+        }
+
+        private ParticleSystem CreateChips(Material material)
+        {
+            var host = new GameObject("Chips_" + material.name);
+            host.transform.SetParent(_content, false);
+            var system = host.AddComponent<ParticleSystem>();
+            system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = system.main;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startLifetime = 0.32f;
+            main.startSize = 0.14f;
+            main.gravityModifier = 1.8f;
+            main.maxParticles = 48;
+            var emission = system.emission;
+            emission.enabled = false;
+            var shape = system.shape;
+            shape.enabled = false;
+            var renderer = system.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Mesh;
+            renderer.mesh = BlockMesh.Get(Vector3.one, 0f);
+            renderer.sharedMaterial = material;
+            system.Play();
+            return system;
         }
 
         private void CreateGround()
@@ -598,14 +653,25 @@ namespace SnakeBlockJam.Game
             _snakeMaterials = new Material[snakeColors.Length];
 
             for (int i = 0; i < snakeColors.Length; i++)
-                _snakeMaterials[i] = CreateMaterial($"Snake_{(SnakeColor)i}", snakeColors[i]);
+            {
+                Material skin = CreateMaterial($"Snake_{(SnakeColor)i}", snakeColors[i]);
+                if (skin.HasProperty("_SideScale"))
+                {
+                    skin.SetFloat("_SideScale", 0.28f);
+                    skin.SetFloat("_SideGamma", 1.27f);
+                }
+                _snakeMaterials[i] = skin;
+            }
 
-            _groundMaterial = CreateMaterial("Ground", groundColor);
+            _groundMaterial = backgroundMaterial != null ? backgroundMaterial : CreateMaterial("Ground", groundColor);
             _dotMaterial = CreateMaterial("Dot", dotColor);
             _eyeWhiteMaterial = CreateMaterial("EyeWhite", eyeWhiteColor);
             _pupilMaterial = CreateMaterial("Pupil", pupilColor);
+            _tongueMaterial = CreateMaterial("Tongue", tongueColor);
             _bridgeDeckMaterial = CreateMaterial("BridgeDeck", bridgeDeckColor);
             _bridgeAsphaltMaterial = CreateMaterial("BridgeAsphalt", bridgeAsphaltColor);
+            if (_bridgeAsphaltMaterial.HasProperty("_RoadShading"))
+                _bridgeAsphaltMaterial.SetFloat("_RoadShading", 1f);
             _bridgeDashMaterial = CreateMaterial("BridgeDash", bridgeDashColor);
             _burrowMaterial = CreateMaterial("Burrow", burrowColor);
 
@@ -613,6 +679,7 @@ namespace SnakeBlockJam.Game
             // siyahı ~RGB(33, 35, 39) griye çekiyordu.
             _burrowMaterial.SetFloat("_Smoothness", 0f);
             _burrowRimMaterial = CreateMaterial("BurrowRim", burrowRimColor);
+            _burrowRimMaterial.EnableKeyword("_BURROW_RIM");
             _arrowMaterial = CreateMaterial("Arrow", arrowColor);
         }
 

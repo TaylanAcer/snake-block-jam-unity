@@ -14,7 +14,7 @@ namespace SnakeBlockJam.Game
         [Range(0f, 1f)] [SerializeField] private float volume = 0.8f;
 
         private AudioSource _source;
-        private AudioClip _tap, _bump, _escape, _allClear, _streak, _booster;
+        private AudioClip _tap, _bump, _escape, _allClear, _streak, _booster, _button;
 
         // Son çalınan sesin adı (testler için; batchmode'da ses aygıtı olmayabilir).
         public string LastPlayed { get; private set; }
@@ -30,6 +30,7 @@ namespace SnakeBlockJam.Game
             _escape = SfxSynth.ToClip("Escape", SfxSynth.Escape());
             _allClear = SfxSynth.ToClip("AllClear", SfxSynth.AllClear());
             _streak = SfxSynth.ToClip("Streak", SfxSynth.Streak());
+            _button = SfxSynth.ToClip("Button", SfxSynth.Button());
             _booster = SfxSynth.ToClip("Booster", SfxSynth.Booster());
         }
 
@@ -72,6 +73,8 @@ namespace SnakeBlockJam.Game
         private void OnStreakShown(int index) => Play(_streak);
         private void OnBoosterUsed() => Play(_booster);
 
+        public void PlayButton() => Play(_button);
+
         private void Play(AudioClip clip)
         {
             LastPlayed = clip.name;
@@ -80,7 +83,7 @@ namespace SnakeBlockJam.Game
 
         private void OnDestroy()
         {
-            foreach (var clip in new[] { _tap, _bump, _escape, _allClear, _streak, _booster })
+            foreach (var clip in new[] { _tap, _bump, _escape, _allClear, _streak, _booster, _button })
             {
                 if (clip != null)
                     Destroy(clip);

@@ -19,6 +19,10 @@ namespace SnakeBlockJam.Game
         [SerializeField] private Text messageText;
         [SerializeField] private Text buttonText;
 
+        [SerializeField] private GameObject paper;
+        [SerializeField] private Sprite completedRibbon;
+        private Sprite blueHeader;
+
         private float _shownTime = -1f;
 
         private void OnEnable()
@@ -66,7 +70,11 @@ namespace SnakeBlockJam.Game
             buttonText.text = button;
 
             if (!panel.activeSelf)
+            {
                 _shownTime = 0f;
+                if (paper != null)
+                    StyleCard(controller.Phase == GamePhase.Completed);
+            }
 
             panel.SetActive(true);
             ApplyScale();
@@ -76,6 +84,22 @@ namespace SnakeBlockJam.Game
         public static float ScaleIn(float time)
         {
             return Mathf.Lerp(ScaleInStart, 1f, Mathf.Clamp01(time / ScaleInTime));
+        }
+
+        private void StyleCard(bool completed)
+        {
+            var header = (RectTransform)titleText.transform.parent;
+            var skin = header.GetComponent<Image>();
+            if (blueHeader == null)
+                blueHeader = skin.sprite;
+            skin.sprite = completed ? completedRibbon : blueHeader;
+            skin.type = completed ? Image.Type.Simple : Image.Type.Sliced;
+            header.sizeDelta = completed ? new Vector2(840f, 210f) : new Vector2(560f, 110f);
+            ((RectTransform)Card).sizeDelta = new Vector2(900f, completed ? 1120f : 1010f);
+            ((RectTransform)buttonText.transform.parent).anchoredPosition = new Vector2(0f, completed ? 68f : 120f);
+            Card.GetComponent<Image>().enabled = !completed;
+            paper.SetActive(!completed);
+            messageText.color = completed ? Color.white : new Color32(51, 58, 72, 255);
         }
 
         private Transform Card => panel.transform.childCount > 0 ? panel.transform.GetChild(0) : null;

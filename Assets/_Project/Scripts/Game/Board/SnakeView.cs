@@ -16,8 +16,31 @@ namespace SnakeBlockJam.Game
     // Ölçüler hücre biriminde ve Level_01.png'ye göre yaklaşık (OBSERVED).
     public sealed class SnakeView : MonoBehaviour
     {
+        // Blok: yandan yana 0,88, yol boyunca 1 hücre (bloklar uç uca değer).
+        // Referansta (Level_13.png, 3× yakın plan) yılanın yanları düz, hücreler
+        // arasında yalnızca üstte ince bir dikiş var: kenarları hafif yuvarlak
+        // bloklar uç uca gelince üstte ince bir oluk kalıyor.
         public const float BlockWidth = 0.88f;
+        public const float BlockLength = 1f;
         public const float BlockHeight = 0.6f;
+
+        // Kenar yuvarlaklığı (hücre). Büyük olursa yanlarda boğum oluşuyor
+        // (0,11 denendi: "boncuk dizisi" görüntüsü).
+        private const float BlockRadius = 0.05f;
+        private const float TipRadius = 0.09f;
+        private int _hiddenSegments;
+        private float _revealProgress;
+        private readonly List<MeshFilter> _bodyMeshes = new List<MeshFilter>();
+        private Mesh _straightBlock;
+        private Mesh _cornerBlock;
+        private Transform _tongue;
+        private float _tongueTime;
+        private const float RevealCellsPerSecond = 80f;
+
+        // Ek parçası (dönüşlerde ve kuyrukta blokların arasını doldurur) bloktan
+        // biraz içeride ve alçakta: dikişi kapatmaz.
+        private const float LinkInset = 0.03f;
+        private const float LinkDrop = 0.03f;
 
         private const float TailWidth = 0.6f;
         private const float TailHeight = 0.48f;
@@ -25,15 +48,30 @@ namespace SnakeBlockJam.Game
         private const float TipHeight = 0.34f;
         private const float TipLength = 0.55f;
 
-        private const float EyeSize = 0.44f;
-        private const float EyeForward = 0.24f;
-        private const float EyeSpacing = 0.22f;
-        private const float PupilSize = 0.22f;
+        // Göz (Level_13.png yakın plan): hücrenin ~yarısı çapında beyaz göz, ince
+        // siyah çerçeve, büyük koyu göz bebeği; gözler başın ön kenarında, yan
+        // yana neredeyse değiyor.
+        private const float EyeSize = 0.46f;
+        private const float EyeFlatten = 0.7f;
+        private const float EyeRimSize = 0.54f;
+        private const float EyeForward = 0.3f;
+        private const float EyeSpacing = 0.24f;
+        private const float EyeLift = 0.04f;
+        private const float PupilSize = 0.24f;
+
+        // Dil (R-SNK-02 "bazen dil"; başlangıç karelerinde çoğu başta görünüyor):
+        // başın önünden çıkan ince kırmızı çatal. Ölçüler yaklaşık (OBSERVED).
+        private const float TongueLength = 0.2f;
+        private const float TongueWidth = 0.06f;
+        private const float TongueHeight = 0.03f;
+        private const float TongueForkLength = 0.1f;
 
         // Çarpmada baş son boş hücreden bu kadar ileri gider: baş bloğunun ön yüzü
-        // engel bloğunun yüzüne değer (iki blok arası boşluk). INFERRED: R-COL-01
-        // "temasa kadar ilerler"; mesafe referanstan ölçülmedi, blok ölçüsünden türetildi.
-        public const float ContactGap = 1f - BlockWidth;
+        // (BlockLength / 2) engel bloğunun yan yüzüne (BlockWidth / 2) değer.
+        // Engelin ucuna çarpınca 0,04 hücre iç içe geçer; göçük bunu örter.
+        // INFERRED: R-COL-01 "temasa kadar ilerler"; mesafe referanstan ölçülmedi,
+        // blok ölçüsünden türetildi.
+        public const float ContactGap = 1f - BlockLength * 0.5f - BlockWidth * 0.5f;
 
         // Kuyruk ucu kuyruğun ~0,55 hücre gerisinde; ekrandan çıkış bu noktayla ölçülür.
         private const float TrailingReach = 1f;
@@ -53,6 +91,9 @@ namespace SnakeBlockJam.Game
 
         private SnakeTrack _restTrack;
         private float _removeElapsed;
+        private Transform _shovel;
+        internal ParticleSystem Chips { private get; set; }
+        private int _buriedSegments;
         private float _removeSegmentTime;
 
         // Çarpma: tepe noktasında (temas) bir kez çağrılır.
@@ -71,9 +112,10 @@ namespace SnakeBlockJam.Game
         private float _stunTime = -1f;
         private float _stunDuration;
 
-        // Sersemlikte göz bebeğinin dönme yarıçapı ve hızı (tur/sn). Referansta
-        // spiral göz var; burada döner bebek (ASSUMED yaklaşım).
-        private const float StunRadius = 0.07f;
+        // Sersemlikte ortak spiral ağı kullanılır; dönüş hızı yaklaşık seçildi.
+        private readonly List<MeshFilter> _eyeMeshes = new List<MeshFilter>(2);
+        private static Mesh _spiral;
+        private Mesh _normalPupil;
         private const float StunTurnsPerSecond = 3f;
         private SnakeTrack _track;
         private MoveOutcome _outcome;
@@ -109,7 +151,7 @@ namespace SnakeBlockJam.Game
 
         public void Build(
             SnakeDefinition snake, BoardGeometry geometry,
-            Material body, Material eyeWhite, Material pupil)
+            Material body, Material eyeWhite, Material pupil, Material tongue = null)
         {
             Definition = snake;
             SnakeId = snake.Id;
@@ -122,39 +164,83 @@ namespace SnakeBlockJam.Game
             {
                 bool isTail = i == last && last > 0;
                 float width = isTail ? TailWidth : BlockWidth;
+                float length = isTail ? TailWidth : BlockLength;
                 float height = isTail ? TailHeight : BlockHeight;
 
                 Transform segment = CreateRoot($"Segment_{i}");
-                _bodyRenderers.Add(CreatePiece(segment, "Block", new Vector3(0f, height * 0.5f, 0f),
-                    new Vector3(width, height, width), body));
+                Vector3 size = new Vector3(width, height, length);
+                var block = CreateBlock(segment, "Block", new Vector3(0f, height * 0.5f, 0f), size,
+                    i == 0 || isTail ? 0.12f : BlockRadius, body);
+                _bodyRenderers.Add(block);
+                MeshFilter filter = block.GetComponent<MeshFilter>();
+                _bodyMeshes.Add(filter);
+                if (i == 1 && !isTail)
+                {
+                    _straightBlock = filter.sharedMesh;
+                    _cornerBlock = BlockMesh.Get(size, 0.18f);
+                }
 
                 // Kuyruk segmenti boyna bakar; uç arkaya (-z) uzanır.
                 if (isTail)
-                    _bodyRenderers.Add(CreatePiece(segment, "TailTip",
+                    _bodyRenderers.Add(CreateBlock(segment, "TailTip",
                         new Vector3(0f, TipHeight * 0.5f, -TipLength * 0.5f),
-                        new Vector3(TipWidth, TipHeight, TipLength), body));
+                        new Vector3(TipWidth, TipHeight, TipLength), TipRadius, body));
 
                 if (i == 0)
+                {
                     CreateEyes(segment, eyeWhite, pupil);
+
+                    if (tongue != null)
+                    {
+                        _tongue = CreateTongue(segment, tongue);
+                        _tongueTime = snake.Id * 0.37f % 1.6f;
+                    }
+                }
 
                 _segments.Add(segment);
 
-                // Arkadaki segment (i) ile öndeki (i - 1) arasındaki boşluk;
-                // ek yeri görünür kalır.
+                // Arkadaki segment (i) ile öndeki (i - 1) arasındaki ek parçası:
+                // boşluğu kapatır, iki bloğun yuvarlak uçlarına biraz girer; bloktan
+                // dar ve alçak olduğu için üstte ince bir oluk (dikiş) görünür.
                 if (i > 0)
                 {
-                    float gap = 1f - BlockWidth * 0.5f - width * 0.5f;
+                    float gap = 1f - BlockLength * 0.5f - length * 0.5f;
+                    float linkLength = gap + 2f * BlockRadius;
+                    float linkHeight = height - LinkDrop;
                     Transform link = CreateRoot($"Link_{i}");
-                    _bodyRenderers.Add(CreatePiece(link, "Block", new Vector3(0f, height * 0.5f, 0f),
-                        new Vector3(width, height, gap), body));
+                    _bodyRenderers.Add(CreateBlock(link, "Block", new Vector3(0f, linkHeight * 0.5f, 0f),
+                        new Vector3(width - 2f * LinkInset, linkHeight, linkLength), 0.03f, body));
 
                     _links.Add(link);
-                    _linkOffsets.Add(width * 0.5f + gap * 0.5f);
+                    _linkOffsets.Add(length * 0.5f + gap * 0.5f);
                 }
             }
 
             _restTrack = SnakeTrack.ForBody(snake, geometry);
             SetPose(_restTrack, 0f);
+        }
+
+        // Görünüm kuyruğa yakın hücreden başa doğru çizilir. Segmentlerin gerçek
+        // konumu baştan doğrudur; seçim ve simülasyon bu geçişi beklemez.
+        public void BeginReveal()
+        {
+            _hiddenSegments = _segments.Count;
+            _revealProgress = 0f;
+            foreach (Transform segment in _segments)
+                segment.localScale = Vector3.zero;
+            foreach (Transform link in _links)
+                link.localScale = Vector3.zero;
+        }
+
+        private void RevealTo(int hidden)
+        {
+            while (_hiddenSegments > hidden)
+            {
+                int i = --_hiddenSegments;
+                _segments[i].localScale = Vector3.one;
+                if (i < _links.Count)
+                    _links[i].localScale = Vector3.one;
+            }
         }
 
         // Kaçış animasyonunu başlatır. Mantıksal kaldırma zaten yapılmıştır
@@ -166,6 +252,7 @@ namespace SnakeBlockJam.Game
             if (outcome == MoveOutcome.Blocked)
                 throw new ArgumentException("Blocked moves are not escapes.", nameof(outcome));
 
+            RevealTo(0);
             _track = track;
             _outcome = outcome;
             _speed = speed;
@@ -182,6 +269,7 @@ namespace SnakeBlockJam.Game
         public void PlayBlocked(SnakeTrack track, float peakTravel, float speed, Action<SnakeView> onFinished,
                                 Action<SnakeView> onContact = null)
         {
+            RevealTo(0);
             _track = track;
             _outcome = MoveOutcome.Blocked;
             _peakTravel = Mathf.Clamp(peakTravel, 0f, track.Length);
@@ -206,14 +294,50 @@ namespace SnakeBlockJam.Game
 
         // Kürek (R-SHV-03): segmentler kuyruktan başa doğru teker teker kaybolur;
         // süre yılan uzunluğuyla orantılı. Model yılanı zaten kaldırdı (R-SHV-01).
-        // Kürek görseli ve parçacıklar yok (görsel tur).
-        public void PlayRemove(float segmentTime, Action<SnakeView> onFinished)
+        // Kürek görünümü ve renkli parçalar aynı segment sırasını izler.
+        public void PlayRemove(float segmentTime, Action<SnakeView> onFinished, Sprite shovel = null)
         {
+            RevealTo(0);
             _removeSegmentTime = Mathf.Max(0.01f, segmentTime);
             _removeElapsed = 0f;
             RemovedSegmentCount = 0;
             _onFinished = onFinished;
             _motion = Motion.Remove;
+            if (shovel != null)
+            {
+                var tool = new GameObject("Shovel", typeof(SpriteRenderer));
+                tool.GetComponent<SpriteRenderer>().sprite = shovel;
+                _shovel = tool.transform;
+                _shovel.SetParent(transform, false);
+                _shovel.localScale = Vector3.one * 1.65f;
+                PlaceShovel(0);
+            }
+        }
+
+        private void EmitChips(Vector3 position, int index)
+        {
+            if (Chips == null)
+                return;
+            for (int i = 0; i < 3; i++)
+            {
+                float angle = index * 2.4f + i * 2.09f;
+                var chip = new ParticleSystem.EmitParams
+                {
+                    position = position + Vector3.up * 0.25f,
+                    velocity = new Vector3(Mathf.Cos(angle) * 2f, 3.1f, Mathf.Sin(angle) * 2f)
+                };
+                Chips.Emit(chip, 1);
+            }
+        }
+
+        private void PlaceShovel(int removed)
+        {
+            int index = _segments.Count - 1 - removed;
+            float t = Mathf.Clamp01(_removeElapsed / _removeSegmentTime - removed);
+            Vector3 from = _segments[index].position;
+            Vector3 to = _segments[Mathf.Max(0, index - 1)].position;
+            _shovel.position = Vector3.Lerp(from, to, t) + new Vector3(0.35f, 1.25f, 0.35f);
+            _shovel.rotation = Quaternion.Euler(75f, 0f, 12f * Mathf.Sin(t * Mathf.PI));
         }
 
         private void UpdateRemove()
@@ -224,6 +348,7 @@ namespace SnakeBlockJam.Game
             for (int k = RemovedSegmentCount; k < removed; k++)
             {
                 int segment = _segments.Count - 1 - k;
+                EmitChips(_segments[segment].position, segment);
                 _segments[segment].gameObject.SetActive(false);
 
                 // Ek parçası arkadaki segmente aittir: _links[segment - 1], segment
@@ -232,6 +357,8 @@ namespace SnakeBlockJam.Game
                     _links[segment - 1].gameObject.SetActive(false);
             }
 
+            if (_shovel != null && removed < _segments.Count)
+                PlaceShovel(removed);
             RemovedSegmentCount = removed;
 
             if (removed >= _segments.Count)
@@ -275,6 +402,13 @@ namespace SnakeBlockJam.Game
 
             _stunDuration = duration;
             _stunTime = 0f;
+            if (_spiral == null)
+                _spiral = CreateSpiral();
+            for (int i = 0; i < _eyeMeshes.Count; i++)
+            {
+                _eyeMeshes[i].sharedMesh = _spiral;
+                _pupils[i].localPosition = _pupilRest[i] + new Vector3(0f, 0.05f, -0.08f);
+            }
         }
 
         public bool IsStunned => _stunTime >= 0f;
@@ -304,6 +438,35 @@ namespace SnakeBlockJam.Game
             _dentSegment = null;
         }
 
+        private static Mesh CreateSpiral()
+        {
+            const int steps = 40;
+            var vertices = new Vector3[(steps + 1) * 2];
+            var triangles = new int[steps * 6];
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = i / (float)steps;
+                float angle = t * Mathf.PI * 3.6f;
+                Vector3 radial = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                float radius = 0.06f + 0.72f * t;
+                int v = i * 2;
+                vertices[v] = radial * (radius - 0.06f);
+                vertices[v + 1] = radial * (radius + 0.06f);
+                if (i == steps)
+                    break;
+                int k = i * 6;
+                triangles[k] = v;
+                triangles[k + 1] = v + 2;
+                triangles[k + 2] = v + 1;
+                triangles[k + 3] = v + 1;
+                triangles[k + 4] = v + 2;
+                triangles[k + 5] = v + 3;
+            }
+            var mesh = new Mesh { name = "Stunned eye", vertices = vertices, triangles = triangles };
+            mesh.RecalculateNormals();
+            return mesh;
+        }
+
         private void UpdateStun()
         {
             if (_stunTime < 0f)
@@ -317,13 +480,14 @@ namespace SnakeBlockJam.Game
                 if (done)
                 {
                     _pupils[i].localPosition = _pupilRest[i];
+                    _pupils[i].localRotation = Quaternion.identity;
+                    _eyeMeshes[i].sharedMesh = _normalPupil;
                     continue;
                 }
 
                 // İki göz zıt yönde döner.
-                float angle = 2f * Mathf.PI * StunTurnsPerSecond * _stunTime * (i % 2 == 0 ? 1f : -1f);
-                _pupils[i].localPosition = _pupilRest[i] +
-                                           new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * StunRadius;
+                float angle = 360f * StunTurnsPerSecond * _stunTime * (i == 0 ? 1f : -1f);
+                _pupils[i].localRotation = Quaternion.Euler(0f, angle, 0f);
             }
 
             if (done)
@@ -332,6 +496,24 @@ namespace SnakeBlockJam.Game
 
         private void Update()
         {
+            if (_hiddenSegments > 0)
+            {
+                _revealProgress += Time.deltaTime * RevealCellsPerSecond;
+                RevealTo(Mathf.Max(0, _segments.Count - Mathf.CeilToInt(_revealProgress)));
+            }
+            if (_tongue != null && _motion == Motion.None)
+            {
+                // Ritim ASSUMED. Sadece kısa dil hareketinde transform yazılır.
+                _tongueTime += Time.deltaTime;
+                if (_tongueTime >= 1.6f)
+                {
+                    float t = (_tongueTime - 1.6f) / 0.18f;
+                    float extension = 1f - 0.9f * Mathf.Sin(Mathf.Clamp01(t) * Mathf.PI);
+                    _tongue.localScale = new Vector3(1f, 1f, extension);
+                    if (t >= 1f)
+                        _tongueTime = 0f;
+                }
+            }
             UpdateDent();
             UpdateStun();
 
@@ -344,6 +526,14 @@ namespace SnakeBlockJam.Game
                 case Motion.Escape:
                     Travel += _speed * Time.deltaTime;
                     SetPose(_track, Travel);
+
+                    if (_outcome == MoveOutcome.EscapedIntoBurrow)
+                    {
+                        int buried = Mathf.Clamp(Mathf.CeilToInt(_track.SegmentDistance(0, Travel) - _track.Length),
+                            0, _segments.Count);
+                        while (_buriedSegments < buried)
+                            EmitChips(_track.Sample(_track.Length), _buriedSegments++);
+                    }
 
                     if (HasLeft())
                         Finish();
@@ -415,6 +605,13 @@ namespace SnakeBlockJam.Game
             {
                 float distance = track.SegmentDistance(i, travel);
                 Place(_segments[i], track, distance, distance <= track.Length);
+                if (i > 0 && i < _segments.Count - 1)
+                {
+                    bool bends = Vector3.Dot(track.Direction(distance), track.Direction(distance - 0.5f)) < 0.5f;
+                    Mesh shape = bends ? _cornerBlock : _straightBlock;
+                    if (_bodyMeshes[i].sharedMesh != shape)
+                        _bodyMeshes[i].sharedMesh = shape;
+                }
             }
 
             // Ek parçası, öndeki segment hâlâ görünürken gösterilir (tünele girişte
@@ -437,22 +634,56 @@ namespace SnakeBlockJam.Game
                     track.Sample(distance), Quaternion.LookRotation(track.Direction(distance)));
         }
 
-        // Göz: beyaz küre, önüne bakan siyah göz bebeği. Başın üst yüzünde, ön
-        // kenara yakın, yön eksenine dik iki yanda.
+        // Göz: yassı beyaz küre + arkasında biraz büyük koyu küre (çerçeve) +
+        // önüne bakan koyu göz bebeği. Başın üst yüzünde, ön kenarda, yön eksenine
+        // dik iki yanda.
         private void CreateEyes(Transform head, Material eyeWhite, Material pupil)
         {
             for (int side = -1; side <= 1; side += 2)
             {
-                var eye = new Vector3(EyeSpacing * side, BlockHeight, EyeForward);
+                var eye = new Vector3(EyeSpacing * side, BlockHeight + EyeLift, EyeForward);
 
-                CreatePiece(head, "Eye", eye, Vector3.one * EyeSize, eyeWhite,
+                // Çerçeve beyazdan geniş ama daha basık ve alçakta: üstten bakınca
+                // beyazın çevresinde ince koyu halka kalır.
+                CreatePiece(head, "EyeRim", eye + new Vector3(0f, -0.04f, 0f),
+                    new Vector3(EyeRimSize, EyeRimSize * 0.45f, EyeRimSize), pupil,
                     PrimitiveType.Sphere, castShadows: false);
-                MeshRenderer pupilPiece = CreatePiece(head, "Pupil", eye + new Vector3(0f, 0.08f, 0.13f),
-                    Vector3.one * PupilSize, pupil, PrimitiveType.Sphere, castShadows: false);
+                CreatePiece(head, "Eye", eye,
+                    new Vector3(EyeSize, EyeSize * EyeFlatten, EyeSize), eyeWhite,
+                    PrimitiveType.Sphere, castShadows: false);
+                MeshRenderer pupilPiece = CreatePiece(head, "Pupil",
+                    eye + new Vector3(0f, EyeSize * EyeFlatten * 0.42f, 0.08f),
+                    new Vector3(PupilSize, PupilSize * 0.5f, PupilSize), pupil,
+                    PrimitiveType.Sphere, castShadows: false);
 
+                MeshFilter eyeMesh = pupilPiece.GetComponent<MeshFilter>();
+                _normalPupil = eyeMesh.sharedMesh;
+                _eyeMeshes.Add(eyeMesh);
                 _pupils.Add(pupilPiece.transform);
                 _pupilRest.Add(pupilPiece.transform.localPosition);
             }
+        }
+
+        // Dil: başın ön yüzünden çıkan ince şerit + ucunda iki yana açılan çatal.
+        private static Transform CreateTongue(Transform head, Material tongue)
+        {
+            float y = BlockHeight * 0.35f;
+            float front = BlockLength * 0.5f;
+
+            Transform root = new GameObject("TongueRoot").transform;
+            root.SetParent(head, false);
+            root.localPosition = new Vector3(0f, y, front);
+            CreatePiece(root, "Tongue", new Vector3(0f, 0f, TongueLength * 0.5f),
+                new Vector3(TongueWidth, TongueHeight, TongueLength), tongue, castShadows: false);
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                MeshRenderer fork = CreatePiece(root, "TongueFork",
+                    new Vector3(side * TongueForkLength * 0.3f, 0f, TongueLength + TongueForkLength * 0.4f),
+                    new Vector3(TongueWidth * 0.8f, TongueHeight, TongueForkLength), tongue, castShadows: false);
+                fork.transform.localRotation = Quaternion.Euler(0f, side * 35f, 0f);
+            }
+            return root;
         }
 
         private Transform CreateRoot(string objectName)
@@ -460,6 +691,23 @@ namespace SnakeBlockJam.Game
             var root = new GameObject(objectName).transform;
             root.SetParent(transform, false);
             return root;
+        }
+
+        // Yuvarlatılmış blok (BlockMesh): mesh ölçüde üretilir, ölçek 1 kalır.
+        private static MeshRenderer CreateBlock(
+            Transform parent, string objectName, Vector3 localPosition, Vector3 size, float radius,
+            Material material)
+        {
+            var piece = new GameObject(objectName, typeof(MeshFilter), typeof(MeshRenderer));
+            piece.GetComponent<MeshFilter>().sharedMesh = BlockMesh.Get(size, radius);
+
+            var renderer = piece.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+
+            Transform t = piece.transform;
+            t.SetParent(parent, false);
+            t.localPosition = localPosition;
+            return renderer;
         }
 
         private static MeshRenderer CreatePiece(

@@ -21,22 +21,22 @@ namespace SnakeBlockJam.Game
         public const float MinLength = 2f;
 
         // Genişlik (Level_05/06.png): asfalt ~1,25 hücre, korkuluklarla ~1,6.
-        public const float DeckWidth = 1.6f;
+        public const float DeckWidth = 1.84f;
         public const float DeckThickness = 0.1f;
-        public const float AsphaltWidth = 1.25f;
+        public const float AsphaltWidth = 1.32f;
         public const float AsphaltThickness = 0.02f;
-        public const float RailWidth = 0.16f;
+        public const float RailWidth = 0.25f;
         public const float RailHeight = 0.12f;
-        public const float PostSize = 0.22f;
+        public const float PostSize = 0.26f;
         public const float PostHeight = 0.18f;
 
         // Tablanın iki yanından inen krem etek: köprüyü kalın gösterir (referansta
         // kemerli ön yüz). Zemin yılanının (0,6) üstünde biter; altından geçer.
         public const float SkirtBottom = 0.63f;
         public const float SkirtWidth = 0.12f;
-        public const float DashLength = 0.22f;
+        public const float DashLength = 0.29f;
         public const float DashSpacing = 0.5f;
-        public const float DashWidth = 0.07f;
+        public const float DashWidth = 0.13f;
 
         // Bir düz parça: iki uç (dünya, tabla üstü yüksekliğinde).
         public readonly struct Run
@@ -119,18 +119,21 @@ namespace SnakeBlockJam.Game
                 Vector3 middle = (run.From + run.To) * 0.5f;
                 middle.y = 0f;
 
-                // Dirsekte parçalar yarım genişlik uzar ki köşe dolsun.
+                // Dirseği ilk kol doldurur; sonraki kol kenardan başlayarak çakışmayı önler.
                 bool joinsPrevious = r > 0;
                 bool joinsNext = r < runs.Count - 1;
-                float startTrim = joinsPrevious ? DeckWidth * 0.5f : 0f;
+                float startTrim = joinsPrevious ? -DeckWidth * 0.5f : 0f;
                 float endTrim = joinsNext ? DeckWidth * 0.5f : 0f;
                 float length = run.Length + startTrim + endTrim;
                 Vector3 center = middle + direction * (endTrim - startTrim) * 0.5f;
 
                 CreatePiece("Deck", center + Vector3.up * (top - AsphaltThickness - DeckThickness * 0.5f),
                     rotation, new Vector3(DeckWidth, DeckThickness, length), deck);
-                CreatePiece("Asphalt", center + Vector3.up * (top - AsphaltThickness * 0.5f),
-                    rotation, new Vector3(AsphaltWidth, AsphaltThickness, length), asphalt);
+                float roadStart = joinsPrevious ? -AsphaltWidth * 0.5f : 0f;
+                float roadEnd = joinsNext ? AsphaltWidth * 0.5f : 0f;
+                Vector3 roadCenter = middle + direction * (roadEnd - roadStart) * 0.5f;
+                CreatePiece("Asphalt", roadCenter + Vector3.up * (top - AsphaltThickness * 0.5f),
+                    rotation, new Vector3(AsphaltWidth, AsphaltThickness, run.Length + roadStart + roadEnd), asphalt);
 
                 float deckBottom = top - AsphaltThickness - DeckThickness;
                 float skirtHeight = deckBottom - SkirtBottom;
@@ -138,12 +141,20 @@ namespace SnakeBlockJam.Game
                 for (int s = -1; s <= 1; s += 2)
                 {
                     Vector3 offset = side * s * (DeckWidth - RailWidth) * 0.5f;
-                    CreatePiece("Rail", center + offset + Vector3.up * (top + RailHeight * 0.5f),
-                        rotation, new Vector3(RailWidth, RailHeight, length), deck);
+                    // İç korkuluğu dirseğin girişinden çek; yolun ortasını kapatmasın.
+                    float startRail = joinsPrevious ? Vector3.Dot(side * s, runs[r - 1].Direction) * (DeckWidth - RailWidth) * 0.5f : 0f;
+                    float endRail = joinsNext ? -Vector3.Dot(side * s, runs[r + 1].Direction) * (DeckWidth - RailWidth) * 0.5f : 0f;
+                    float railLength = run.Length + startRail + endRail;
+                    // Bir hücrelik iki dönüş arasında iç tarafta korkuluk alanı kalmayabilir.
+                    if (railLength <= 0f)
+                        continue;
+                    Vector3 railCenter = middle + direction * (endRail - startRail) * 0.5f;
+                    CreatePiece("Rail", railCenter + offset + Vector3.up * (top + RailHeight * 0.5f),
+                        rotation, new Vector3(RailWidth, RailHeight, railLength), deck);
 
                     Vector3 skirtOffset = side * s * (DeckWidth - SkirtWidth) * 0.5f;
-                    CreatePiece("Skirt", center + skirtOffset + Vector3.up * (SkirtBottom + skirtHeight * 0.5f),
-                        rotation, new Vector3(SkirtWidth, skirtHeight, length), deck);
+                    CreatePiece("Skirt", railCenter + skirtOffset + Vector3.up * (SkirtBottom + skirtHeight * 0.5f),
+                        rotation, new Vector3(SkirtWidth, skirtHeight, railLength), deck);
                 }
 
                 CreateDashes(run, rotation, top, dash);
@@ -188,6 +199,9 @@ namespace SnakeBlockJam.Game
         {
             var piece = Primitives.Create(PrimitiveType.Cube, objectName);
 
+            bool rounded = objectName == "Rail" || objectName == "Post";
+            if (rounded)
+                piece.GetComponent<MeshFilter>().sharedMesh = BlockMesh.Get(scale, 0.055f);
             var renderer = piece.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = castShadows
@@ -197,7 +211,7 @@ namespace SnakeBlockJam.Game
             Transform t = piece.transform;
             t.SetParent(transform, false);
             t.SetPositionAndRotation(position, rotation);
-            t.localScale = scale;
+            t.localScale = rounded ? Vector3.one : scale;
         }
     }
 }

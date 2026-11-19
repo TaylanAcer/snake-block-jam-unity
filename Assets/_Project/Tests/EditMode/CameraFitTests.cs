@@ -49,6 +49,15 @@ public class CameraFitTests
     }
 
     [Test]
+    public void ReferenceFraming_OnlyAppliesToMatchingBoard()
+    {
+        var reference = CameraFit.ReferenceFraming(6, 13, 21);
+        Assert.AreEqual(29f / 720f, reference.downFraction, 1e-5f);
+        Assert.AreEqual((1f, 0f), CameraFit.ReferenceFraming(6, 13, 20));
+        Assert.AreEqual((1f, 0f), CameraFit.ReferenceFraming(21, 13, 21));
+    }
+
+    [Test]
     public void Distance_GivesRequestedPixelsPerUnit()
     {
         const float fov = 30f;

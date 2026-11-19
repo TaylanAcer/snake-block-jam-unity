@@ -19,6 +19,9 @@ namespace SnakeBlockJam.EditorTools
     {
         public const string ScenePath = "Assets/_Project/Scenes/Game.unity";
         public const string BlockMaterialPath = "Assets/_Project/Art/Materials/Block.mat";
+        public const string BackgroundMaterialPath = "Assets/_Project/Art/Materials/BoardBackground.mat";
+        public const string BlockShaderName = "SnakeBlockJam/ToonBlock";
+        public const string BackgroundShaderName = "SnakeBlockJam/BoardBackground";
         public const string FeelSettingsPath = "Assets/_Project/Data/FeelSettings.asset";
         public const string LevelCatalogPath = "Assets/_Project/Data/LevelCatalog.asset";
 
@@ -27,7 +30,8 @@ namespace SnakeBlockJam.EditorTools
         public static readonly int[] CatalogLevels =
             { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
 
-        private static readonly Color Background = new Color32(0xE4, 0xF1, 0xFA, 0xFF);
+        // Kamera temizleme rengi = zemin degradesinin üst rengi (Level_13.png üstü).
+        private static readonly Color Background = new Color32(0xF5, 0xF9, 0xFB, 0xFF);
 
         [MenuItem("Snake Block Jam/Setup/Build Game Scene")]
         public static void BuildGameScene()
@@ -45,6 +49,7 @@ namespace SnakeBlockJam.EditorTools
                 level = LevelJsonImporter.ImportToAsset(1);
 
             var blockMaterial = EnsureBlockMaterial();
+            var backgroundMaterial = EnsureBackgroundMaterial();
             var feel = EnsureFeelSettings();
             var catalog = EnsureLevelCatalog();
 
@@ -57,6 +62,8 @@ namespace SnakeBlockJam.EditorTools
 
             var board = new GameObject("Board").AddComponent<BoardView>();
             SetReference(board, "blockMaterial", blockMaterial);
+            SetReference(board, "backgroundMaterial", backgroundMaterial);
+            SetReference(board, "shovelSprite", InterfaceSprite("Spade"));
 
             var controllerObject = new GameObject("GameController");
             var controller = controllerObject.AddComponent<GameController>();
@@ -75,7 +82,13 @@ namespace SnakeBlockJam.EditorTools
             CreateBoosters(canvas, controller);
             FeedbackView feedback = CreateFeedback(canvas, controller);
             CreateResultWindow(canvas, controller);
-            CreateSfxPlayer(controllerObject, controller, feedback);
+            CreateTutorials(canvas, controller);
+            SfxPlayer sounds = CreateSfxPlayer(controllerObject, controller, feedback);
+            foreach (Button button in canvas.GetComponentsInChildren<Button>(true))
+            {
+                if (button.name != "HintButton" && button.name != "ShovelButton")
+                    UnityEventTools.AddPersistentListener(button.onClick, sounds.PlayButton);
+            }
 
             EditorSceneManager.SaveScene(scene, ScenePath);
         }
@@ -164,19 +177,42 @@ namespace SnakeBlockJam.EditorTools
             return catalog;
         }
 
+        // Bloklar: oyuncak görünümlü toon shader (Faz 11b). Eski (URP Lit) Block.mat
+        // varsa shader'ı değiştirilir; renkler runtime'da BoardView'da verilir.
         private static Material EnsureBlockMaterial()
         {
-            var material = AssetDatabase.LoadAssetAtPath<Material>(BlockMaterialPath);
+            return EnsureMaterial(BlockMaterialPath, BlockShaderName, "Block");
+        }
 
-            if (material != null)
+        // Zemin: ekran uzayında degrade + gölge (Faz 11b).
+        private static Material EnsureBackgroundMaterial()
+        {
+            Material material = EnsureMaterial(BackgroundMaterialPath, BackgroundShaderName, "BoardBackground");
+            material.SetColor("_ShadowTint", new Color(0.765f, 0.75f, 0.746f));
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        private static Material EnsureMaterial(string path, string shaderName, string materialName)
+        {
+            Shader shader = Shader.Find(shaderName)
+                            ?? throw new InvalidOperationException($"Shader '{shaderName}' not found.");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+
+            if (material == null)
+            {
+                material = new Material(shader) { name = materialName };
+                AssetDatabase.CreateAsset(material, path);
                 return material;
+            }
 
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit")
-                            ?? throw new InvalidOperationException("URP Lit shader not found.");
+            if (material.shader != shader)
+            {
+                material.shader = shader;
+                EditorUtility.SetDirty(material);
+                AssetDatabase.SaveAssets();
+            }
 
-            material = new Material(shader) { name = "Block" };
-            material.SetFloat("_Smoothness", 0.15f);
-            AssetDatabase.CreateAsset(material, BlockMaterialPath);
             return material;
         }
 
@@ -203,8 +239,9 @@ namespace SnakeBlockJam.EditorTools
             light.type = LightType.Directional;
             light.intensity = 0.75f;
             light.shadows = LightShadows.Soft;
-            light.shadowStrength = 0.35f;
-            light.transform.rotation = Quaternion.Euler(60f, 150f, 0f);
+            // Gölgenin rengi/koyuluğu shader'daki _ShadowTint ile ayarlanır.
+            light.shadowStrength = 1f;
+            light.transform.rotation = Quaternion.Euler(62f, 145f, 0f);
         }
 
         // Yeni Input System ile çalışan UI modülü (eski StandaloneInputModule değil).
@@ -229,30 +266,13 @@ namespace SnakeBlockJam.EditorTools
             var buttonRect = (RectTransform)buttonObject.transform;
             buttonRect.SetParent(canvasObject.transform, false);
             buttonRect.anchorMin = buttonRect.anchorMax = buttonRect.pivot = new Vector2(1f, 1f);
-            buttonRect.anchoredPosition = new Vector2(-40f, -60f);
-            buttonRect.sizeDelta = new Vector2(240f, 100f);
-
-            var image = buttonObject.GetComponent<Image>();
-            image.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            image.type = Image.Type.Sliced;
-
+            buttonRect.anchoredPosition = new Vector2(-38f, -116f);
+            buttonRect.sizeDelta = new Vector2(92f, 92f);
+            Image image = buttonObject.GetComponent<Image>();
+            image.sprite = InterfaceSprite("Restart");
             var button = buttonObject.GetComponent<Button>();
+            button.targetGraphic = image;
             UnityEventTools.AddPersistentListener(button.onClick, controller.Restart);
-
-            var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
-            var labelRect = (RectTransform)labelObject.transform;
-            labelRect.SetParent(buttonRect, false);
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
-
-            var label = labelObject.GetComponent<Text>();
-            label.text = "Restart";
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.fontSize = 42;
-            label.alignment = TextAnchor.MiddleCenter;
-            label.color = new Color32(0x33, 0x3A, 0x48, 0xFF);
-            label.raycastTarget = false;
 
             return canvasObject.transform;
         }
@@ -265,10 +285,8 @@ namespace SnakeBlockJam.EditorTools
         private static readonly Color HudGreen = new Color32(0x55, 0xD4, 0x4B, 0xFF);
         private static readonly Color HudDarkGreen = new Color32(0x2E, 0x7D, 0x1F, 0xFF);
         private static readonly Color TextOutline = new Color32(0x1D, 0x3A, 0x4F, 0xFF);
-        private static readonly Color AllClearYellow = new Color32(0xFF, 0xD2, 0x3F, 0xFF);
-        private static readonly Color AllClearOutline = new Color32(0x2B, 0x5F, 0xB8, 0xFF);
+
         private static readonly Color WindowBody = new Color32(0xEA, 0xF4, 0xFB, 0xFF);
-        private static readonly Color WindowHeader = new Color32(0x2F, 0x7B, 0xE0, 0xFF);
         private static readonly Color DarkText = new Color32(0x33, 0x3A, 0x48, 0xFF);
 
         private static void CreateHud(Transform canvas, GameController controller)
@@ -280,40 +298,62 @@ namespace SnakeBlockJam.EditorTools
 
             RectTransform moves = CreateRect("MovesPanel", root);
             moves.anchorMin = moves.anchorMax = new Vector2(0.5f, 1f);
-            moves.anchoredPosition = new Vector2(0f, -146f);
-            moves.sizeDelta = new Vector2(330f, 100f);
+            moves.anchoredPosition = new Vector2(0f, -165f);
+            moves.sizeDelta = new Vector2(300f, 96f);
 
             RectTransform ribbon = CreateRect("LevelRibbon", moves);
             ribbon.anchorMin = ribbon.anchorMax = new Vector2(0.5f, 0f);
-            ribbon.anchoredPosition = new Vector2(0f, -22f);
-            ribbon.sizeDelta = new Vector2(230f, 52f);
-            CreateImage(ribbon, HudGreen);
-            Text levelText = CreateText("Label", ribbon, "Seviye 1", 34, HudDarkGreen);
+            ribbon.anchoredPosition = new Vector2(0f, -16f);
+            ribbon.sizeDelta = new Vector2(210f, 52f);
+            CreateImage(ribbon, HudGreen, "Panel");
+            Text levelText = CreateText("Label", ribbon, "Seviye 1", 29, HudDarkGreen);
 
             // Kutu şeritten sonra: şeridin üstünde çizilir.
             RectTransform box = CreateRect("Box", moves);
             Stretch(box);
-            Image background = CreateImage(box, HudTeal);
-            Text movesText = CreateText("Label", box, "Hamle: 0", 54, Color.white);
-            movesText.gameObject.AddComponent<Outline>().effectColor = TextOutline;
+            Image frame = CreateImage(box, HudGreen, "Panel");
+            RectTransform face = CreateRect("Face", box);
+            Stretch(face);
+            face.offsetMin = new Vector2(6f, 9f);
+            face.offsetMax = new Vector2(-6f, -6f);
+            Image background = CreateImage(face, HudTeal, "Panel");
+            var skull = Icon("Hard", moves, "Skull", 60f, 0f, 51f);
+
+            Text movesText = CreateText("Label", box, "Hamle: 0", 45, Color.white);
+            OutlineText(movesText, 2.5f);
 
             RectTransform allClear = CreateRect("AllClear", root);
-            allClear.anchorMin = allClear.anchorMax = new Vector2(0.5f, 0.62f);
-            // Referansta iki satır ("ALL" / "CLEAR!"), ekran genişliğinin ~%40'ı.
-            allClear.sizeDelta = new Vector2(520f, 300f);
-            Text allClearText = CreateText("Label", allClear, "ALL\nCLEAR!", 120, AllClearYellow);
-            allClearText.lineSpacing = 0.85f;
-            allClearText.verticalOverflow = VerticalWrapMode.Overflow;
-            var allClearOutline = allClearText.gameObject.AddComponent<Outline>();
-            allClearOutline.effectColor = AllClearOutline;
-            allClearOutline.effectDistance = new Vector2(5f, -5f);
+            allClear.anchorMin = allClear.anchorMax = new Vector2(0.5f, 0.565f);
+            allClear.sizeDelta = new Vector2(422f, 226f);
+            CreateImage(allClear, Color.white, "AllClear").preserveAspect = true;
             allClear.gameObject.SetActive(false);
 
+            RectTransform hard = CreateRect("HardIntro", root);
+            Stretch(hard);
+            CreateImage(hard, new Color(0f, 0f, 0f, 0.83f));
+            CanvasGroup hardGroup = hard.gameObject.AddComponent<CanvasGroup>();
+            hardGroup.blocksRaycasts = false;
+            RectTransform strip = CreateRect("Band", hard);
+            strip.anchorMin = new Vector2(0f, 0.5f);
+            strip.anchorMax = new Vector2(1f, 0.5f);
+            strip.sizeDelta = new Vector2(0f, 245f);
+            CreateImage(strip, new Color32(166, 24, 32, 230), "Panel");
+            Icon("Skull", strip, "Skull", 194f, 0f, 66f);
+            RectTransform hardLabel = CreateRect("Text", strip);
+            hardLabel.anchoredPosition = new Vector2(0f, -65f);
+            hardLabel.sizeDelta = new Vector2(300f, 75f);
+            OutlineText(CreateText("Label", hardLabel, "Hard", 64, Color.white), 3f);
+            hard.gameObject.SetActive(false);
+
             var hud = root.gameObject.AddComponent<HudView>();
+            SetReference(hud, "hardIntro", hardGroup);
             SetReference(hud, "controller", controller);
             SetReference(hud, "movesPanel", moves.gameObject);
             SetReference(hud, "movesBackground", background);
             SetReference(hud, "movesText", movesText);
+            SetReference(hud, "frame", frame);
+            SetReference(hud, "ribbon", ribbon.GetComponent<Image>());
+            SetReference(hud, "skull", skull.gameObject);
             SetReference(hud, "levelText", levelText);
             SetReference(hud, "allClear", allClear);
         }
@@ -322,9 +362,8 @@ namespace SnakeBlockJam.EditorTools
         // Level_20.png (720 × 1616): butonlar ~100 × 95 px, merkezleri alttan ~100 px,
         // aralarında ~140 px. Kürek bandı image(20261116-205144): ekranın ~%82'si
         // genişlikte, gri, sol üstte turuncu "Kürek", altında beyaz açıklama, sağda
-        // kırmızı X. İkonlar (ampul, kürek) yok: görsel tur.
+        // kırmızı X. Ampul ve kürek simgeleri özgün çizimlerdir.
 
-        private static readonly Color BoosterButton = new Color32(0x3B, 0xC0, 0xEB, 0xFF);
         private static readonly Color BoosterBadge = new Color32(0x2F, 0x6F, 0xE0, 0xFF);
         private static readonly Color BannerBody = new Color32(0x6E, 0x7C, 0x86, 0xF0);
         private static readonly Color BannerTitle = new Color32(0xFF, 0xC2, 0x3A, 0xFF);
@@ -338,16 +377,17 @@ namespace SnakeBlockJam.EditorTools
 
             Text hintCount;
             Text shovelCount;
-            RectTransform hint = CreateBoosterButton(root, "HintButton", "İpucu", out hintCount);
-            RectTransform shovel = CreateBoosterButton(root, "ShovelButton", "Kürek", out shovelCount);
+            RectTransform hint = CreateBoosterButton(root, "HintButton", "Bulb", out hintCount);
+            RectTransform shovel = CreateBoosterButton(root, "ShovelButton", "Spade", out shovelCount);
             UnityEventTools.AddPersistentListener(hint.GetComponent<Button>().onClick, view.OnHint);
             UnityEventTools.AddPersistentListener(shovel.GetComponent<Button>().onClick, view.OnShovel);
 
             RectTransform banner = CreateRect("ShovelBanner", root);
             banner.anchorMin = banner.anchorMax = new Vector2(0.5f, 0f);
-            banner.anchoredPosition = new Vector2(0f, 150f);
-            banner.sizeDelta = new Vector2(890f, 170f);
-            CreateImage(banner, BannerBody).raycastTarget = true;
+            banner.anchoredPosition = new Vector2(0f, 131f);
+            banner.sizeDelta = new Vector2(816f, 156f);
+            CreateImage(banner, BannerBody, "Panel").raycastTarget = true;
+            Icon("Symbol", banner, "Spade", 110f, -330f, 0f);
 
             RectTransform titleRect = CreateRect("Title", banner);
             titleRect.anchoredPosition = new Vector2(0f, 32f);
@@ -356,15 +396,15 @@ namespace SnakeBlockJam.EditorTools
             title.gameObject.AddComponent<Outline>().effectColor = TextOutline;
 
             RectTransform descriptionRect = CreateRect("Description", banner);
-            descriptionRect.anchoredPosition = new Vector2(0f, -32f);
+            descriptionRect.anchoredPosition = new Vector2(32f, -18f);
             descriptionRect.sizeDelta = new Vector2(700f, 60f);
-            CreateText("Label", descriptionRect, "Seçilen yılanı bölümden kaldırır!", 38, Color.white);
+            CreateText("Label", descriptionRect, "Seçilen yılanı bölümden kaldırır!", 36, Color.white);
 
             RectTransform cancel = CreateRect("CancelButton", banner);
             cancel.anchorMin = cancel.anchorMax = new Vector2(1f, 1f);
-            cancel.anchoredPosition = new Vector2(-30f, -30f);
-            cancel.sizeDelta = new Vector2(90f, 90f);
-            Image cancelImage = CreateImage(cancel, CancelRed);
+            cancel.anchoredPosition = new Vector2(-37f, -37f);
+            cancel.sizeDelta = new Vector2(72f, 72f);
+            Image cancelImage = CreateImage(cancel, CancelRed, "Disc");
             cancelImage.raycastTarget = true;
             var cancelButton = cancel.gameObject.AddComponent<Button>();
             cancelButton.targetGraphic = cancelImage;
@@ -386,23 +426,27 @@ namespace SnakeBlockJam.EditorTools
         {
             RectTransform button = CreateRect(objectName, parent);
             button.anchorMin = button.anchorMax = new Vector2(0.5f, 0f);
-            button.anchoredPosition = new Vector2(0f, 150f);
-            button.sizeDelta = new Vector2(150f, 140f);
+            button.anchoredPosition = new Vector2(0f, 131f);
+            button.sizeDelta = new Vector2(142f, 146f);
 
-            Image image = CreateImage(button, BoosterButton);
+            Image image = CreateImage(button, Color.white, "Booster");
+            image.type = Image.Type.Simple;
             image.raycastTarget = true;
             var component = button.gameObject.AddComponent<Button>();
             component.targetGraphic = image;
+            ColorBlock colors = component.colors;
+            colors.disabledColor = Color.white;
+            component.colors = colors;
 
-            Text text = CreateText("Label", button, label, 34, Color.white);
-            text.gameObject.AddComponent<Outline>().effectColor = TextOutline;
+            Icon("Symbol", button, label, 117f, 0f, 7f);
 
             RectTransform badge = CreateRect("Badge", button);
             badge.anchorMin = badge.anchorMax = new Vector2(0.5f, 0f);
-            badge.anchoredPosition = new Vector2(0f, -8f);
-            badge.sizeDelta = new Vector2(56f, 56f);
-            CreateImage(badge, BoosterBadge);
-            count = CreateText("Count", badge, "1", 36, Color.white);
+            badge.anchoredPosition = new Vector2(0f, 5f);
+            badge.sizeDelta = new Vector2(60f, 60f);
+            CreateImage(badge, BoosterBadge, "Disc");
+            count = CreateText("Count", badge, "1", 35, Color.white);
+            OutlineText(count, 2f);
 
             return button;
         }
@@ -429,7 +473,7 @@ namespace SnakeBlockJam.EditorTools
             streak.sizeDelta = new Vector2(760f, 110f);
 
             RectTransform glowRect = CreateRect("Glow", streak);
-            glowRect.sizeDelta = new Vector2(820f, 120f);
+            glowRect.sizeDelta = new Vector2(420f, 100f);
             var glow = glowRect.gameObject.AddComponent<Image>();
             glow.raycastTarget = false;
 
@@ -447,11 +491,12 @@ namespace SnakeBlockJam.EditorTools
             return view;
         }
 
-        private static void CreateSfxPlayer(GameObject host, GameController controller, FeedbackView feedback)
+        private static SfxPlayer CreateSfxPlayer(GameObject host, GameController controller, FeedbackView feedback)
         {
             var player = host.AddComponent<SfxPlayer>(); // AudioSource RequireComponent ile gelir
             SetReference(player, "controller", controller);
             SetReference(player, "feedback", feedback);
+            return player;
         }
 
         private static void CreateResultWindow(Transform canvas, GameController controller)
@@ -462,16 +507,21 @@ namespace SnakeBlockJam.EditorTools
             // Overlay ışın yakalar: pencere açıkken tahtaya dokunuş geçmez.
             RectTransform overlay = CreateRect("Overlay", root);
             Stretch(overlay);
-            CreateImage(overlay, new Color(0f, 0f, 0f, 0.65f)).raycastTarget = true;
+            CreateImage(overlay, new Color(0f, 0f, 0f, 0.982f)).raycastTarget = true;
 
             RectTransform card = CreateRect("Card", overlay);
-            card.sizeDelta = new Vector2(820f, 600f);
-            CreateImage(card, WindowBody);
+            card.sizeDelta = new Vector2(900f, 930f);
+            CreateImage(card, Color.white, "Glass");
+            var inner = CreateRect("Paper", card);
+            Stretch(inner);
+            inner.offsetMin = new Vector2(18f, 24f);
+            inner.offsetMax = new Vector2(-18f, -24f);
+            CreateImage(inner, WindowBody, "Panel");
 
             RectTransform header = CreateRect("Header", card);
             header.anchorMin = header.anchorMax = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(560f, 110f);
-            CreateImage(header, WindowHeader);
+            CreateImage(header, Color.white, "Glass");
             Text title = CreateText("Title", header, "TAMAMLANDI", 60, Color.white);
             title.gameObject.AddComponent<Outline>().effectColor = TextOutline;
 
@@ -484,7 +534,7 @@ namespace SnakeBlockJam.EditorTools
             buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0.5f, 0f);
             buttonRect.anchoredPosition = new Vector2(0f, 120f);
             buttonRect.sizeDelta = new Vector2(480f, 130f);
-            Image buttonImage = CreateImage(buttonRect, HudGreen);
+            Image buttonImage = CreateImage(buttonRect, Color.white, "Action");
             buttonImage.raycastTarget = true;
             var button = buttonRect.gameObject.AddComponent<Button>();
             button.targetGraphic = buttonImage;
@@ -499,7 +549,97 @@ namespace SnakeBlockJam.EditorTools
             SetReference(view, "titleText", title);
             SetReference(view, "messageText", message);
             SetReference(view, "buttonText", buttonLabel);
+            SetReference(view, "paper", inner.gameObject);
+            SetReference(view, "completedRibbon", InterfaceSprite("Ribbon"));
             UnityEventTools.AddPersistentListener(button.onClick, view.OnButton);
+        }
+
+        private static Sprite InterfaceSprite(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Interface/{name}.png")
+                   ?? throw new InvalidOperationException($"Missing interface sprite: {name}");
+        }
+
+        private static RectTransform Icon(string name, RectTransform parent, string sprite, float size, float x, float y)
+        {
+            RectTransform rect = CreateRect(name, parent);
+            rect.sizeDelta = Vector2.one * size;
+            rect.anchoredPosition = new Vector2(x, y);
+            CreateImage(rect, Color.white, sprite);
+            return rect;
+        }
+
+        private static void OutlineText(Text text, float width)
+        {
+            var outline = text.gameObject.AddComponent<Outline>();
+            outline.effectColor = TextOutline;
+            outline.effectDistance = new Vector2(width, -width);
+        }
+
+        private static void CreateTutorials(Transform canvas, GameController controller)
+        {
+            RectTransform root = CreateRect("Tutorials", canvas);
+            Stretch(root);
+            var view = root.gameObject.AddComponent<TutorialView>();
+            RectTransform overlay = CreateRect("Overlay", root);
+            Stretch(overlay);
+            CreateImage(overlay, new Color(0f, 0f, 0f, 0.982f)).raycastTarget = true;
+            RectTransform card = CreateRect("Card", overlay);
+            card.sizeDelta = new Vector2(865f, 1150f);
+            CreateImage(card, Color.white, "Violet");
+            RectTransform header = CreateRect("Header", card);
+            header.anchoredPosition = new Vector2(0f, 555f);
+            header.sizeDelta = new Vector2(565f, 132f);
+            CreateImage(header, Color.white, "Glass");
+            Text title = CreateText("Title", header, "", 54, Color.white);
+            OutlineText(title, 3f);
+            var picture = Icon("Picture", card, "Bridge", 450f, 0f, 120f);
+            RectTransform line = CreateRect("Description", card);
+            line.sizeDelta = new Vector2(745f, 190f);
+            line.anchoredPosition = new Vector2(0f, -205f);
+            Text description = CreateText("Label", line, "", 42, Color.white);
+            description.horizontalOverflow = HorizontalWrapMode.Wrap;
+            OutlineText(description, 2f);
+            RectTransform accept = CreateRect("Accept", card);
+            accept.sizeDelta = new Vector2(490f, 143f);
+            accept.anchoredPosition = new Vector2(0f, -433f);
+            Image face = CreateImage(accept, Color.white, "Action");
+            face.raycastTarget = true;
+            var button = accept.gameObject.AddComponent<Button>();
+            button.targetGraphic = face;
+            OutlineText(CreateText("Label", accept, "TAMAM", 54, Color.white), 3f);
+            UnityEventTools.AddPersistentListener(button.onClick, view.Dismiss);
+            RectTransform guide = CreateRect("FreeGuide", root);
+            guide.sizeDelta = new Vector2(150f, 175f);
+            // Dört panel ortada gerçek buton için açık bir alan bırakır.
+            AddGuideShade(guide, new Vector2(0f, 5087.5f), new Vector2(10000f, 10000f));
+            AddGuideShade(guide, new Vector2(0f, -5087.5f), new Vector2(10000f, 10000f));
+            AddGuideShade(guide, new Vector2(-5075f, 0f), new Vector2(10000f, 175f));
+            AddGuideShade(guide, new Vector2(5075f, 0f), new Vector2(10000f, 175f));
+            RectTransform free = CreateRect("Free", guide);
+            free.anchoredPosition = new Vector2(0f, -62f);
+            free.sizeDelta = new Vector2(115f, 47f);
+            CreateImage(free, Color.white, "Action");
+            OutlineText(CreateText("Label", free, "Free", 33, Color.white), 2f);
+            Icon("Pointer", guide, "Pointer", 124f, 68f, 48f);
+            guide.gameObject.SetActive(false);
+            SetReference(view, "guide", guide);
+            SetReference(view, "hintButton", canvas.Find("Boosters/HintButton"));
+            SetReference(view, "shovelButton", canvas.Find("Boosters/ShovelButton"));
+            view.Configure(controller, overlay.gameObject, title, description, picture.GetComponent<Image>(),
+                new[] { InterfaceSprite("Bridge"), InterfaceSprite("Tunnel"), InterfaceSprite("Bulb"),
+                        InterfaceSprite("Spade"), InterfaceSprite("Arrow") });
+            overlay.gameObject.SetActive(false);
+        }
+
+        private static void AddGuideShade(RectTransform parent, Vector2 offset, Vector2 size)
+        {
+            RectTransform rect = CreateRect("Shade", parent);
+            rect.anchoredPosition = offset;
+            rect.sizeDelta = size;
+            Image shade = rect.gameObject.AddComponent<Image>();
+            shade.color = new Color(0f, 0f, 0f, 0.92f);
+            shade.raycastTarget = false;
         }
 
         private static RectTransform CreateRect(string objectName, Transform parent)
@@ -516,11 +656,11 @@ namespace SnakeBlockJam.EditorTools
             rect.offsetMin = rect.offsetMax = Vector2.zero;
         }
 
-        private static Image CreateImage(RectTransform rect, Color color)
+        private static Image CreateImage(RectTransform rect, Color color, string skin = null)
         {
             var image = rect.gameObject.AddComponent<Image>();
-            image.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
-            image.type = Image.Type.Sliced;
+            image.sprite = skin == null ? AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd") : InterfaceSprite(skin);
+            image.type = image.sprite.border == Vector4.zero ? Image.Type.Simple : Image.Type.Sliced;
             image.color = color;
             image.raycastTarget = false;
             return image;

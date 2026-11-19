@@ -30,6 +30,19 @@ namespace SnakeBlockJam.EditorTools
         // başlarının altında). Level Editor'de tahta maskesi gelince kalkacak.
         public static readonly int[] RectangularBoardLevels = { 15 };
 
+        // Level başındaki booster stoku: (level, İpucu, Kürek). JSON'da yok.
+        // OBSERVED, 17 Kasım oyunu: Level_13–20.png alt bölümü + probe_shovel_v19_p1
+        // (L18 açılışı, kürek tanıtım bandından önce):
+        //   L13–L16 İpucu 1 · L17 İpucu 0 ("+") · L18 İpucu 0, Kürek 1 ("Free",
+        //   tanıtım) · L19 İpucu 0, Kürek 1 · L20 İpucu 1, Kürek 1.
+        // L1–L12: buton yok. Referansta stok level'dan level'a taşınıyor (L16'da
+        // harcanan ipucu L17'de 0); L20'deki ipucunun kaynağı UNKNOWN (coin/ödül).
+        public static readonly (int level, int hints, int shovels)[] BoosterCounts =
+        {
+            (13, 1, 0), (14, 1, 0), (15, 1, 0), (16, 1, 0),
+            (17, 0, 0), (18, 0, 1), (19, 0, 1), (20, 1, 1)
+        };
+
         // "meta" (açıklamalar) ve "validation" (çözücü çıktısı) türetilmiş
         // bilgidir, level verisi değildir: varlıkları kontrol edilir, içerikleri okunmaz.
         private static readonly string[] RootKeys = { "meta", "levels" };
@@ -241,6 +254,15 @@ namespace SnakeBlockJam.EditorTools
 
                 level.isHard = ReadBool(json, "hard", context);
                 level.isRectangularBoard = System.Array.IndexOf(RectangularBoardLevels, expectedNumber) >= 0;
+
+                foreach (var (boosterLevel, hints, shovels) in BoosterCounts)
+                {
+                    if (boosterLevel != expectedNumber)
+                        continue;
+
+                    level.hintCount = hints;
+                    level.shovelCount = shovels;
+                }
 
                 foreach (var token in RequireArray(json, "snakes", context))
                     level.snakes.Add(ParseSnake(RequireObject(token, $"{context} snake"), context));

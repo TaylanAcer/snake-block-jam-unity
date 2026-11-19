@@ -72,6 +72,16 @@ namespace SnakeBlockJam.Game
         [Tooltip("true: grid noktaları bütün W×H dikdörtgende (L15). false: sadece başlangıçta yılan altındaki hücrelerde.")]
         public bool isRectangularBoard;
 
+        // Level başındaki booster stoku (R-HNT-03, R-SHV-04). Referansta stok
+        // level'dan level'a taşınıyor ve coin ile alınıyor (kapsam dışı); klon
+        // her level'ı 17 Kasım oyununun başlangıç karesindeki sayıyla başlatır.
+        // JSON'da yok; importer kanıta göre doldurur (LevelJsonImporter.BoosterCounts).
+        [Tooltip("Level başında İpucu sayısı. Buton L13'ten itibaren görünür; 0 ise '+' rozetli ve pasif.")]
+        [Min(0)] public int hintCount;
+
+        [Tooltip("Level başında Kürek sayısı. Buton L18'den itibaren görünür; 0 ise '+' rozetli ve pasif.")]
+        [Min(0)] public int shovelCount;
+
         public List<SnakeData> snakes = new List<SnakeData>();
         public List<BridgeData> bridges = new List<BridgeData>();
         public List<Vector2Int> burrows = new List<Vector2Int>();

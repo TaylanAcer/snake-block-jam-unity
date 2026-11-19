@@ -120,6 +120,24 @@ public class LevelCatalogTests
         Assert.AreEqual(arrows, asset.arrows.Count, "arrows");
     }
 
+    // Level başı booster stoku başlangıç karelerinden (LevelJsonImporter.BoosterCounts).
+    [TestCase(7, 0, 0)]
+    [TestCase(12, 0, 0)]
+    [TestCase(13, 1, 0)]
+    [TestCase(16, 1, 0)]
+    [TestCase(17, 0, 0)]
+    [TestCase(18, 0, 1)]
+    [TestCase(19, 0, 1)]
+    [TestCase(20, 1, 1)]
+    public void LevelAsset_BoosterCountsMatchStartFrames(int number, int hints, int shovels)
+    {
+        var asset = AssetDatabase.LoadAssetAtPath<LevelData>(LevelJsonImporter.AssetPath(number));
+        Assert.IsNotNull(asset, "Run 'Snake Block Jam/Levels/Import All Levels From JSON' first.");
+
+        Assert.AreEqual(hints, asset.hintCount, "hints");
+        Assert.AreEqual(shovels, asset.shovelCount, "shovels");
+    }
+
     // Faz 6'nın kaybetme/kazanma level'ı: sayaçlı ilk mekaniksiz level (spec §14.1).
     [Test]
     public void Level07Asset_HasMoveLimit31AndSolvesByEscapesOnly()

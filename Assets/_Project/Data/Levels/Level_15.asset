@@ -19,6 +19,8 @@ MonoBehaviour:
   moveLimit: 34
   isHard: 0
   isRectangularBoard: 1
+  hintCount: 1
+  shovelCount: 0
   snakes:
   - id: 1
     color: 1

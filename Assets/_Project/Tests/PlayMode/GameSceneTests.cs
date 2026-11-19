@@ -963,6 +963,25 @@ public class GameSceneTests
         Assert.AreEqual("1", BoosterChild("ShovelButton/Badge/Count").GetComponent<Text>().text);
     }
 
+    // Level_17.png / Level_19.png: İpucu butonu var ama stok 0 → yeşil "+", kullanılamaz.
+    [UnityTest]
+    public IEnumerator Boosters_EmptyStockShowsPlusAndIsDisabled()
+    {
+        yield return LoadLevel(CatalogLevel(17));
+        Assert.AreEqual(0, _controller.HintsLeft);
+        Assert.IsTrue(BoosterChild("HintButton").activeSelf);
+        Assert.AreEqual(BoosterView.EmptyBadgeText, BoosterChild("HintButton/Badge/Count").GetComponent<Text>().text);
+        Assert.IsFalse(BoosterChild("HintButton").GetComponent<Button>().interactable);
+        Assert.IsFalse(_controller.UseHint());
+
+        yield return LoadLevel(CatalogLevel(19));
+        Assert.AreEqual(0, _controller.HintsLeft);
+        Assert.AreEqual(1, _controller.ShovelsLeft);
+        Assert.AreEqual(BoosterView.EmptyBadgeText, BoosterChild("HintButton/Badge/Count").GetComponent<Text>().text);
+        Assert.AreEqual("1", BoosterChild("ShovelButton/Badge/Count").GetComponent<Text>().text);
+        Assert.IsTrue(BoosterChild("ShovelButton").GetComponent<Button>().interactable);
+    }
+
     // R-HNT-01/02/05: buton kaçabilen bir yılanı vurgular, hamle harcamaz.
     [UnityTest]
     public IEnumerator Hint_ButtonHighlightsEscapableSnake_WithoutUsingAMove()
@@ -1070,7 +1089,8 @@ public class GameSceneTests
     [UnityTest]
     public IEnumerator Shovel_LastSnake_WinsLevel()
     {
-        LevelData level = BurrowTestLevel(); // numara 98 ≥ 18: kürek açık
+        LevelData level = BurrowTestLevel(); // numara 98 ≥ 18: kürek butonu açık
+        level.shovelCount = 1;
 
         try
         {

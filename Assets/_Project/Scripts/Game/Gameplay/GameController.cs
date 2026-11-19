@@ -37,13 +37,9 @@ namespace SnakeBlockJam.Game
 
         // R-FX-08: İpucu L13'te, Kürek L18'de tanıtılıyor; öncesinde butonları yok
         // (Level_11/12.png'de booster yok, L13–L17'de sadece İpucu, L18+ ikisi).
+        // Stok level verisinden gelir (LevelData.hintCount/shovelCount); Restart yeniler.
         public const int HintUnlockLevel = 13;
         public const int ShovelUnlockLevel = 18;
-
-        // Her level 1 İpucu + 1 Kürek ile başlar; Restart yeniler. Referansta stok
-        // kalıcı ve coin ile alınıyor (kapsam dışı, spec §13); rozetlerde hep "1"
-        // görüldü. ASSUMED.
-        public const int BoostersPerLevel = 1;
 
         [Tooltip("Başlangıç level'ı. Sonrakiler katalogdan gelir.")]
         [SerializeField] private LevelData level;
@@ -142,8 +138,8 @@ namespace SnakeBlockJam.Game
             Phase = GamePhase.Playing;
             IsInputLocked = false;
 
-            HintsLeft = IsHintUnlocked ? BoostersPerLevel : 0;
-            ShovelsLeft = IsShovelUnlocked ? BoostersPerLevel : 0;
+            HintsLeft = IsHintUnlocked ? level.hintCount : 0;
+            ShovelsLeft = IsShovelUnlocked ? level.shovelCount : 0;
             HintedSnakeId = 0;
             IsShovelTargeting = false;
 

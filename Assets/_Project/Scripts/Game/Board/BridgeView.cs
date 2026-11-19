@@ -186,9 +186,7 @@ namespace SnakeBlockJam.Game
         private void CreatePiece(string objectName, Vector3 position, Quaternion rotation, Vector3 scale,
                                  Material material, bool castShadows = true)
         {
-            var piece = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            piece.name = objectName;
-            DestroyImmediate(piece.GetComponent<Collider>());
+            var piece = Primitives.Create(PrimitiveType.Cube, objectName);
 
             var renderer = piece.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;

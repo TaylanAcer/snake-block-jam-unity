@@ -276,11 +276,8 @@ namespace SnakeBlockJam.Game
             Transform parent, string objectName, Vector3 localPosition, Vector3 scale, Material material,
             PrimitiveType type = PrimitiveType.Cube, bool castShadows = true)
         {
-            var piece = GameObject.CreatePrimitive(type);
-            piece.name = objectName;
-
-            // Seçim hücre üzerinden yapılır (GameController.TryGetSnakeAt); collider gereksiz.
-            DestroyImmediate(piece.GetComponent<Collider>());
+            // Seçim hücre üzerinden yapılır (GameController.TryGetSnakeAt); collider yok.
+            var piece = Primitives.Create(type, objectName);
 
             var renderer = piece.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;

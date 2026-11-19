@@ -231,9 +231,7 @@ namespace SnakeBlockJam.Game
 
         private void CreateGround()
         {
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            ground.name = "Ground";
-            DestroyImmediate(ground.GetComponent<Collider>());
+            var ground = Primitives.Create(PrimitiveType.Quad, "Ground");
             ground.GetComponent<MeshRenderer>().sharedMaterial = _groundMaterial;
 
             Transform t = ground.transform;
@@ -276,9 +274,7 @@ namespace SnakeBlockJam.Game
                     if (!HasDot(initialState, new Cell(x, y), rectangularBoard))
                         continue;
 
-                    var dot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                    dot.name = $"Dot_{x}_{y}";
-                    DestroyImmediate(dot.GetComponent<Collider>());
+                    var dot = Primitives.Create(PrimitiveType.Cylinder, $"Dot_{x}_{y}");
 
                     var renderer = dot.GetComponent<MeshRenderer>();
                     renderer.sharedMaterial = _dotMaterial;

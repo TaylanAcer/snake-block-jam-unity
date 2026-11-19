@@ -128,6 +128,7 @@ namespace SnakeBlockJam.Game
         private float _peakTravel;
         private int _nextArrow;
         internal event Action ArrowPassed;
+        internal event Action ShovelChipped;
 
         private void AdvanceForward()
         {
@@ -365,6 +366,28 @@ namespace SnakeBlockJam.Game
             _shovel.rotation = Quaternion.Euler(75f, 0f, 12f * Mathf.Sin(t * Mathf.PI));
         }
 
+        private void EmitBurrowChips(Vector3 center, int segment)
+        {
+            if (Chips == null)
+                return;
+
+            for (int i = 0; i < 6; i++)
+            {
+                float angle = segment * 2.4f + i * Mathf.PI / 3f;
+                var radial = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                float spread = Mathf.Repeat(segment * 0.37f + i * 0.61f, 1f);
+                var chip = new ParticleSystem.EmitParams
+                {
+                    position = center + radial * (BoardView.BurrowSize * 0.5f) + Vector3.up * 0.18f,
+                    velocity = radial * (2.2f + spread * 1.8f) + Vector3.up * (2f + spread),
+                    startSize = 0.10f + spread * 0.13f,
+                    startLifetime = 0.22f + spread * 0.13f,
+                    rotation = angle * Mathf.Rad2Deg
+                };
+                Chips.Emit(chip, 1);
+            }
+        }
+
         private void UpdateRemove()
         {
             _removeElapsed += Time.deltaTime;
@@ -384,6 +407,8 @@ namespace SnakeBlockJam.Game
 
             if (_shovel != null && removed < _segments.Count)
                 PlaceShovel(removed);
+            if (removed > RemovedSegmentCount)
+                ShovelChipped?.Invoke();
             RemovedSegmentCount = removed;
 
             if (removed >= _segments.Count)
@@ -567,10 +592,10 @@ namespace SnakeBlockJam.Game
 
                     if (_outcome == MoveOutcome.EscapedIntoBurrow)
                     {
-                        int buried = Mathf.Clamp(Mathf.CeilToInt(_track.SegmentDistance(0, Travel) - _track.Length),
+                        int buried = Mathf.Clamp(1 + Mathf.FloorToInt(_track.SegmentDistance(0, Travel) - _track.Length),
                             0, _segments.Count);
                         while (_buriedSegments < buried)
-                            EmitChips(_track.Sample(_track.Length), _buriedSegments++);
+                            EmitBurrowChips(_track.Sample(_track.Length), _buriedSegments++);
                     }
 
                     if (HasLeft())

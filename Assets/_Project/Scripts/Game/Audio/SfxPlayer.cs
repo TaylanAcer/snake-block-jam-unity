@@ -14,6 +14,7 @@ namespace SnakeBlockJam.Game
         [Range(0f, 1f)] [SerializeField] private float volume = 0.8f;
 
         private AudioSource _source;
+        private AudioClip _shovelChip;
         private AudioClip _tap, _bump, _escape, _allClear, _streak, _booster, _button, _arrowSlide;
 
         // Son çalınan sesin adı (testler için; batchmode'da ses aygıtı olmayabilir).
@@ -33,6 +34,7 @@ namespace SnakeBlockJam.Game
             _streak = SfxSynth.ToClip("Streak", SfxSynth.Streak());
             _button = SfxSynth.ToClip("Button", SfxSynth.Button());
             _booster = SfxSynth.ToClip("Booster", SfxSynth.Booster());
+            _shovelChip = SfxSynth.ToClip("ShovelChip", SfxSynth.ShovelChip());
         }
 
         private void OnEnable()
@@ -41,6 +43,7 @@ namespace SnakeBlockJam.Game
             controller.LevelCleared += OnLevelCleared;
             controller.BoosterUsed += OnBoosterUsed;
             controller.BoardView.ArrowPassed += OnArrowPassed;
+            controller.BoardView.ShovelChipped += OnShovelChipped;
             controller.BoardView.BlockedContact += OnBlockedContact;
 
             if (feedback != null)
@@ -57,6 +60,7 @@ namespace SnakeBlockJam.Game
             {
                 controller.BoardView.BlockedContact -= OnBlockedContact;
                 controller.BoardView.ArrowPassed -= OnArrowPassed;
+                controller.BoardView.ShovelChipped -= OnShovelChipped;
             }
 
             if (feedback != null)
@@ -74,6 +78,7 @@ namespace SnakeBlockJam.Game
         }
 
         private void OnArrowPassed() => Play(_arrowSlide);
+        private void OnShovelChipped() => Play(_shovelChip);
         private void OnBlockedContact(MoveResult result) => Play(_bump);
         private void OnLevelCleared() => Play(_allClear);
         private void OnStreakShown(int index) => Play(_streak);
@@ -89,7 +94,7 @@ namespace SnakeBlockJam.Game
 
         private void OnDestroy()
         {
-            foreach (var clip in new[] { _tap, _bump, _escape, _allClear, _streak, _booster, _button, _arrowSlide })
+            foreach (var clip in new[] { _tap, _bump, _escape, _allClear, _streak, _booster, _button, _arrowSlide, _shovelChip })
             {
                 if (clip != null)
                     Destroy(clip);

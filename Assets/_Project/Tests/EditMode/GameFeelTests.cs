@@ -86,7 +86,8 @@ public class GameFeelTests
         foreach (var samples in new[]
                  {
                      SfxSynth.Tap(), SfxSynth.Bump(), SfxSynth.Escape(),
-                     SfxSynth.ArrowSlide(), SfxSynth.AllClear(), SfxSynth.Streak(), SfxSynth.Booster(), SfxSynth.Button()
+                     SfxSynth.ArrowSlide(), SfxSynth.AllClear(), SfxSynth.Streak(), SfxSynth.Booster(), SfxSynth.Button(),
+                     SfxSynth.ShovelChip()
                  })
         {
             Assert.Greater(samples.Length, 100);

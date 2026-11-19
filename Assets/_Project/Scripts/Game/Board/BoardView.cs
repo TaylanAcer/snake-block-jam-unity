@@ -124,6 +124,7 @@ namespace SnakeBlockJam.Game
         public int BurrowCount { get; private set; }
         public int ArrowCount { get; private set; }
         public event System.Action ArrowPassed;
+        public event System.Action ShovelChipped;
         private IReadOnlyList<ArrowDefinition> _arrows;
         private void OnArrowPassed() => ArrowPassed?.Invoke();
 
@@ -294,6 +295,7 @@ namespace SnakeBlockJam.Game
 
             _snakes.Remove(snakeId);
             _removing.Add(view);
+            view.ShovelChipped += OnShovelChipped;
             view.PlayRemove(segmentTime, finished =>
             {
                 if (_removing.Remove(finished))
@@ -301,6 +303,8 @@ namespace SnakeBlockJam.Game
             }, shovelSprite);
             return true;
         }
+
+        private void OnShovelChipped() => ShovelChipped?.Invoke();
 
         // İpucu (R-HNT-02): yılan kendi rengi ile parlak sarı-yeşil arasında
         // nabız gibi yanıp söner. Aynı anda tek yılan vurgulanır.

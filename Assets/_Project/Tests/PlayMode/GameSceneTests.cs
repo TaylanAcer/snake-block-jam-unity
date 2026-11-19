@@ -847,6 +847,10 @@ public class GameSceneTests
             yield return LoadLevel(level);
             SnakeView snake = FindView(1);
             float holeZ = _controller.BoardView.Geometry.CellToWorld(new Cell(3, 5)).z;
+            var chips = _controller.BoardView.GetComponentInChildren<ParticleSystem>();
+            Assert.IsNotNull(chips);
+            Assert.AreEqual(0, chips.particleCount);
+            bool sawBurrowChips = false;
 
             Assert.IsTrue(_controller.HandleCellTap(new Cell(3, 3)));
             Assert.IsFalse(_controller.State.IsActive(1), "escaped into the burrow");
@@ -856,6 +860,7 @@ public class GameSceneTests
 
             while (snake != null && Time.realtimeSinceStartup < end)
             {
+                sawBurrowChips |= chips.particleCount > 0;
                 foreach (var segment in snake.Segments)
                 {
                     if (segment.gameObject.activeSelf)
@@ -866,6 +871,7 @@ public class GameSceneTests
             }
 
             Assert.IsTrue(snake == null, "view destroyed after entering the hole");
+            Assert.IsTrue(sawBurrowChips || chips.particleCount > 0, "burrow emits chips as the snake enters");
         }
         finally
         {
@@ -1082,6 +1088,7 @@ public class GameSceneTests
         // Kuyruktan başa: önce kuyruk kaybolur, baş en son.
         yield return WaitUntilOrTimeout(() => view == null || view.RemovedSegmentCount >= 1, 1f);
         Assert.IsFalse(view.Segments[segments - 1].gameObject.activeSelf, "tail goes first");
+        Assert.AreEqual("ShovelChip", Object.FindAnyObjectByType<SfxPlayer>().LastPlayed);
         Assert.IsTrue(view.Segments[0].gameObject.activeSelf, "head goes last");
 
         float start = Time.time;

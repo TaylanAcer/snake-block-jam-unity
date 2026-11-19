@@ -14,7 +14,7 @@ namespace SnakeBlockJam.Game
     // Uzunluk (INFERRED, başlangıç karelerinden ölçüldü): tabla uç hücrelerin
     // merkezleri arasında uzanır, uçlardan biraz taşar. L5 7 hücre → ~6,0,
     // L6 5 hücre → ~4,4. 1 hücrelik köprü ~2 hücre görünür (R-BRG-11; L10, L19).
-    // Kemerler ve dirseğin yuvarlak dış köşesi henüz yok.
+    // Kemerlerin sayısı görünen yan yüzün uzunluğuna göre seçilir.
     public sealed class BridgeView : MonoBehaviour
     {
         public const float EndOverhang = 0.15f;
@@ -102,7 +102,7 @@ namespace SnakeBlockJam.Game
         }
 
         public void Build(BridgeDefinition bridge, BoardGeometry geometry,
-                          Material deck, Material asphalt, Material dash)
+                          Material deck, Material asphalt, Material dash, Material archTrim)
         {
             name = "Bridge";
             var runs = Runs(bridge, geometry);
@@ -155,6 +155,8 @@ namespace SnakeBlockJam.Game
                     Vector3 skirtOffset = side * s * (DeckWidth - SkirtWidth) * 0.5f;
                     CreatePiece("Skirt", railCenter + skirtOffset + Vector3.up * (SkirtBottom + skirtHeight * 0.5f),
                         rotation, new Vector3(SkirtWidth, skirtHeight, railLength), deck);
+                    CreateArchFace(railCenter + side * s * DeckWidth * 0.5f,
+                        rotation * Quaternion.Euler(0f, s < 0 ? 180f : 0f, 0f), railLength, deck, archTrim);
                 }
 
                 CreateDashes(run, rotation, top, dash);
@@ -165,6 +167,66 @@ namespace SnakeBlockJam.Game
                 if (!joinsNext)
                     CreatePosts(run.To, side, rotation, top, deck);
             }
+        }
+
+        // İlk ve son açıklıklar direklerin arasında kalır. Aynı açıklık
+        // sayısına sahip iki yüz tek ağı paylaşır; güncelleme maliyeti yoktur.
+        private static readonly Dictionary<int, Mesh> ArchFaces = new Dictionary<int, Mesh>();
+
+        private void CreateArchFace(Vector3 center, Quaternion rotation, float length, Material deck, Material trim)
+        {
+            int arches = Mathf.Max(1, Mathf.RoundToInt(length / 2f));
+            if (!ArchFaces.TryGetValue(arches, out Mesh mesh) || mesh == null)
+            {
+                mesh = BuildArchFace(arches);
+                ArchFaces[arches] = mesh;
+            }
+
+            var face = new GameObject("Arches", typeof(MeshFilter), typeof(MeshRenderer));
+            face.transform.SetParent(transform, false);
+            face.transform.SetPositionAndRotation(center, rotation);
+            face.transform.localScale = new Vector3(1f, 1f, length);
+            face.GetComponent<MeshFilter>().sharedMesh = mesh;
+            face.GetComponent<MeshRenderer>().sharedMaterials = new[] { deck, trim };
+        }
+
+        private static Mesh BuildArchFace(int arches)
+        {
+            const int steps = 14;
+            int strips = steps * arches;
+            var vertices = new Vector3[(strips + 1) * 3];
+            var wall = new int[strips * 6];
+            var border = new int[strips * 6];
+            for (int i = 0; i <= strips; i++)
+            {
+                float z = i / (float)strips - 0.5f;
+                float u = (i % steps) / (float)steps * 2f - 1f;
+                float opening = Mathf.Sqrt(Mathf.Max(0f, 1f - u * u / 0.78f));
+                float sill = 0.04f + opening * (SkirtBottom - 0.12f);
+                int v = 3 * i;
+                vertices[v] = new Vector3(0f, SkirtBottom, z);
+                vertices[v + 1] = new Vector3(0f, sill + 0.075f, z);
+                vertices[v + 2] = new Vector3(0.025f, sill, z);
+                if (i == strips)
+                    break;
+                for (int band = 0; band < 2; band++)
+                {
+                    int[] indices = band == 0 ? wall : border;
+                    int k = i * 6;
+                    int a = v + band;
+                    indices[k] = a;
+                    indices[k + 1] = a + 3;
+                    indices[k + 2] = a + 1;
+                    indices[k + 3] = a + 1;
+                    indices[k + 4] = a + 3;
+                    indices[k + 5] = a + 4;
+                }
+            }
+            var mesh = new Mesh { name = $"Bridge arches {arches}", vertices = vertices, subMeshCount = 2 };
+            mesh.SetTriangles(wall, 0);
+            mesh.SetTriangles(border, 1);
+            mesh.RecalculateNormals();
+            return mesh;
         }
 
         private void CreateDashes(Run run, Quaternion rotation, float top, Material dash)

@@ -33,9 +33,6 @@ namespace SnakeBlockJam.Game
         [Tooltip("Saçılan küplerin kaybolma süresi (sn). R-COL-06: ~0,6.")]
         [Min(0.01f)] public float debrisDuration = 0.6f;
 
-        [Tooltip("Sersem gözlerin süresi (sn). R-COL-07: ≥0,8 (üst sınır UNKNOWN).")]
-        [Min(0f)] public float stunDuration = 0.9f;
-
         [Tooltip("Kırmızı vinyet: dokunuştan başlangıç / tepe / bitiş (sn). R-COL-03: +0,125 / +0,24 / " +
                  "eşik üstünde 0,22–0,40 → ~+0,55'te söner (sönme süresi UNKNOWN).")]
         public float vignetteStart = 0.125f;

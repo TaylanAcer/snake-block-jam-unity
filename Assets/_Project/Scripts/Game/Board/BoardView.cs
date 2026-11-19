@@ -92,6 +92,7 @@ namespace SnakeBlockJam.Game
         private float _highlightPeriod = 1f;
         private readonly List<Material> _materials = new List<Material>();
         private Material[] _snakeMaterials;
+        private Material[] _tailMaterials;
         private ParticleSystem[] _chipsByColor;
         private Material _groundMaterial;
         private Material _dotMaterial;
@@ -99,6 +100,7 @@ namespace SnakeBlockJam.Game
         private Material _pupilMaterial;
         private Material _tongueMaterial;
         private Material _bridgeDeckMaterial;
+        private Material _bridgeArchTrim;
         private Material _bridgeAsphaltMaterial;
         private Material _bridgeDashMaterial;
         private Material _burrowMaterial;
@@ -170,7 +172,7 @@ namespace SnakeBlockJam.Game
                 var view = new GameObject().AddComponent<SnakeView>();
                 view.transform.SetParent(_content, false);
                 view.Build(snake, Geometry, _snakeMaterials[(int)data.color], _eyeWhiteMaterial, _pupilMaterial,
-                    _tongueMaterial);
+                    _tongueMaterial, _tailMaterials[(int)data.color]);
                 if (usesChips)
                 {
                     int color = (int)data.color;
@@ -257,7 +259,7 @@ namespace SnakeBlockJam.Game
                 DebrisBurst.Spawn(_content, contact, direction, mover.BodyMaterial, feel.debrisDuration,
                     seed: result.SnakeId * 31 + result.BlockerSnakeId);
 
-                mover.PlayStun(feel.stunDuration);
+                mover.PlayStun();
             }
 
             BlockedContact?.Invoke(result);
@@ -413,7 +415,7 @@ namespace SnakeBlockJam.Game
             {
                 var view = new GameObject().AddComponent<BridgeView>();
                 view.transform.SetParent(_content, false);
-                view.Build(bridge, Geometry, _bridgeDeckMaterial, _bridgeAsphaltMaterial, _bridgeDashMaterial);
+                view.Build(bridge, Geometry, _bridgeDeckMaterial, _bridgeAsphaltMaterial, _bridgeDashMaterial, _bridgeArchTrim);
                 _markers.Add(view.transform);
 
                 foreach (var cell in bridge.Path)
@@ -651,6 +653,7 @@ namespace SnakeBlockJam.Game
                 return;
 
             _snakeMaterials = new Material[snakeColors.Length];
+            _tailMaterials = new Material[snakeColors.Length];
 
             for (int i = 0; i < snakeColors.Length; i++)
             {
@@ -661,6 +664,10 @@ namespace SnakeBlockJam.Game
                     skin.SetFloat("_SideGamma", 1.27f);
                 }
                 _snakeMaterials[i] = skin;
+                Color tip = snakeColors[i] * 1.055f;
+                tip.a = 1f;
+                _tailMaterials[i] = new Material(skin) { color = tip, name = $"Tail_{(SnakeColor)i}" };
+                _materials.Add(_tailMaterials[i]);
             }
 
             _groundMaterial = backgroundMaterial != null ? backgroundMaterial : CreateMaterial("Ground", groundColor);
@@ -668,6 +675,7 @@ namespace SnakeBlockJam.Game
             _eyeWhiteMaterial = CreateMaterial("EyeWhite", eyeWhiteColor);
             _pupilMaterial = CreateMaterial("Pupil", pupilColor);
             _tongueMaterial = CreateMaterial("Tongue", tongueColor);
+            _bridgeArchTrim = CreateMaterial("BridgeArchTrim", new Color32(210, 149, 94, 255));
             _bridgeDeckMaterial = CreateMaterial("BridgeDeck", bridgeDeckColor);
             _bridgeAsphaltMaterial = CreateMaterial("BridgeAsphalt", bridgeAsphaltColor);
             if (_bridgeAsphaltMaterial.HasProperty("_RoadShading"))

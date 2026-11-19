@@ -673,9 +673,10 @@ namespace SnakeBlockJam.EditorTools
 
             var label = rect.gameObject.AddComponent<Text>();
             label.text = text;
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/_Project/Art/Fonts/LilitaOne-Regular.ttf")
+                         ?? throw new InvalidOperationException("Lilita One font asset is missing.");
             label.fontSize = size;
-            label.fontStyle = FontStyle.Bold;
+            label.fontStyle = FontStyle.Normal;
             label.alignment = TextAnchor.MiddleCenter;
             label.horizontalOverflow = HorizontalWrapMode.Overflow;
             label.color = color;

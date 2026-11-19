@@ -1031,11 +1031,17 @@ public class GameSceneTests
         int hinted = _controller.HintedSnakeId;
         SnakeView view = FindView(hinted);
 
+        Transform tail = view.Segments[view.Segments.Count - 1].Find("TailTip");
+        Material highlightedTip = tail.GetComponent<MeshRenderer>().sharedMaterial;
+        Assert.AreSame(view.CurrentBodyMaterial, highlightedTip);
         Assert.IsTrue(_controller.HandleCellTap(HeadOf(hinted)));
 
         Assert.AreEqual(0, _controller.HintedSnakeId);
         Assert.AreEqual(0, _controller.BoardView.HighlightedSnakeId);
         Assert.AreSame(view.BodyMaterial, view.CurrentBodyMaterial, "escaping snake back to its own color");
+        Material restoredTip = tail.GetComponent<MeshRenderer>().sharedMaterial;
+        Assert.AreNotSame(highlightedTip, restoredTip);
+        Assert.Greater(restoredTip.color.maxColorComponent, view.BodyMaterial.color.maxColorComponent);
     }
 
     // R-SHV-01/02/05: kürek modu → yılana dokun → kaldırılır. Engellenmiş yılan
@@ -1130,7 +1136,7 @@ public class GameSceneTests
     // --- His ve ses (Faz 11) ---------------------------------------------------
 
     // R-COL-03/06/07/08: temas anında çarpılan bloğun göçüğü, hareket eden yılanın
-    // renginde küpler, sersem gözler, kırmızı vinyet ve çarpma sesi; hepsi söner.
+    // renginde küpler, sersem gözler, kırmızı vinyet ve çarpma sesi. Spiral gözler devam eder.
     [UnityTest]
     public IEnumerator Blocked_ContactFeedback_DentDebrisStunVignetteSound()
     {
@@ -1169,7 +1175,8 @@ public class GameSceneTests
         yield return new WaitForSeconds(1f);
 
         Assert.IsFalse(blocker.IsDented, "dent springs back");
-        Assert.IsFalse(mover.IsStunned, "stun ends");
+        Assert.IsTrue(mover.IsStunned, "spiral eyes persist after contact feedback ends");
+        Assert.IsFalse(blocker.IsStunned, "only the moving snake gets spiral eyes");
         Assert.IsTrue(Object.FindAnyObjectByType<DebrisBurst>() == null, "cubes gone");
         Assert.AreEqual(0f, feedback.VignetteAlphaNow, 1e-4f);
     }

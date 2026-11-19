@@ -35,6 +35,13 @@ namespace SnakeBlockJam.Game
         [SerializeField] private Color bridgeAsphaltColor = new Color32(0x4D, 0x50, 0x57, 0xFF);
         [SerializeField] private Color bridgeDashColor = new Color32(0xC8, 0xCA, 0xCE, 0xFF);
 
+        [Header("Burrow / Arrow (Level_11.png, Level_20.png; yaklaşık)")]
+        [SerializeField] private Color burrowColor = Color.black;
+        [Tooltip("Deliğin çevresindeki gri halka (referansta çizgili; desen yok).")]
+        [SerializeField] private Color burrowRimColor = new Color32(0x9A, 0x9A, 0x9A, 0xFF);
+        [Tooltip("Ekranda ≈ RGB(95, 92, 96) görünecek şekilde (Level_20.png).")]
+        [SerializeField] private Color arrowColor = new Color32(0x5D, 0x5B, 0x5F, 0xFF);
+
         [Header("Camera (referans: hafif açılı perspektif, R-BRD-03)")]
         [SerializeField] private float cameraFieldOfView = 30f;
         [Tooltip("Yataydan aşağı bakış açısı. 90 = tam tepeden. Level_01.png'de satır aralığı " +
@@ -45,6 +52,18 @@ namespace SnakeBlockJam.Game
         // Level_15.png: ~9 px çap / ~25 px hücre.
         private const float DotSize = 0.35f;
         private const float GroundSize = 400f;
+
+        // Level_11.png (hücre ≈ 25 px, delikler arası 8 hücre = 199 px): siyah disk
+        // ~36 px, gri halkanın dış çapı ~51 px. Delik hücreden büyük (R-BUR-03).
+        public const float BurrowSize = 1.45f;
+        public const float BurrowRimSize = 2.05f;
+
+        // Zemindeki düz işaretlerin yükseklikleri (z-fighting olmasın diye kademeli):
+        // nokta 0–0,004, halka 0,001–0,005, disk 0,003–0,007, ok 0,008.
+        private const float MarkerThickness = 0.002f;
+        private const float RimHeight = 0.003f;
+        private const float HoleHeight = 0.005f;
+        private const float ArrowHeight = 0.008f;
 
         // Tahta kenarından ekran kenarına kadar en fazla bu kadar hücre var
         // (portre ekranda L1: ~16). Kaçış izi yılan boyu + bu pay kadar uzatılır.
@@ -63,12 +82,18 @@ namespace SnakeBlockJam.Game
         private Material _bridgeDeckMaterial;
         private Material _bridgeAsphaltMaterial;
         private Material _bridgeDashMaterial;
+        private Material _burrowMaterial;
+        private Material _burrowRimMaterial;
+        private Material _arrowMaterial;
+        private Mesh _arrowMesh;
         private Transform _content;
 
         // Köprü yolu üzerindeki hücreler: dokunuş önce köprü üstü yüksekliğinde aranır.
         private readonly HashSet<Cell> _bridgeCells = new HashSet<Cell>();
 
         public int BridgeCount { get; private set; }
+        public int BurrowCount { get; private set; }
+        public int ArrowCount { get; private set; }
 
         public BoardGeometry Geometry { get; private set; }
 
@@ -98,6 +123,8 @@ namespace SnakeBlockJam.Game
             CreateGround();
             CreateDots(state, level.isRectangularBoard);
             CreateBridges(state.Level.Bridges);
+            CreateBurrows(state.Level.Burrows);
+            CreateArrows(state.Level.Arrows);
 
             foreach (var snake in state.Level.Snakes)
             {
@@ -165,6 +192,8 @@ namespace SnakeBlockJam.Game
             _blocking.Clear();
             _bridgeCells.Clear();
             BridgeCount = 0;
+            BurrowCount = 0;
+            ArrowCount = 0;
 
             if (_content != null)
                 DestroyObject(_content.gameObject);
@@ -227,6 +256,66 @@ namespace SnakeBlockJam.Game
             }
 
             BridgeCount = bridges.Count;
+        }
+
+        // Tünel: zemine yatık siyah disk ve çevresinde gri halka (R-BUR-03).
+        // Tünele giren yılanın segmentleri delik merkezinde kaybolur (SnakeView).
+        private void CreateBurrows(IReadOnlyList<BurrowDefinition> burrows)
+        {
+            foreach (var burrow in burrows)
+            {
+                var root = new GameObject($"Burrow_{burrow.Position.X}_{burrow.Position.Y}").transform;
+                root.SetParent(_content, false);
+                root.position = Geometry.CellToWorld(burrow.Position);
+
+                CreateFlatDisk(root, "Rim", BurrowRimSize, RimHeight, _burrowRimMaterial);
+                CreateFlatDisk(root, "Hole", BurrowSize, HoleHeight, _burrowMaterial);
+            }
+
+            BurrowCount = burrows.Count;
+        }
+
+        // Ok: zemine yatık koyu gri ikon, okun yönüne bakar (R-ARW-02). Yılan
+        // üstünden geçer; ok tükenmez (R-ARW-05), bu yüzden hep yerinde kalır.
+        private void CreateArrows(IReadOnlyList<ArrowDefinition> arrows)
+        {
+            if (arrows.Count > 0 && _arrowMesh == null)
+                _arrowMesh = ArrowMesh.Create();
+
+            foreach (var arrow in arrows)
+            {
+                var piece = new GameObject(
+                    $"Arrow_{arrow.Position.X}_{arrow.Position.Y}", typeof(MeshFilter), typeof(MeshRenderer));
+                piece.GetComponent<MeshFilter>().sharedMesh = _arrowMesh;
+
+                var renderer = piece.GetComponent<MeshRenderer>();
+                renderer.sharedMaterial = _arrowMaterial;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+                Transform t = piece.transform;
+                t.SetParent(_content, false);
+                t.SetPositionAndRotation(
+                    Geometry.CellToWorld(arrow.Position) + Vector3.up * ArrowHeight,
+                    Quaternion.LookRotation(BoardGeometry.DirectionToWorld(arrow.Direction)));
+            }
+
+            ArrowCount = arrows.Count;
+        }
+
+        // Yassı silindir (New-Cylinder: çap 1, boy 2): 'height' ortasında, kalınlık 2 × MarkerThickness.
+        private static void CreateFlatDisk(Transform parent, string objectName, float diameter, float height,
+                                           Material material)
+        {
+            var disk = Primitives.Create(PrimitiveType.Cylinder, objectName);
+
+            var renderer = disk.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            Transform t = disk.transform;
+            t.SetParent(parent, false);
+            t.localPosition = Vector3.up * height;
+            t.localScale = new Vector3(diameter, MarkerThickness, diameter);
         }
 
         private void CreateGround()
@@ -305,6 +394,13 @@ namespace SnakeBlockJam.Game
             _bridgeDeckMaterial = CreateMaterial("BridgeDeck", bridgeDeckColor);
             _bridgeAsphaltMaterial = CreateMaterial("BridgeAsphalt", bridgeAsphaltColor);
             _bridgeDashMaterial = CreateMaterial("BridgeDash", bridgeDashColor);
+            _burrowMaterial = CreateMaterial("Burrow", burrowColor);
+
+            // Referansta delik tam siyah; blok materyalinin parlaklığı (0,15)
+            // siyahı ~RGB(33, 35, 39) griye çekiyordu.
+            _burrowMaterial.SetFloat("_Smoothness", 0f);
+            _burrowRimMaterial = CreateMaterial("BurrowRim", burrowRimColor);
+            _arrowMaterial = CreateMaterial("Arrow", arrowColor);
         }
 
         private Material CreateMaterial(string materialName, Color color)
@@ -318,6 +414,9 @@ namespace SnakeBlockJam.Game
         {
             foreach (var material in _materials)
                 DestroyObject(material);
+
+            if (_arrowMesh != null)
+                DestroyObject(_arrowMesh);
         }
 
         private static void DestroyObject(Object target)

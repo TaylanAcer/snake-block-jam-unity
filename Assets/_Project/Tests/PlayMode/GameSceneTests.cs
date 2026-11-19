@@ -763,6 +763,150 @@ public class GameSceneTests
         }
     }
 
+    // --- Tünel ve ok (Faz 8) ---------------------------------------------------
+
+    // R-BUR-04: L11'de üç tünel, hücrelerinin merkezinde.
+    [UnityTest]
+    public IEnumerator Burrow_Level11_DrawsThreeBurrowsAtTheirCells()
+    {
+        yield return LoadLevel(CatalogLevel(11));
+
+        Assert.AreEqual(3, _controller.BoardView.BurrowCount);
+
+        foreach (var cell in new[] { new Cell(4, 14), new Cell(20, 14), new Cell(12, 14) })
+        {
+            var burrow = GameObject.Find($"Burrow_{cell.X}_{cell.Y}");
+            Assert.IsNotNull(burrow, $"burrow at {cell}");
+            Vector3 center = _controller.BoardView.Geometry.CellToWorld(cell);
+            Assert.AreEqual(center.x, burrow.transform.position.x, 1e-4f);
+            Assert.AreEqual(center.z, burrow.transform.position.z, 1e-4f);
+        }
+    }
+
+    // R-ARW-02: L20'de iki ok; (6,18) yukarı (+z), (12,8) aşağı (−z).
+    [UnityTest]
+    public IEnumerator Arrow_Level20_DrawsTwoArrowsFacingTheirDirection()
+    {
+        yield return LoadLevel(CatalogLevel(20));
+
+        Assert.AreEqual(2, _controller.BoardView.ArrowCount);
+
+        Vector3 up = GameObject.Find("Arrow_6_18").transform.forward;
+        Vector3 down = GameObject.Find("Arrow_12_8").transform.forward;
+
+        Assert.AreEqual(1f, Vector3.Dot(up, Vector3.forward), 1e-4f);
+        Assert.AreEqual(1f, Vector3.Dot(down, Vector3.back), 1e-4f);
+    }
+
+    // 7×7: tünel (3,5); yılan 1 (3,3)…(3,1) yukarı bakıyor, (3,4)'ten tünele girer.
+    private static LevelData BurrowTestLevel()
+    {
+        var level = ScriptableObject.CreateInstance<LevelData>();
+        level.levelNumber = 98;
+        level.width = 7;
+        level.height = 7;
+        level.burrows.Add(new Vector2Int(3, 5));
+
+        var snake = new SnakeData { id = 1, color = SnakeColor.Red, direction = Direction.Up };
+        snake.body.AddRange(new[]
+        {
+            Seg(3, 3, BoardLayer.Ground), Seg(3, 2, BoardLayer.Ground), Seg(3, 1, BoardLayer.Ground)
+        });
+
+        level.snakes.Add(snake);
+        return level;
+    }
+
+    // R-BUR-02/07: tünele giren yılan deliğin ötesine geçmez, delikte kaybolur
+    // ve view yok edilir (tahta dışına çıkmadan).
+    [UnityTest]
+    public IEnumerator Burrow_SnakeDisappearsIntoHoleWithoutPassingIt()
+    {
+        LevelData level = BurrowTestLevel();
+
+        try
+        {
+            yield return LoadLevel(level);
+            SnakeView snake = FindView(1);
+            float holeZ = _controller.BoardView.Geometry.CellToWorld(new Cell(3, 5)).z;
+
+            Assert.IsTrue(_controller.HandleCellTap(new Cell(3, 3)));
+            Assert.IsFalse(_controller.State.IsActive(1), "escaped into the burrow");
+            Assert.AreEqual(GameStatus.Won, _controller.State.Status);
+
+            float end = Time.realtimeSinceStartup + 2f;
+
+            while (snake != null && Time.realtimeSinceStartup < end)
+            {
+                foreach (var segment in snake.Segments)
+                {
+                    if (segment.gameObject.activeSelf)
+                        Assert.LessOrEqual(segment.position.z, holeZ + 1e-3f, "segment passed the hole");
+                }
+
+                yield return null;
+            }
+
+            Assert.IsTrue(snake == null, "view destroyed after entering the hole");
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
+    }
+
+    // 7×7: ok (4,3) yukarı; yılan 1 (2,3)…(0,3) sağa bakıyor.
+    private static LevelData ArrowTestLevel()
+    {
+        var level = ScriptableObject.CreateInstance<LevelData>();
+        level.levelNumber = 97;
+        level.width = 7;
+        level.height = 7;
+        level.arrows.Add(new ArrowData { cell = new Vector2Int(4, 3), direction = Direction.Up });
+
+        var snake = new SnakeData { id = 1, color = SnakeColor.Green, direction = Direction.Right };
+        snake.body.AddRange(new[]
+        {
+            Seg(2, 3, BoardLayer.Ground), Seg(1, 3, BoardLayer.Ground), Seg(0, 3, BoardLayer.Ground)
+        });
+
+        level.snakes.Add(snake);
+        return level;
+    }
+
+    // R-ARW-04: baş ok hücresinde okun yönüne döner, gövde yeni yolu izler.
+    [UnityTest]
+    public IEnumerator Arrow_SnakeTurnsAtArrowAndBodyFollows()
+    {
+        LevelData level = ArrowTestLevel();
+
+        try
+        {
+            yield return LoadLevel(level);
+            SnakeView snake = FindView(1);
+            Vector3 arrow = _controller.BoardView.Geometry.CellToWorld(new Cell(4, 3));
+
+            Assert.IsTrue(_controller.HandleCellTap(new Cell(2, 3)));
+
+            // Baş (2,3) → (3,3) → (4,3) dönüş → (4,4) → (4,5): travel 4'te iki hücre yukarıda.
+            yield return WaitUntilOrTimeout(() => snake.Travel >= 4f, 1f);
+
+            Vector3 head = snake.Segments[0].position;
+            Assert.AreEqual(arrow.x, head.x, 1e-3f, "head turned into the arrow column");
+            Assert.Greater(head.z, arrow.z + 1.5f, "head moves up after the arrow");
+
+            // Kuyruk (segment 2) travel 4'te ok hücresinde; sonrasında o da yukarı
+            // döner. Bir kare ~1 hücre ilerleyebildiği için "köşeyi geçmiş" kontrolü.
+            Vector3 tail = snake.Segments[2].position;
+            Assert.AreEqual(arrow.x, tail.x, 1e-3f, "tail follows the head's turn");
+            Assert.GreaterOrEqual(tail.z, arrow.z - 1e-3f);
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
+    }
+
     // --- Gerçek Input System cihazları ----------------------------------------
     // Test sırasında Unity penceresi odakta olmayabilir (batchmode); geçici
     // ayarlarla cihaz girdisi yine de oyuna ulaşır. Proje ayarları değişmez.

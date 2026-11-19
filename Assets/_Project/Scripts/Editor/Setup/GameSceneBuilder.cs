@@ -22,10 +22,10 @@ namespace SnakeBlockJam.EditorTools
         public const string FeelSettingsPath = "Assets/_Project/Data/FeelSettings.asset";
         public const string LevelCatalogPath = "Assets/_Project/Data/LevelCatalog.asset";
 
-        // Kataloğun ilk içeriği (oynanış sırası). L4'ün 2 hücresi kayıt balonu
-        // altında, süreklilikten çıkarıldı (INFERRED, spec §14.3). L5/L6 köprülü:
-        // mantık hazır, köprü görseli sonraki iş.
-        public static readonly int[] InitialCatalogLevels = { 1, 2, 3, 4, 5, 6, 7 };
+        // Kataloğun içeriği (oynanış sırası): referanstaki 20 level (Faz 8).
+        // Veri notları (L4/L15 gizli hücreler, L10/L19 kısa köprüler) spec §14.3'te.
+        public static readonly int[] CatalogLevels =
+            { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
 
         private static readonly Color Background = new Color32(0xE4, 0xF1, 0xFA, 0xFF);
 
@@ -94,9 +94,8 @@ namespace SnakeBlockJam.EditorTools
         {
             try
             {
-                foreach (int levelNumber in InitialCatalogLevels)
-                    LevelJsonImporter.ImportToAsset(levelNumber);
-
+                LevelJsonImporter.ImportAllToAssets();
+                RebuildLevelCatalog();
                 BuildGameScene();
                 ApplyProjectSettings();
                 EditorApplication.Exit(0);
@@ -125,13 +124,25 @@ namespace SnakeBlockJam.EditorTools
         private static LevelCatalog EnsureLevelCatalog()
         {
             var catalog = AssetDatabase.LoadAssetAtPath<LevelCatalog>(LevelCatalogPath);
+            return catalog != null ? catalog : RebuildLevelCatalog();
+        }
 
-            if (catalog != null)
-                return catalog;
+        // Kataloğu CatalogLevels sırasıyla baştan yazar (asset ve GUID'i korunur).
+        // Eksik level asset'i JSON'dan içe aktarılır.
+        [MenuItem("Snake Block Jam/Levels/Rebuild Level Catalog (1–20)")]
+        public static LevelCatalog RebuildLevelCatalog()
+        {
+            var catalog = AssetDatabase.LoadAssetAtPath<LevelCatalog>(LevelCatalogPath);
+            bool isNew = catalog == null;
 
-            catalog = ScriptableObject.CreateInstance<LevelCatalog>();
+            if (isNew)
+                catalog = ScriptableObject.CreateInstance<LevelCatalog>();
+            else
+                Undo.RecordObject(catalog, "Rebuild Level Catalog");
 
-            foreach (int levelNumber in InitialCatalogLevels)
+            catalog.levels.Clear();
+
+            foreach (int levelNumber in CatalogLevels)
             {
                 var level = AssetDatabase.LoadAssetAtPath<LevelData>(LevelJsonImporter.AssetPath(levelNumber));
 
@@ -141,7 +152,11 @@ namespace SnakeBlockJam.EditorTools
                 catalog.levels.Add(level);
             }
 
-            AssetDatabase.CreateAsset(catalog, LevelCatalogPath);
+            if (isNew)
+                AssetDatabase.CreateAsset(catalog, LevelCatalogPath);
+            else
+                EditorUtility.SetDirty(catalog);
+
             AssetDatabase.SaveAssets();
             return catalog;
         }

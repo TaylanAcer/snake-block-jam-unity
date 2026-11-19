@@ -93,6 +93,33 @@ public class LevelCatalogTests
         }
     }
 
+    // Faz 8: katalog referanstaki 20 level'ın hepsi, sırayla (spec §14.1).
+    [Test]
+    public void CatalogAsset_ContainsAllTwentyLevelsInOrder()
+    {
+        var catalog = AssetDatabase.LoadAssetAtPath<LevelCatalog>(GameSceneBuilder.LevelCatalogPath);
+        Assert.IsNotNull(catalog, "Run 'Snake Block Jam/Levels/Rebuild Level Catalog (1–20)' first.");
+
+        CollectionAssert.AreEqual(GameSceneBuilder.CatalogLevels, catalog.levels.ConvertAll(l => l.levelNumber));
+    }
+
+    // Mekanik sayıları spec §14.1 tablosuyla aynı: asset'ler bu sayıları taşıyor.
+    [TestCase(11, 0, 3, 0)]
+    [TestCase(12, 0, 5, 0)]
+    [TestCase(14, 2, 4, 0)]
+    [TestCase(17, 0, 2, 0)]
+    [TestCase(19, 2, 2, 0)]
+    [TestCase(20, 0, 0, 2)]
+    public void LevelAsset_MechanicCountsMatchSpec(int number, int bridges, int burrows, int arrows)
+    {
+        var asset = AssetDatabase.LoadAssetAtPath<LevelData>(LevelJsonImporter.AssetPath(number));
+        Assert.IsNotNull(asset, "Run 'Snake Block Jam/Levels/Import All Levels From JSON' first.");
+
+        Assert.AreEqual(bridges, asset.bridges.Count, "bridges");
+        Assert.AreEqual(burrows, asset.burrows.Count, "burrows");
+        Assert.AreEqual(arrows, asset.arrows.Count, "arrows");
+    }
+
     // Faz 6'nın kaybetme/kazanma level'ı: sayaçlı ilk mekaniksiz level (spec §14.1).
     [Test]
     public void Level07Asset_HasMoveLimit31AndSolvesByEscapesOnly()

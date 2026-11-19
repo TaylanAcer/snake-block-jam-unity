@@ -93,40 +93,74 @@ namespace SnakeBlockJam.EditorTools
         // böylece GUID ve sahnedeki referanslar korunur.
         public static LevelData ImportToAsset(int levelNumber)
         {
+            return ImportToAssets(new[] { levelNumber })[0];
+        }
+
+        // JSON'daki bütün level'lar (1–20), sırayla.
+        public static List<LevelData> ImportAllToAssets()
+        {
+            return ImportToAssets(null);
+        }
+
+        // 'levelNumbers' null ise hepsi. JSON bir kez okunur, asset'ler bir kez kaydedilir.
+        private static List<LevelData> ImportToAssets(IReadOnlyList<int> levelNumbers)
+        {
             var levels = Parse(File.ReadAllText(SourcePath));
+            var assets = new List<LevelData>();
 
             try
             {
-                if (levelNumber < 1 || levelNumber > levels.Count)
-                    throw new LevelImportException(
-                        $"Level {levelNumber} is not in {SourcePath} (1–{levels.Count}).");
-
-                var source = levels[levelNumber - 1];
-                string path = AssetPath(levelNumber);
-                var asset = AssetDatabase.LoadAssetAtPath<LevelData>(path);
-
-                if (asset == null)
+                if (levelNumbers == null)
                 {
-                    asset = Object.Instantiate(source);
-                    asset.name = source.name;
-                    AssetDatabase.CreateAsset(asset, path);
+                    foreach (var level in levels)
+                        assets.Add(WriteAsset(level, AssetPath(level.levelNumber)));
                 }
                 else
                 {
-                    Undo.RecordObject(asset, $"Import {source.name}");
-                    EditorUtility.CopySerialized(source, asset);
-                    asset.name = source.name;
-                    EditorUtility.SetDirty(asset);
+                    foreach (int levelNumber in levelNumbers)
+                    {
+                        if (levelNumber < 1 || levelNumber > levels.Count)
+                            throw new LevelImportException(
+                                $"Level {levelNumber} is not in {SourcePath} (1–{levels.Count}).");
+
+                        assets.Add(WriteAsset(levels[levelNumber - 1], AssetPath(levelNumber)));
+                    }
                 }
 
                 AssetDatabase.SaveAssets();
-                return asset;
+                return assets;
             }
             finally
             {
                 foreach (var level in levels)
                     Object.DestroyImmediate(level);
             }
+        }
+
+        private static LevelData WriteAsset(LevelData source, string path)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<LevelData>(path);
+
+            if (asset == null)
+            {
+                asset = Object.Instantiate(source);
+                asset.name = source.name;
+                AssetDatabase.CreateAsset(asset, path);
+                return asset;
+            }
+
+            Undo.RecordObject(asset, $"Import {source.name}");
+            EditorUtility.CopySerialized(source, asset);
+            asset.name = source.name;
+            EditorUtility.SetDirty(asset);
+            return asset;
+        }
+
+        [MenuItem("Snake Block Jam/Levels/Import All Levels From JSON")]
+        private static void ImportAllLevels()
+        {
+            var assets = ImportAllToAssets();
+            Debug.Log($"Imported {assets.Count} levels into {LevelFolder} from {SourcePath}.");
         }
 
         [MenuItem("Snake Block Jam/Levels/Import Level 1 From JSON")]

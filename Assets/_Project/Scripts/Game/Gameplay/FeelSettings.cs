@@ -11,6 +11,7 @@ namespace SnakeBlockJam.Game
         [Tooltip("Kaçış hızı (hücre/sn). R-MOV-05: ölçülen median ~60. " +
                  "R-MOV-06: rampa yok, ilk karede tam hız.")]
         [Min(1f)] public float escapeSpeed = 60f;
+        [Min(1f)] public float blockedSpeed = 40f;
 
         [Tooltip("Son kuyruk ekrandan çıktıktan sonra ALL CLEAR'a kadar bekleme (sn). R-TRN-01: ~0,28.")]
         [Min(0f)] public float allClearDelay = 0.28f;
@@ -45,6 +46,10 @@ namespace SnakeBlockJam.Game
 
         [Tooltip("Yazının ekranda kalma süresi (sn). R-FX-06: ~1.")]
         [Min(0.1f)] public float streakDuration = 1f;
+
+        [Tooltip("Şahin gözünün ekranda kalma süresi (sn). R-FX-07, v19 29,70–30,85: ~1,15 " +
+                 "(belirme + parlama ~0,3, bekleme, ~0,1 sönme; OBSERVED).")]
+        [Min(0.2f)] public float hawkEyeDuration = HawkEye.DefaultDuration;
 
         [Header("Level sonu (R-TRN-03/04)")]
         [Tooltip("ALL CLEAR'dan sonra grid nokta dalgası (sn). R-TRN-03: ~0,27.")]

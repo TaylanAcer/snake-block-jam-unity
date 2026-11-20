@@ -51,6 +51,9 @@ namespace SnakeBlockJam.Game
         [SerializeField] private BoardView boardView;
         [SerializeField] private Camera gameCamera;
 
+        private int _consecutiveEscapes;
+        private int _nextHawkEligible;
+        private float _lastHawkTime;
         private int _fittedWidth;
         private int _fittedHeight;
 
@@ -155,6 +158,9 @@ namespace SnakeBlockJam.Game
             HintedSnakeId = 0;
             IsShovelTargeting = false;
 
+            _consecutiveEscapes = 0;
+            _nextHawkEligible = 4;
+            _lastHawkTime = float.NegativeInfinity;
             State = new BoardState(level.ToDefinition());
             boardView.Build(level, State);
             FitCamera();
@@ -191,11 +197,19 @@ namespace SnakeBlockJam.Game
         // Hamle oynandıysa true döner.
         public bool HandleCellTap(Cell cell)
         {
+            return TryGetSnakeAt(cell, out int snakeId) && HandleSnakeTap(snakeId);
+        }
+
+        // Ekranda seçilen yılana dokunuş (InputHandler). Kurallar HandleCellTap ile aynı.
+        public bool HandleSnakeTap(int snakeId)
+        {
             if (State == null || State.Status != GameStatus.Playing || IsInputLocked)
                 return false;
 
-            if (!TryGetSnakeAt(cell, out int snakeId))
+            if (!State.IsActive(snakeId))
                 return false;
+
+            Cell head = State.GetSnake(snakeId).Body[0].Cell;
 
             if (IsShovelTargeting)
                 return ShovelSnake(snakeId);
@@ -209,14 +223,21 @@ namespace SnakeBlockJam.Game
                     HintedSnakeId = 0;
 
                 boardView.PlayEscape(result, feel.escapeSpeed, gameCamera);
-                if (State.EscapedCount == FeedbackView.Streaks[1].Threshold)
-                    boardView.ShowHawkEye(cell);
+                _consecutiveEscapes++;
+                if (_consecutiveEscapes > 3 && State.EscapedCount >= _nextHawkEligible &&
+                    Time.time - _lastHawkTime >= 5f && UnityEngine.Random.value < 0.12f)
+                {
+                    boardView.ShowHawkEye(head, gameCamera, feel.hawkEyeDuration);
+                    _nextHawkEligible = State.EscapedCount + 6;
+                    _lastHawkTime = Time.time;
+                }
             }
             else
             {
                 // Blocked: geometri değişmez, hamle yine harcandı (R-COL-02, R-MV-02).
                 // Kilit sonuca göre verilir ve dönüş bitince açılır (R-CON-02/05).
-                IsInputLocked = boardView.PlayBlocked(result, feel.escapeSpeed, UnlockInput, feel);
+                _consecutiveEscapes = 0;
+                IsInputLocked = boardView.PlayBlocked(result, feel.blockedSpeed, UnlockInput, feel);
             }
 
             Debug.Log($"Snake {snakeId}: {result.Outcome}. " +

@@ -128,4 +128,20 @@ public class GameFeelTests
 
         return peak;
     }
+
+    // R-FX-07 (v19 29,70–30,85): küçük belirir, ~+0,12'de parlayarak büyür,
+    // ~+0,30'da oturur, +1,05'e kadar kalır, ~+1,15'te sönmüş olur.
+    [Test]
+    public void HawkEye_PopsSettlesHoldsThenFades()
+    {
+        Assert.Less(HawkEye.ScaleAt(0f), 0.7f, "appears small");
+        Assert.Greater(HawkEye.ScaleAt(0.12f), 1.2f, "pop overshoot");
+        Assert.Greater(HawkEye.GlowAt(0.10f), 0.8f, "flash at the pop");
+        Assert.AreEqual(1f, HawkEye.ScaleAt(0.30f), 0.01f, "settled");
+        Assert.AreEqual(0f, HawkEye.GlowAt(0.35f), 1e-4f, "flash gone");
+        Assert.AreEqual(1f, HawkEye.AlphaAt(0.6f), 1e-4f);
+        Assert.AreEqual(1f, HawkEye.AlphaAt(1.0f), 1e-4f, "still fully visible at +1,0");
+        Assert.Less(HawkEye.AlphaAt(1.14f), 0.05f, "faded by +1,15");
+        Assert.AreEqual(1.15f, HawkEye.DefaultDuration, 1e-4f);
+    }
 }

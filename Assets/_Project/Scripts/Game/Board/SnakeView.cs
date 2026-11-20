@@ -159,6 +159,10 @@ namespace SnakeBlockJam.Game
         // Baştan kuyruğa segment kökleri.
         public IReadOnlyList<Transform> Segments => _segments;
 
+        // Dokunuş seçimi için görünen parçalar: bloklar, ekler, gözler, dil, kuyruk ucu.
+        public IReadOnlyList<MeshRenderer> PickRenderers => _pickRenderers;
+        private MeshRenderer[] _pickRenderers = System.Array.Empty<MeshRenderer>();
+
         public bool IsMoving => _motion != Motion.None;
 
         // Çarpma animasyonu (gidiş veya dönüş) sürüyor.
@@ -241,6 +245,7 @@ namespace SnakeBlockJam.Game
 
             _restTrack = SnakeTrack.ForBody(snake, geometry);
             SetPose(_restTrack, 0f);
+            _pickRenderers = GetComponentsInChildren<MeshRenderer>(true);
         }
 
         // Görünüm kuyruğa yakın hücreden başa doğru çizilir. Segmentlerin gerçek

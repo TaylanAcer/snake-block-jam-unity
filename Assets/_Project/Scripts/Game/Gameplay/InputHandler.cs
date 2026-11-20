@@ -33,10 +33,22 @@ namespace SnakeBlockJam.Game
             if (IsOverUI(screenPosition))
                 return false;
 
-            if (!controller.BoardView.TryScreenToCell(controller.GameCamera, screenPosition, out Cell cell))
-                return false;
+            return TryPickSnake(screenPosition, out int snakeId) && controller.HandleSnakeTap(snakeId);
+        }
 
-            return controller.HandleCellTap(cell);
+        // Ekran noktasındaki yılan; hamle oynamaz. Önce görünen parçalar (göz ve
+        // baş dahil); açılış çiziminde parçalar henüz ölçeklenmemişken hücre
+        // düzlemi yedektir.
+        public bool TryPickSnake(Vector2 screenPosition, out int snakeId)
+        {
+            BoardView board = controller.BoardView;
+
+            if (board.TryPickSnake(controller.GameCamera, screenPosition, out snakeId))
+                return true;
+
+            snakeId = 0;
+            return board.TryScreenToCell(controller.GameCamera, screenPosition, out Cell cell) &&
+                   controller.TryGetSnakeAt(cell, out snakeId);
         }
 
         // Basış anında UI raycast'i: mouse ve dokunma için aynı çalışır.

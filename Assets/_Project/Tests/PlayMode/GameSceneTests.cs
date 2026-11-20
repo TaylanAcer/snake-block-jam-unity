@@ -107,6 +107,58 @@ public class GameSceneTests
         Assert.AreEqual(3, _controller.State.EscapedCount);
     }
 
+    // Cihaz gözlemi: göze/başa dokunuş bazen hamle başlatmıyordu. Gözler blok
+    // üstünden yükselir ve hücreden taşar; yalnız üst düzlem hit-testi bu noktaları
+    // komşu hücreye düşürüyordu (20 level ölçümü: göz %12–18, dil %42–48, kuyruk
+    // ucu %26 kaçırma). Kameraya bakan her parça noktası kendi yılanını seçmeli.
+    [UnityTest]
+    public IEnumerator Tap_OnEyesTongueAndTailTip_PicksThatSnake()
+    {
+        string[] parts = { "Eye", "EyeRim", "Pupil", "Tongue", "TongueFork", "TailTip", "Block" };
+
+        foreach (int number in new[] { 1, 7, 15, 18 })
+        {
+            yield return LoadLevel(CatalogLevel(number));
+            yield return new WaitForSeconds(0.6f); // açılış çizimi biter
+            Camera camera = _controller.GameCamera;
+            int points = 0;
+            int misses = 0;
+
+            foreach (var view in Object.FindObjectsByType<SnakeView>(FindObjectsSortMode.None))
+            {
+                foreach (var renderer in view.GetComponentsInChildren<MeshRenderer>())
+                {
+                    bool head = renderer.transform.parent.name == "Segment_0" ||
+                                renderer.transform.parent.parent?.name == "Segment_0";
+                    if (System.Array.IndexOf(parts, renderer.name) < 0 ||
+                        (renderer.name == "Block" && !head))
+                        continue;
+
+                    Mesh mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+                    Vector3[] vertices = mesh.vertices;
+                    Vector3[] normals = mesh.normals;
+
+                    for (int i = 0; i < vertices.Length; i += 7)
+                    {
+                        Vector3 world = renderer.transform.TransformPoint(vertices[i]);
+                        Vector3 normal = renderer.transform.TransformDirection(normals[i]);
+                        if (Vector3.Dot(normal, world - camera.transform.position) >= 0f)
+                            continue; // kameraya bakmıyor
+
+                        world = Vector3.Lerp(world, renderer.bounds.center, 0.05f);
+                        points++;
+                        if (!_input.TryPickSnake(camera.WorldToScreenPoint(world), out int picked) ||
+                            picked != view.SnakeId)
+                            misses++;
+                    }
+                }
+            }
+
+            Assert.Greater(points, 100, $"L{number} sampled points");
+            Assert.LessOrEqual(misses, points / 200, $"L{number}: {misses}/{points} face points miss their snake");
+        }
+    }
+
     // R-MV-03: boş hücre veya tahta dışı hiçbir şey yapmaz.
     [Test]
     public void Tap_EmptyCellOrOutsideBoard_DoesNothing()
@@ -352,11 +404,11 @@ public class GameSceneTests
 
             Assert.IsFalse(purple.IsMoving);
             Assert.LessOrEqual(maxTravel, peak + 1e-4f, "never passes the contact point");
-            Assert.Greater(maxTravel, peak - 60f * FixedFrame - 1e-4f, "reaches the contact point");
+            Assert.Greater(maxTravel, peak - _controller.Feel.blockedSpeed * FixedFrame - 1e-4f, "reaches the contact point");
             Assert.GreaterOrEqual(minHeadZ, lastFree.z - SnakeView.ContactGap - 1e-4f, "head stops at the blocker's face");
 
             // Gidiş + dönüş = 2 × tepe mesafesi, sabit hızda (en fazla bir kare fark).
-            float expected = 2f * peak / _controller.Feel.escapeSpeed;
+            float expected = 2f * peak / _controller.Feel.blockedSpeed;
             Assert.AreEqual(expected, frames * FixedFrame, FixedFrame + 1e-4f);
 
             Vector3 end = purple.Segments[0].position;
@@ -1164,11 +1216,15 @@ public class GameSceneTests
         Assert.IsNotNull(sfx, "SfxPlayer missing; run Build Game Scene");
 
         SnakeView mover = FindView(1);
+        int pulses = Haptics.PulseCount;
         Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
         Assert.AreEqual("Tap", sfx.LastPlayed, "soft tap first (R-FX-11)");
+        Assert.AreEqual(pulses, Haptics.PulseCount, "no vibration before contact");
 
         yield return WaitUntilOrTimeout(() => contact != null, 1f);
         Assert.IsNotNull(contact, "contact reached");
+        Assert.AreEqual(pulses + 1, Haptics.PulseCount, "one vibration at contact");
+        Assert.AreEqual(SfxPlayer.BumpVibrationMilliseconds, Haptics.LastPulseMilliseconds);
 
         SnakeView blocker = FindView(contact.BlockerSnakeId);
         Assert.IsTrue(blocker.IsDented, "blocker block is pushed");
@@ -1216,6 +1272,58 @@ public class GameSceneTests
 
         yield return new WaitForSeconds(_controller.Feel.streakDuration + 0.2f);
         Assert.IsNull(feedback.CurrentStreakText, "text disappears");
+    }
+
+    // Cihaz gözlemi: açılış sesi tahta çizilmeye başladıktan sonra geliyordu;
+    // Reveal.wav başında ~0,41 sn sessizlik vardı. Ses, çizimle aynı karede
+    // başlamalı ve ilk duyulur örnek ~0'da olmalı.
+    [UnityTest]
+    public IEnumerator Reveal_SoundStartsWithFirstDrawnFrame()
+    {
+        var sfx = Object.FindAnyObjectByType<SfxPlayer>();
+        Assert.IsNotNull(sfx, "SfxPlayer missing; run Build Game Scene");
+
+        yield return LoadLevel(CatalogLevel(7));
+        Assert.AreEqual("Reveal", sfx.LastPlayed, "reveal sound played when the board is built");
+
+        AudioClip clip = Resources.Load<AudioClip>("GameSounds/Reveal");
+        var samples = new float[clip.samples * clip.channels];
+        Assert.IsTrue(clip.GetData(samples, 0));
+
+        float peak = 0f;
+        foreach (float sample in samples)
+            peak = Mathf.Max(peak, Mathf.Abs(sample));
+
+        int onset = System.Array.FindIndex(samples, s => Mathf.Abs(s) > peak * 0.05f);
+        float onsetSeconds = onset / (float)(clip.frequency * clip.channels);
+        Assert.Less(onsetSeconds, 0.03f, "audible from the first frame");
+    }
+
+    // R-FX-07 (v19 29,70–30,85): ekrana dönük 2D göz, ~1,15 sn kalır, sonra yok olur.
+    [UnityTest]
+    public IEnumerator HawkEye_FacesCameraAndLastsReferenceDuration()
+    {
+        yield return LoadLevel(CatalogLevel(7));
+        Camera camera = _controller.GameCamera;
+        float duration = _controller.Feel.hawkEyeDuration;
+        Assert.AreEqual(1.15f, duration, 0.01f);
+
+        HawkEye eye = _controller.BoardView.ShowHawkEye(new Cell(3, 4), camera, duration);
+        Assert.IsNotNull(eye);
+        Assert.IsNotNull(eye.EyeRenderer.sprite);
+        yield return null;
+
+        Assert.Greater(Vector3.Dot(eye.transform.forward, camera.transform.forward), 0.999f, "billboard");
+        Vector3 screen = camera.WorldToScreenPoint(eye.transform.position);
+        Assert.That(screen.x, Is.InRange(0f, camera.pixelWidth));
+        Assert.That(screen.y, Is.InRange(0f, camera.pixelHeight));
+
+        yield return new WaitForSeconds(0.9f);
+        Assert.IsTrue(eye != null, "still on screen at +0,9 s");
+        Assert.AreEqual(1f, eye.EyeRenderer.color.a, 1e-3f);
+
+        yield return new WaitForSeconds(duration - 0.9f + 0.15f);
+        Assert.IsTrue(eye == null, "gone after ~1,15 s");
     }
 
     // R-TRN-02/03/04: ALL CLEAR → nokta dalgası (ALL CLEAR kalkar) → noktalar ve

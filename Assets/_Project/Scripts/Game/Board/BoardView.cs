@@ -131,18 +131,15 @@ namespace SnakeBlockJam.Game
 
         private void OnTunnelEntered() => TunnelEntered?.Invoke();
 
-        public void ShowHawkEye(Cell cell)
+        // R-FX-07: şahin gözü, kaçan yılanın başladığı yerde ekrana dönük belirir.
+        public HawkEye ShowHawkEye(Cell cell, Camera viewCamera, float duration = HawkEye.DefaultDuration)
         {
-            var eye = new GameObject("Hawk eye").transform;
-            eye.SetParent(_content, false);
-            eye.position = Geometry.CellToWorld(cell) + Vector3.up * 0.6f;
-            eye.localRotation = Quaternion.Euler(0f, -18f, 0f);
-            eye.localScale = new Vector3(1f, 1f, 0.54f);
-            CreateFlatDisk(eye, "Outline", 0.94f, 0f, _pupilMaterial);
-            CreateFlatDisk(eye, "Iris", 0.75f, 0.06f, _snakeMaterials[(int)SnakeColor.Yellow]);
-            CreateFlatDisk(eye, "Pupil", 0.4f, 0.12f, _pupilMaterial);
+            if (_content == null || Geometry == null)
+                return null;
+
+            HawkEye eye = HawkEye.Spawn(_content, Geometry.CellToWorld(cell), viewCamera, duration);
             HawkShown?.Invoke();
-            Destroy(eye.gameObject, 0.5f);
+            return eye;
         }
         public event System.Action ShovelChipped;
         private IReadOnlyList<ArrowDefinition> _arrows;
@@ -420,6 +417,35 @@ namespace SnakeBlockJam.Game
             targetCamera.fieldOfView = cameraFieldOfView;
             targetCamera.transform.SetPositionAndRotation(
                 target - rotation * Vector3.forward * distance, rotation);
+        }
+
+        // Dokunulan yılan: ışının kestiği, kameraya en yakın görünen yılan parçası
+        // (blok, ek, göz, dil, kuyruk ucu). Gözler blok üstünden yükselir ve hücre
+        // kenarından taşar, eğik kamerada blokların ön yüzü de görünür; yalnız üst
+        // düzleme ışın atmak bu bölgelere dokunuşu komşu (çoğu zaman boş) hücreye
+        // düşürüyordu. Kaçan yılanlar _snakes'te olmadığı için seçilmez.
+        public bool TryPickSnake(Camera sourceCamera, Vector2 screenPosition, out int snakeId)
+        {
+            snakeId = 0;
+            Ray ray = sourceCamera.ScreenPointToRay(screenPosition);
+            float nearest = float.PositiveInfinity;
+
+            foreach (var pair in _snakes)
+            {
+                foreach (MeshRenderer piece in pair.Value.PickRenderers)
+                {
+                    if (piece == null || !piece.enabled || !piece.gameObject.activeInHierarchy)
+                        continue;
+
+                    if (piece.bounds.IntersectRay(ray, out float distance) && distance < nearest)
+                    {
+                        nearest = distance;
+                        snakeId = pair.Key;
+                    }
+                }
+            }
+
+            return snakeId != 0;
         }
 
         // Ekran noktası → hücre. Düzlem blokların üst yüzünde: oyuncu eğik

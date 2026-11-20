@@ -80,7 +80,16 @@ namespace SnakeBlockJam.Game
         private void OnHawk() => Play(_clips["Hawk"]);
         private void OnArrowPassed() => Play(_arrowSlide);
         private void OnShovelChipped() => Play(_clips["ShovelChip"]);
-        private void OnBlockedContact(MoveResult result) => Play(_clips["Bump"]);
+        // Çarpma: ses ve titreşim temas anında birlikte (R-COL-08).
+        private void OnBlockedContact(MoveResult result)
+        {
+            Play(_clips["Bump"]);
+            Haptics.Pulse(BumpVibrationMilliseconds, BumpVibrationAmplitude);
+        }
+
+        // ASSUMED: ERM motorlu ucuz cihazlarda (Galaxy A13) 40 ms altı zor hissedilir.
+        public const long BumpVibrationMilliseconds = 60;
+        public const int BumpVibrationAmplitude = 255;
         private void OnLevelCleared() => Play(_clips["AllClear"]);
         private void OnStreakShown(int index) => Play(_clips[FeedbackView.Streaks[index].Text.TrimEnd('!')]);
 

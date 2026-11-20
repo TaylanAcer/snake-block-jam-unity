@@ -424,10 +424,79 @@ namespace SnakeBlockJam.Game
         // kenarından taşar, eğik kamerada blokların ön yüzü de görünür; yalnız üst
         // düzleme ışın atmak bu bölgelere dokunuşu komşu (çoğu zaman boş) hücreye
         // düşürüyordu. Kaçan yılanlar _snakes'te olmadığı için seçilmez.
+        //
+        // Parmak toleransı: tam isabet yoksa dokunuşun çevresine halkalarla bakılır,
+        // en içteki halkada bulunan yılan seçilir. Cihaz ölçümü (Galaxy A13, hızlı
+        // oynanış): 41 dokunuşun kaçanları yılan kenarının 10–40 px (1080p) dışına,
+        // çoğu gölge tarafına düşüyordu. Yarıçap ~3 mm, en çok 0,45 hücre: boş
+        // hücrenin ortasına dokunuş komşu yılanı seçmez (R-MV-03).
+        public const float TouchToleranceMillimeters = 3f;
+        public const float MaxToleranceCells = 0.45f;
+        private const float FallbackDpi = 400f;
+        private const int ToleranceRings = 3;
+        private const int ToleranceDirections = 8;
+
         public bool TryPickSnake(Camera sourceCamera, Vector2 screenPosition, out int snakeId)
         {
+            if (PickAlongRay(sourceCamera.ScreenPointToRay(screenPosition), out snakeId))
+                return true;
+
+            float radius = TouchTolerancePixels(sourceCamera);
+
+            var hits = new int[ToleranceDirections];
+
+            for (int ring = 1; ring <= ToleranceRings; ring++)
+            {
+                float r = radius * ring / ToleranceRings;
+
+                for (int direction = 0; direction < ToleranceDirections; direction++)
+                {
+                    float angle = direction * Mathf.PI * 2f / ToleranceDirections;
+                    Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * r;
+                    PickAlongRay(sourceCamera.ScreenPointToRay(screenPosition + offset), out hits[direction]);
+                }
+
+                // Halkada en çok yönden görülen yılan (eşitlikte ilk bulunan).
+                int bestVotes = 0;
+                foreach (int candidate in hits)
+                {
+                    if (candidate == 0)
+                        continue;
+
+                    int votes = System.Array.FindAll(hits, id => id == candidate).Length;
+                    if (votes > bestVotes)
+                    {
+                        bestVotes = votes;
+                        snakeId = candidate;
+                    }
+                }
+
+                if (snakeId != 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        // ~3 mm ekranda, ama en fazla 0,45 hücre (tahta yüzeyinde ölçülür).
+        public float TouchTolerancePixels(Camera sourceCamera)
+        {
+            float dpi = Screen.dpi > 0f ? Screen.dpi : FallbackDpi;
+            float pixels = TouchToleranceMillimeters / 25.4f * dpi;
+
+            if (Geometry == null)
+                return pixels;
+
+            Vector3 up = Vector3.up * SnakeView.BlockHeight;
+            Vector3 a = sourceCamera.WorldToScreenPoint(Geometry.CellToWorld(new Cell(0, 0)) + up);
+            Vector3 b = sourceCamera.WorldToScreenPoint(Geometry.CellToWorld(new Cell(1, 0)) + up);
+            float cellPixels = Vector2.Distance(a, b);
+            return Mathf.Min(pixels, cellPixels * MaxToleranceCells);
+        }
+
+        private bool PickAlongRay(Ray ray, out int snakeId)
+        {
             snakeId = 0;
-            Ray ray = sourceCamera.ScreenPointToRay(screenPosition);
             float nearest = float.PositiveInfinity;
 
             foreach (var pair in _snakes)

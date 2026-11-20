@@ -159,6 +159,77 @@ public class GameSceneTests
         }
     }
 
+    // Çizim çağrısı bütçesi (Galaxy A13, L7 render thread %75): dururken gövde tek
+    // mesh; çarpma sırasında parçalar oynar, dönüşte yeniden birleşir. Dokunma
+    // seçimi birleşik haldeyken de çalışır.
+    [UnityTest]
+    public IEnumerator RestingSnake_IsBaked_UnbakesWhileBumping_RebakesAfter()
+    {
+        yield return LoadLevel(LoadLevel02Asset());
+        yield return new WaitForSeconds(0.6f);
+
+        SnakeView purple = FindView(1);
+        Assert.IsTrue(purple.IsBaked, "baked at rest after reveal");
+        Transform baked = purple.transform.Find("BakedBody");
+        Assert.IsNotNull(baked);
+        Assert.IsTrue(baked.GetComponent<MeshRenderer>().enabled);
+        Assert.IsTrue(purple.Segments[1].GetComponentInChildren<MeshRenderer>().forceRenderingOff, "pieces hidden");
+
+        Assert.IsTrue(_input.TryPickSnake(ScreenPointOf(Purple1Head.X, Purple1Head.Y), out int picked));
+        Assert.AreEqual(1, picked, "picking still works while baked");
+
+        Assert.IsTrue(_controller.HandleCellTap(Purple1Head));
+        yield return null;
+        Assert.IsFalse(purple.IsBaked, "pieces move during the bump");
+        Assert.IsFalse(baked.GetComponent<MeshRenderer>().enabled);
+
+        yield return WaitUntilOrTimeout(() => !_controller.IsInputLocked, 3f);
+        yield return null;
+        Assert.IsTrue(purple.IsBaked, "rebaked after returning to rest");
+    }
+
+    // Cihaz ölçümü (hızlı oynanış): kaçan dokunuşlar yılan kenarının hemen dışına
+    // (gölge tarafı) düşüyordu. Kenarın 0,15 hücre dışı, boş komşu tarafında,
+    // parmak toleransıyla o yılanı seçmeli.
+    [UnityTest]
+    public IEnumerator Tap_JustOutsideSnakeEdge_PicksThatSnake()
+    {
+        yield return LoadLevel(CatalogLevel(7));
+        yield return new WaitForSeconds(1.5f); // 95 segmentlik yılanın çizimi ~1,2 sn
+        Camera camera = _controller.GameCamera;
+        BoardState state = _controller.State;
+        Direction[] sides = { Direction.Up, Direction.Down, Direction.Left, Direction.Right };
+        int checkedPoints = 0;
+
+        foreach (var snake in state.Level.Snakes)
+        {
+            foreach (var segment in snake.Body)
+            {
+                if (segment.Layer != BoardLayer.Ground)
+                    continue;
+
+                foreach (Direction side in sides)
+                {
+                    // Boş komşunun öbür yanında başka yılan varsa (başı/dili uzanabilir) atla.
+                    Cell next = segment.Cell + side.ToOffset();
+                    Cell beyond = next + side.ToOffset();
+                    if (!state.IsInside(next) || _controller.TryGetSnakeAt(next, out _) ||
+                        _controller.TryGetSnakeAt(beyond, out _))
+                        continue;
+
+                    Vector3 world = _controller.BoardView.Geometry.CellToWorld(segment.Cell)
+                                    + BoardGeometry.DirectionToWorld(side) * 0.65f
+                                    + Vector3.up * SnakeView.BlockHeight;
+                    _input.TryPickSnake(camera.WorldToScreenPoint(world), out int picked);
+                    Assert.AreEqual(snake.Id, picked, $"snake {snake.Id} at {segment.Cell} side {side}");
+                    checkedPoints++;
+                }
+            }
+        }
+
+        Assert.Greater(checkedPoints, 10);
+    }
+
     // R-MV-03: boş hücre veya tahta dışı hiçbir şey yapmaz.
     [Test]
     public void Tap_EmptyCellOrOutsideBoard_DoesNothing()

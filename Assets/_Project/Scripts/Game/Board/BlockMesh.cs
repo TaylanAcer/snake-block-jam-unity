@@ -18,6 +18,14 @@ namespace SnakeBlockJam.Game
         // yumuşak, blok başına ~250 köşe.
         private const int RoundSteps = 3;
 
+        // Yarıçap bu değere kadar tek adım (pah). Gövde blokları 0,025 (ekranda ~1 px):
+        // 3 adım görünür fark yaratmıyor ama blok başına 490 yerine 90 üçgen.
+        // Galaxy A13 (Mali-G52 MC1) ölçümü: L7'de ~380 bin üçgen + ~290 bin gölge
+        // üçgeni GPU'yu %99 dolduruyordu, piksel sayısı 1/4'e inince bile ~33 FPS.
+        public const float SmallRadius = 0.05f;
+
+        public static int StepsFor(float radius) => radius <= SmallRadius ? 1 : RoundSteps;
+
         private static readonly Dictionary<Vector4, Mesh> Cache = new Dictionary<Vector4, Mesh>();
 
         private static Mesh _snakeCorner;
@@ -139,11 +147,13 @@ namespace SnakeBlockJam.Game
                 return coordinates;
             }
 
-            for (int i = 0; i <= RoundSteps; i++)
-                coordinates.Add(-half + radius * (1f - Mathf.Cos(0.5f * Mathf.PI * i / RoundSteps)));
+            int steps = StepsFor(radius);
 
-            for (int i = 0; i <= RoundSteps; i++)
-                coordinates.Add(half - radius + radius * Mathf.Sin(0.5f * Mathf.PI * i / RoundSteps));
+            for (int i = 0; i <= steps; i++)
+                coordinates.Add(-half + radius * (1f - Mathf.Cos(0.5f * Mathf.PI * i / steps)));
+
+            for (int i = 0; i <= steps; i++)
+                coordinates.Add(half - radius + radius * Mathf.Sin(0.5f * Mathf.PI * i / steps));
 
             return coordinates;
         }

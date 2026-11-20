@@ -105,4 +105,22 @@ public class BlockMeshTests
         Assert.AreEqual(1f, mesh.bounds.size.x, 1e-4f, "too large radius does not grow the block (width)");
         Object.DestroyImmediate(mesh);
     }
+
+    // Geometri bütçesi: ~1 px'lik gövde pahı tek adım (90 üçgen); baş/kuyruk gibi
+    // görünür yuvarlaklık 3 adım (490 üçgen) kalır.
+    [Test]
+    public void SmallRadius_UsesSingleStep_LargeRadius_KeepsRoundSteps()
+    {
+        Mesh body = BlockMesh.Build(new Vector3(0.97f, 0.6f, 1f), 0.025f);
+        Mesh head = BlockMesh.Build(new Vector3(0.97f, 0.6f, 1f), 0.12f);
+
+        Assert.AreEqual(90, body.triangles.Length / 3);
+        Assert.AreEqual(490, head.triangles.Length / 3);
+        // Tek adımlı pahta köşe noktaları biraz içeride kalır (~0,004 birim, ekranda <1 px).
+        Assert.AreEqual(0f, Vector3.Distance(new Vector3(0.485f, 0.3f, 0.5f), body.bounds.extents), 0.01f,
+            "same outer size");
+
+        Object.DestroyImmediate(body);
+        Object.DestroyImmediate(head);
+    }
 }

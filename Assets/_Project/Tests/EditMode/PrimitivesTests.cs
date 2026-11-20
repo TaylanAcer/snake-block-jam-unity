@@ -66,4 +66,29 @@ public class PrimitivesTests
             Object.DestroyImmediate(b);
         }
     }
+
+    // Düşük poligonlu göz küresi: Unity küresiyle aynı ölçü (yarıçap 0,5), 288 üçgen,
+    // bütün üçgenler dışa bakıyor (yoksa göz içi boş görünür).
+    [Test]
+    public void LowSphere_SameSizeAsBuiltin_FacesOutward_FewerTriangles()
+    {
+        Mesh mesh = Primitives.LowSphere;
+        Vector3[] vertices = mesh.vertices;
+        int[] triangles = mesh.triangles;
+
+        Assert.AreEqual(Vector3.one * 0.5f, mesh.bounds.extents, "radius 0.5 like CreatePrimitive");
+        Assert.AreEqual(288, triangles.Length / 3);
+        Assert.Less(triangles.Length / 3, 768, "fewer than Unity's sphere");
+
+        for (int t = 0; t < triangles.Length; t += 3)
+        {
+            Vector3 a = vertices[triangles[t]];
+            Vector3 b = vertices[triangles[t + 1]];
+            Vector3 c = vertices[triangles[t + 2]];
+            Vector3 faceNormal = Vector3.Cross(b - a, c - a);
+            if (faceNormal.sqrMagnitude < 1e-12f)
+                continue;
+            Assert.Greater(Vector3.Dot(faceNormal, (a + b + c) / 3f), 0f, $"triangle {t / 3} faces out");
+        }
+    }
 }

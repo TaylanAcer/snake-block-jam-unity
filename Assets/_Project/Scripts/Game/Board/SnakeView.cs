@@ -163,6 +163,114 @@ namespace SnakeBlockJam.Game
         public IReadOnlyList<MeshRenderer> PickRenderers => _pickRenderers;
         private MeshRenderer[] _pickRenderers = System.Array.Empty<MeshRenderer>();
 
+        // --- Dururken tek mesh (çizim çağrısı bütçesi) ---------------------------
+        // Galaxy A13 ölçümü (L7, ~940 renderer): render thread bir çekirdeğin %75'i,
+        // GPU %69–77; grafik ayarı ne olursa olsun ~26 FPS. Darboğaz çizim çağrısı
+        // sayısı (ana geçiş + gölge geçişi ~1500). Yılan dururken gövde blokları,
+        // ekler ve kuyruk ucu iki mesh'te birleşir (gövde + kuyruk materyali); gözler
+        // ve dil animasyonlu olduğu için ayrı kalır. Hareket, göçük veya açılış
+        // başlarken parçalara dönülür. Parçalar forceRenderingOff ile gizlenir:
+        // seçim (PickRenderers) onların sınırlarını kullanmaya devam eder.
+        private MeshRenderer _bakedBody;
+        private MeshRenderer _bakedTail;
+        private Mesh _bakedBodyMesh;
+        private Mesh _bakedTailMesh;
+        private bool _retired;
+
+        public bool IsBaked { get; private set; }
+
+        private bool CanBake =>
+            !IsBaked && !_retired && _motion == Motion.None && _hiddenSegments == 0 && _dentTime < 0f &&
+            RemovedSegmentCount == 0 && _bodyRenderers.Count > 1;
+
+        private void Bake()
+        {
+            Transform root = transform;
+            Matrix4x4 toLocal = root.worldToLocalMatrix;
+            var body = new List<CombineInstance>(_bodyRenderers.Count);
+
+            foreach (MeshRenderer piece in _bodyRenderers)
+            {
+                if (!piece.gameObject.activeInHierarchy)
+                    continue;
+                body.Add(new CombineInstance
+                {
+                    mesh = piece.GetComponent<MeshFilter>().sharedMesh,
+                    transform = toLocal * piece.transform.localToWorldMatrix
+                });
+            }
+
+            _bakedBody = EnsureBaked(_bakedBody, ref _bakedBodyMesh, "BakedBody", body,
+                _bodyRenderers[0].sharedMaterial);
+
+            if (_tailTip != null && _tailTip.gameObject.activeInHierarchy)
+            {
+                var tail = new List<CombineInstance>(1)
+                {
+                    new CombineInstance
+                    {
+                        mesh = _tailTip.GetComponent<MeshFilter>().sharedMesh,
+                        transform = toLocal * _tailTip.transform.localToWorldMatrix
+                    }
+                };
+                _bakedTail = EnsureBaked(_bakedTail, ref _bakedTailMesh, "BakedTail", tail, _tailTip.sharedMaterial);
+            }
+
+            SetPiecesHidden(true);
+            IsBaked = true;
+        }
+
+        private MeshRenderer EnsureBaked(MeshRenderer target, ref Mesh mesh, string objectName,
+                                         List<CombineInstance> parts, Material material)
+        {
+            if (target == null)
+            {
+                var host = new GameObject(objectName, typeof(MeshFilter), typeof(MeshRenderer));
+                host.transform.SetParent(transform, false);
+                target = host.GetComponent<MeshRenderer>();
+                target.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            }
+
+            if (mesh == null)
+                mesh = new Mesh { name = objectName, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+
+            mesh.Clear();
+            mesh.CombineMeshes(parts.ToArray(), true, true);
+            target.GetComponent<MeshFilter>().sharedMesh = mesh;
+            target.sharedMaterial = material;
+            target.enabled = true;
+            return target;
+        }
+
+        private void Unbake()
+        {
+            if (!IsBaked)
+                return;
+
+            SetPiecesHidden(false);
+            if (_bakedBody != null)
+                _bakedBody.enabled = false;
+            if (_bakedTail != null)
+                _bakedTail.enabled = false;
+            IsBaked = false;
+        }
+
+        private void SetPiecesHidden(bool hidden)
+        {
+            foreach (MeshRenderer piece in _bodyRenderers)
+                piece.forceRenderingOff = hidden;
+            if (_tailTip != null)
+                _tailTip.forceRenderingOff = hidden;
+        }
+
+        private void OnDestroy()
+        {
+            if (_bakedBodyMesh != null)
+                Destroy(_bakedBodyMesh);
+            if (_bakedTailMesh != null)
+                Destroy(_bakedTailMesh);
+        }
+
         public bool IsMoving => _motion != Motion.None;
 
         // Çarpma animasyonu (gidiş veya dönüş) sürüyor.
@@ -252,6 +360,7 @@ namespace SnakeBlockJam.Game
         // konumu baştan doğrudur; seçim ve simülasyon bu geçişi beklemez.
         public void BeginReveal()
         {
+            Unbake();
             _hiddenSegments = _segments.Count;
             _revealProgress = 0f;
             foreach (Transform segment in _segments)
@@ -280,6 +389,8 @@ namespace SnakeBlockJam.Game
             if (outcome == MoveOutcome.Blocked)
                 throw new ArgumentException("Blocked moves are not escapes.", nameof(outcome));
 
+            Unbake();
+            _retired = true;
             RevealTo(0);
             _track = track;
             _nextArrow = 0;
@@ -298,6 +409,7 @@ namespace SnakeBlockJam.Game
         public void PlayBlocked(SnakeTrack track, float peakTravel, float speed, Action<SnakeView> onFinished,
                                 Action<SnakeView> onContact = null)
         {
+            Unbake();
             RevealTo(0);
             _track = track;
             _nextArrow = 0;
@@ -322,6 +434,10 @@ namespace SnakeBlockJam.Game
                 renderer.sharedMaterial = target;
             if (_tailTip != null)
                 _tailTip.sharedMaterial = material != null ? material : _tailMaterial;
+            if (_bakedBody != null)
+                _bakedBody.sharedMaterial = target;
+            if (_bakedTail != null && _tailTip != null)
+                _bakedTail.sharedMaterial = _tailTip.sharedMaterial;
         }
 
         // Kürek (R-SHV-03): segmentler kuyruktan başa doğru teker teker kaybolur;
@@ -329,6 +445,8 @@ namespace SnakeBlockJam.Game
         // Kürek görünümü ve renkli parçalar aynı segment sırasını izler.
         public void PlayRemove(float segmentTime, Action<SnakeView> onFinished, Sprite shovel = null)
         {
+            Unbake();
+            _retired = true;
             RevealTo(0);
             _removeSegmentTime = Mathf.Max(0.01f, segmentTime);
             _removeElapsed = 0f;
@@ -430,6 +548,7 @@ namespace SnakeBlockJam.Game
                 return;
 
             EndDent();
+            Unbake();
             _dentSegment = _segments[segmentIndex];
             _dentBase = _dentSegment.position;
             _dentOffset = direction.normalized * distance;
@@ -644,6 +763,9 @@ namespace SnakeBlockJam.Game
                     Finish();
                     break;
             }
+
+            if (CanBake)
+                Bake();
         }
 
         private void Finish()
@@ -797,7 +919,9 @@ namespace SnakeBlockJam.Game
             PrimitiveType type = PrimitiveType.Cube, bool castShadows = true)
         {
             // Seçim hücre üzerinden yapılır (GameController.TryGetSnakeAt); collider yok.
-            var piece = Primitives.Create(type, objectName);
+            var piece = type == PrimitiveType.Sphere
+                ? Primitives.CreateLowSphere(objectName)
+                : Primitives.Create(type, objectName);
 
             var renderer = piece.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;

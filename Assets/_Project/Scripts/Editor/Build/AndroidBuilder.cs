@@ -47,6 +47,10 @@ namespace SnakeBlockJam.EditorTools
             // kesilmesin. Ayrı bir SafeArea bileşeninden daha basit.
             PlayerSettings.Android.renderOutsideSafeArea = false;
 
+            // Sabit 30 FPS (GameController.MobileFrameRate) için kare temposu: Swappy
+            // kapalıyken Galaxy A13'te kareler 16/33/50 ms karışık geliyordu (titreme).
+            PlayerSettings.Android.optimizedFramePacing = true;
+
             // Teslim ve emulator için APK (Play Store AAB'si gerekmiyor).
             EditorUserBuildSettings.buildAppBundle = false;
 

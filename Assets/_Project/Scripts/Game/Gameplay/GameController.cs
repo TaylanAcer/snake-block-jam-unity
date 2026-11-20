@@ -100,11 +100,17 @@ namespace SnakeBlockJam.Game
         public bool CanUseBoosters =>
             State != null && State.Status == GameStatus.Playing && Phase == GamePhase.Playing;
 
-        // Android varsayılanı 30 FPS; ~60 hücre/sn kaçışlar 30 FPS'te kare başına
-        // 2 hücre atlar. Editörde VSync açıkken bu değer etkisizdir.
+        // Telefonda sabit 30 FPS, tam çözünürlük (proje kararı, 20 Kasım cihaz ölçümü):
+        // Galaxy A13'te (Mali-G52 MC1) 60 hedefinde büyük level'lar 25–45 FPS arasında
+        // dalgalanıyor; tam çözünürlükte bir kare ~22 ms, yani 30 FPS'te sabit kalıyor.
+        // Bedeli: ~60 hücre/sn kaçışlar kare başına 2 hücre ilerler. Editör ve
+        // masaüstünde 60 (VSync açıkken bu değer etkisizdir).
+        public const int MobileFrameRate = 30;
+        public const int DesktopFrameRate = 60;
+
         private void Awake()
         {
-            Application.targetFrameRate = 60;
+            Application.targetFrameRate = Application.isMobilePlatform ? MobileFrameRate : DesktopFrameRate;
         }
 
         private void Start()

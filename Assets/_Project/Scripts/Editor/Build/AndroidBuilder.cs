@@ -32,9 +32,12 @@ namespace SnakeBlockJam.EditorTools
             PlayerSettings.productName = ProductName;
             PlayerSettings.SetApplicationIdentifier(android, PackageName);
 
-            // Unity 6 telefonlar için sadece ARM64 + IL2CPP (yol haritası §7.1).
+            // IL2CPP, ARMv7 + ARM64. Sadece ARM64 yetmiyor: test cihazı Galaxy A13
+            // (SM-A135F) 64-bit işlemciye rağmen 32-bit Android çalıştırıyor
+            // (ro.product.cpu.abilist = armeabi-v7a) ve ARM64 APK'yı kurmuyor.
+            // Tek APK iki kütüphaneyi de taşır; cihaz kendi ABI'sini seçer.
             PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
-            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARMv7 | AndroidArchitecture.ARM64;
 
             // Oyun sadece portre.
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;

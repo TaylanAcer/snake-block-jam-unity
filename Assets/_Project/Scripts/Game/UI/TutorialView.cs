@@ -100,10 +100,18 @@ namespace SnakeBlockJam.Game
 
             awaitingReveal = false;
             overlay.SetActive(false);
-            if (controller.Level.levelNumber == GameController.HintUnlockLevel && controller.HintsLeft > 0)
+
+            // R-HNT-01 / R-SHV-01: tanıtım "Free" işaretçisiyle bir ücretsiz kullanım verir.
+            if (controller.Level.levelNumber == GameController.HintUnlockLevel)
+            {
+                controller.GrantFreeHint();
                 focus = hintButton;
-            else if (controller.Level.levelNumber == GameController.ShovelUnlockLevel && controller.ShovelsLeft > 0)
+            }
+            else if (controller.Level.levelNumber == GameController.ShovelUnlockLevel)
+            {
+                controller.GrantFreeShovel();
                 focus = shovelButton;
+            }
 
             if (focus != null)
             {

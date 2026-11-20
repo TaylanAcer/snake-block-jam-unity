@@ -18,7 +18,7 @@ Oreon Studios Unity case çalışması: Snake Block Jam'in ilk 20 bölümünün 
 
 Release APK varsayılan Android Debug sertifikasıyla imzalanır.
 
-**Oyun akışı:** İlk beş bölümde hamle sayacı görünmez. Sonraki bölümlerde başarısız hamle de bir hamle harcar. L1–L4'te kazanınca sonraki bölüm doğrudan açılır; L5'ten itibaren TAMAMLANDI → Devam, kayıpta HAMLE YOK → Tekrar Dene. İpucu L13'te, Kürek L18'de açılır; yeni mekanikler (köprü L5, tünel L11, ok L20) ilk göründükleri bölümde tanıtım kartıyla gelir.
+**Oyun akışı:** İlk beş bölümde hamle sayacı görünmez. Sonraki bölümlerde başarısız hamle de bir hamle harcar. L1–L4'te kazanınca sonraki bölüm doğrudan açılır; L5'ten itibaren TAMAMLANDI → Devam, kayıpta HAMLE YOK → Tekrar Dene. İpucu L13'te, Kürek L18'de açılır; tanıtımdaki ilk kullanımları ücretsizdir (stok düşmez). Yeni mekanikler (köprü L5, tünel L11, ok L20) ilk göründükleri bölümde tanıtım kartıyla gelir. Oyuncu uzun süre dokunmazsa kaçabilecek bir yılan kendiliğinden vurgulanır.
 
 ## Mimari
 
@@ -102,6 +102,6 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 ## Bilinen eksikler ve kararlar
 
 - **30 FPS:** Giriş seviyesi cihazlarda (Mali-G52) 60 FPS ancak çözünürlük ve kenar yumuşatma belirgin düşürülürse tutuyor. Görüntü kalitesi için telefonda sabit 30 FPS seçildi; hızlı kaçışlar kare başına 2 hücre ilerler.
-- **Referansta ölçülemeyenler (varsayım):** Referans oyunun titreşimi, şahin gözünün tetikleyicisi, yüz animasyonlarının kesin periyotları ve bazı seri eşikleri videolardan kesin ölçülemedi. Seçilen değerler kodda kaynak ve gerekçesiyle not edildi.
+- **Referansta ölçülemeyenler (varsayım):** Referans oyunun titreşimi, şahin gözünün tetikleyicisi, otomatik ipucunun bekleme süresi (10 sn seçildi, `FeelSettings.idleHintDelay`), yüz animasyonlarının kesin periyotları ve bazı seri eşikleri videolardan kesin ölçülemedi. Seçilen değerler kodda kaynak ve gerekçesiyle not edildi.
 - **Kapsam dışı (case gereği):** Ana menü, level seçimi, mağaza, coin, kalp, reklam, ek hamle satışı ve kalıcı ilerleme kaydı. Booster stoğu her bölümün başında referans karelerinden okunan değerle başlar. L20'den sonra Devam ilk bölüme döner.
 - **Samsung cihazlar:** Ekranın en altına dokununca Samsung Game Booster paneli açılabilir; bu sırada oyun duraklar. Sistem davranışıdır.

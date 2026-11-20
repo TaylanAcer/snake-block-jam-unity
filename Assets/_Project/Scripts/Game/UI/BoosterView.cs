@@ -55,8 +55,8 @@ namespace SnakeBlockJam.Game
             SetBadge(hintCount, controller.HintsLeft);
             SetBadge(shovelCount, controller.ShovelsLeft);
 
-            hintButton.GetComponent<Button>().interactable = controller.CanUseBoosters && controller.HintsLeft > 0;
-            shovelButton.GetComponent<Button>().interactable = controller.CanUseBoosters && controller.ShovelsLeft > 0;
+            hintButton.GetComponent<Button>().interactable = controller.CanUseBoosters && controller.HasHint;
+            shovelButton.GetComponent<Button>().interactable = controller.CanUseBoosters && controller.HasShovel;
         }
 
         public void OnHint()

@@ -59,6 +59,10 @@ namespace SnakeBlockJam.Game
         [Min(0f)] public float clearFadeDuration = 0.16f;
 
         [Header("Boosters")]
+        [Tooltip("Oyuncu bu kadar saniye dokunmazsa kaçabilecek yılan kendiliğinden vurgulanır (R-HNT-04). " +
+                 "Referansta 'uzun süre' (kullanıcı gözlemi); süre ölçülmedi, ASSUMED. 0: kapalı.")]
+        [Min(0f)] public float idleHintDelay = 10f;
+
         [Tooltip("İpucu vurgusunun nabız periyodu (sn). R-HNT-02: v14'te parlak anlar ~7,15 / ~8,75 / ~10,5 sn " +
                  "(OBSERVED, kaba).")]
         [Min(0.1f)] public float hintPulsePeriod = 1.6f;

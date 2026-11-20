@@ -550,6 +550,9 @@ namespace SnakeBlockJam.Game
 
                 foreach (var cell in bridge.Path)
                     _bridgeCells.Add(cell);
+
+                if (bridge.Path.Count == 1 && bridge.Axis.HasValue)
+                    Geometry.AddBridgeShoulders(bridge.Path[0], bridge.Axis.Value);
             }
 
             BridgeCount = bridges.Count;

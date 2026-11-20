@@ -752,19 +752,14 @@ MonoBehaviour:
     notes: []
   bridges:
   - path:
-    - {x: 5, y: 6}
     - {x: 6, y: 6}
-    - {x: 7, y: 6}
-    hasAxis: 0
+    hasAxis: 1
     axis: 0
   - path:
-    - {x: 16, y: 7}
     - {x: 16, y: 6}
-    - {x: 16, y: 5}
-    hasAxis: 0
-    axis: 0
+    hasAxis: 1
+    axis: 1
   burrows: []
   arrows: []
   notes:
-  - "K\xF6pr\xFCler k\u0131sa: deck uzunlu\u011Fundan 3 h\xFCcre kabul edildi (1
-    h\xFCcre de olabilir) \u2014 videoda do\u011Frula"
+  - "K\u0131sa k\u00F6pr\u00FCler 1 h\u00FCcre (R-BRG-11): referans karelerde ~2,2 h\u00FCcre g\u00F6r\u00FCn\u00FCyor (1 h\u00FCcre + korkuluk ta\u015Fmas\u0131); 20 Kas\u0131m v11/v20 ve Level_10/19.png ile kar\u015F\u0131la\u015Ft\u0131r\u0131ld\u0131"

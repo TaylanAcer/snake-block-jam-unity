@@ -684,45 +684,6 @@ public class GameSceneTests
         Assert.AreEqual(1, _controller.ShovelsLeft, "stock untouched by the free use");
     }
 
-    // R-HNT-04: oyuncu uzun süre beklerse oyun kaçabilecek bir yılanı kendiliğinden
-    // gösterir (booster açılmadan önce de). Süre referansta ölçülmedi (ASSUMED,
-    // FeelSettings.idleHintDelay). Hamle ve stok harcamaz; ilk dokunuşta kalkar.
-    [UnityTest]
-    public IEnumerator AutoHint_AfterIdle_ShowsEscapingSnake_ClearsOnInput()
-    {
-        float delay = _controller.Feel.idleHintDelay;
-        _controller.Feel.idleHintDelay = 0.5f;
-
-        try
-        {
-            yield return LoadLevel(CatalogLevel(7));
-            int? moves = _controller.State.RemainingMoves;
-            Assert.AreEqual(0, _controller.AutoHintedSnakeId);
-
-            yield return new WaitForSeconds(0.8f);
-
-            int hinted = _controller.AutoHintedSnakeId;
-            Assert.AreNotEqual(0, hinted, "auto hint after idle");
-            Assert.AreEqual(hinted, _controller.BoardView.HighlightedSnakeId);
-            CollectionAssert.Contains(Solver.EscapingSnakes(_controller.State), hinted);
-            Assert.AreEqual(moves, _controller.State.RemainingMoves, "no move spent");
-            Assert.AreEqual(0, _controller.HintsLeft, "L7 has no hint stock; nothing spent either");
-
-            _controller.NotifyPlayerInput();
-            Assert.AreEqual(0, _controller.AutoHintedSnakeId);
-            Assert.AreEqual(0, _controller.BoardView.HighlightedSnakeId, "cleared on input");
-
-            yield return new WaitForSeconds(0.3f);
-            Assert.AreEqual(0, _controller.AutoHintedSnakeId, "timer restarted");
-            yield return new WaitForSeconds(0.5f);
-            Assert.AreNotEqual(0, _controller.AutoHintedSnakeId, "shows again after another idle period");
-        }
-        finally
-        {
-            _controller.Feel.idleHintDelay = delay;
-        }
-    }
-
     // R-MV-05: L1–L5'te sayaç yok; referansta HUD kutusu görünmüyor.
     [Test]
     public void Hud_NoMoveLimit_HidesCounter()

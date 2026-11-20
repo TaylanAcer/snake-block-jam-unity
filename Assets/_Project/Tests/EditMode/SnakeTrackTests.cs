@@ -235,4 +235,54 @@ public class SnakeTrackTests
         AssertVector(At(geometry, 0, 0), track.Sample(-3f));
         AssertVector(At(geometry, 3, 0), track.Sample(99f));
     }
+
+    // 1 hücrelik köprü (R-BRG-11): güverte iki yandaki "omuz" hücrelerin üstüne taşar.
+    // Köprüye çıkan/inen yılanın omuzdaki bloğu ara yükseklikte durur, böylece
+    // referanstaki gibi basamaklı görünür (L19, v20). Model katmanı değişmez.
+    [Test]
+    public void ForBody_SingleCellBridge_ShoulderSegmentsAreStepped()
+    {
+        var snake = new SnakeDefinition(1, Direction.Right, new[]
+        {
+            new LayeredCell(new Cell(3, 1), BoardLayer.Ground),
+            new LayeredCell(new Cell(2, 1), BoardLayer.Ground),
+            new LayeredCell(new Cell(1, 1), BoardLayer.BridgeTop),
+            new LayeredCell(new Cell(0, 1), BoardLayer.Ground)
+        });
+        var geometry = new BoardGeometry(5, 3);
+        geometry.AddBridgeShoulders(new Cell(1, 1), BridgeAxis.Horizontal);
+        var track = SnakeTrack.ForBody(snake, geometry);
+
+        Assert.AreEqual(0f, track.Sample(track.SegmentDistance(0, 0f)).y, 1e-4f, "head: plain ground");
+        Assert.AreEqual(BoardGeometry.BridgeShoulderHeight, track.Sample(track.SegmentDistance(1, 0f)).y, 1e-4f, "right shoulder");
+        Assert.AreEqual(BoardGeometry.BridgeTopHeight, track.Sample(track.SegmentDistance(2, 0f)).y, 1e-4f, "on the bridge");
+        Assert.AreEqual(BoardGeometry.BridgeShoulderHeight, track.Sample(track.SegmentDistance(3, 0f)).y, 1e-4f, "left shoulder");
+        Assert.Greater(BoardGeometry.BridgeShoulderHeight, 0f);
+        Assert.Less(BoardGeometry.BridgeShoulderHeight, BoardGeometry.BridgeTopHeight);
+    }
+
+    // Omuz hücresinde duran ama köprüye çıkmayan yılan (dik geçen ya da yanından
+    // geçen) zeminde kalır.
+    [Test]
+    public void ForBody_ShoulderCellWithoutBridgeNeighbour_StaysOnGround()
+    {
+        var snake = new SnakeDefinition(1, Direction.Up, new[] { new Cell(2, 2), new Cell(2, 1), new Cell(2, 0) });
+        var geometry = new BoardGeometry(5, 3);
+        geometry.AddBridgeShoulders(new Cell(1, 1), BridgeAxis.Horizontal);
+        var track = SnakeTrack.ForBody(snake, geometry);
+
+        Assert.AreEqual(0f, track.Sample(track.SegmentDistance(1, 0f)).y, 1e-4f);
+    }
+
+    [Test]
+    public void BridgeShoulders_AreAlongTheAxis()
+    {
+        var geometry = new BoardGeometry(5, 5);
+        geometry.AddBridgeShoulders(new Cell(2, 2), BridgeAxis.Vertical);
+
+        Assert.IsTrue(geometry.IsBridgeShoulder(new Cell(2, 3)));
+        Assert.IsTrue(geometry.IsBridgeShoulder(new Cell(2, 1)));
+        Assert.IsFalse(geometry.IsBridgeShoulder(new Cell(1, 2)));
+        Assert.IsFalse(geometry.IsBridgeShoulder(new Cell(2, 2)));
+    }
 }

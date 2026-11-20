@@ -322,11 +322,11 @@ MonoBehaviour:
     - cell: {x: 10, y: 20}
       layer: 0
     - cell: {x: 10, y: 21}
-      layer: 1
+      layer: 0
     - cell: {x: 10, y: 22}
       layer: 1
     - cell: {x: 10, y: 23}
-      layer: 1
+      layer: 0
     - cell: {x: 10, y: 24}
       layer: 0
     - cell: {x: 10, y: 25}
@@ -543,11 +543,11 @@ MonoBehaviour:
     - cell: {x: 12, y: 8}
       layer: 0
     - cell: {x: 11, y: 8}
-      layer: 1
+      layer: 0
     - cell: {x: 10, y: 8}
       layer: 1
     - cell: {x: 9, y: 8}
-      layer: 1
+      layer: 0
     - cell: {x: 8, y: 8}
       layer: 0
     - cell: {x: 8, y: 7}
@@ -690,16 +690,12 @@ MonoBehaviour:
     notes: []
   bridges:
   - path:
-    - {x: 10, y: 23}
     - {x: 10, y: 22}
-    - {x: 10, y: 21}
-    hasAxis: 0
-    axis: 0
+    hasAxis: 1
+    axis: 1
   - path:
-    - {x: 9, y: 8}
     - {x: 10, y: 8}
-    - {x: 11, y: 8}
-    hasAxis: 0
+    hasAxis: 1
     axis: 0
   burrows:
   - {x: 18, y: 8}
@@ -708,4 +704,4 @@ MonoBehaviour:
   notes:
   - "Mavi 'kendi \xFCst\xFCnden ge\xE7en' y\u0131lan: (x,y) h\xFCcresini bir kez
     alt katmandan, bir kez \xFCst katmandan kullan\u0131yor"
-  - "K\xF6pr\xFCler k\u0131sa: 3 h\xFCcre kabul edildi \u2014 videoda do\u011Frula"
+  - "K\u0131sa k\u00F6pr\u00FCler 1 h\u00FCcre (R-BRG-11): referans karelerde ~2,2 h\u00FCcre g\u00F6r\u00FCn\u00FCyor (1 h\u00FCcre + korkuluk ta\u015Fmas\u0131); 20 Kas\u0131m v11/v20 ve Level_10/19.png ile kar\u015F\u0131la\u015Ft\u0131r\u0131ld\u0131"

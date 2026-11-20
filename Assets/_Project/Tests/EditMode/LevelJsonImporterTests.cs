@@ -121,7 +121,8 @@ public class LevelJsonImporterTests
         }
     }
 
-    // L19: R-BRG-10 — JSON'daki tek T'li level, 6 BridgeTop segment.
+    // L19: R-BRG-10 — JSON'daki tek T'li level. Köprüler 1 hücre olunca (R-BRG-11)
+    // köprü üstünde iki yılanın birer segmenti kalır.
     [Test]
     public void Level19_KeepsBridgeTopSegments()
     {
@@ -132,7 +133,24 @@ public class LevelJsonImporterTests
                 if (segment.layer == BoardLayer.BridgeTop)
                     top++;
 
-        Assert.AreEqual(6, top);
+        Assert.AreEqual(2, top);
+    }
+
+    // R-BRG-11: L10 ve L19'daki kısa köprüler 1 hücre. Referans karelerde ~2,2 hücre
+    // görünüyorlar (1 hücre + korkuluk taşması); BridgeView 1 hücrelik köprüyü 2 hücre
+    // boyunda çizer. 1 hücrede yön yoldan çıkmadığı için JSON'da "axis" verilir.
+    [TestCase(10, 6, 6, BridgeAxis.Horizontal)]
+    [TestCase(10, 16, 6, BridgeAxis.Vertical)]
+    [TestCase(19, 10, 22, BridgeAxis.Vertical)]
+    [TestCase(19, 10, 8, BridgeAxis.Horizontal)]
+    public void ShortBridges_AreSingleCellWithAxis(int number, int x, int y, BridgeAxis axis)
+    {
+        var bridge = Level(number).bridges.Find(b => b.path.Contains(new Vector2Int(x, y)));
+
+        Assert.IsNotNull(bridge);
+        Assert.AreEqual(1, bridge.path.Count);
+        Assert.IsTrue(bridge.hasAxis);
+        Assert.AreEqual(axis, bridge.axis);
     }
 
     // L20 okları (JSON'daki konumlarıyla; R-ARW-03 doğrulaması ayrı konu).
@@ -252,6 +270,20 @@ public class LevelJsonImporterTests
     {
         Assert.Throws<LevelImportException>(() =>
             LevelJsonImporter.Parse(Json(ValidSnake.Replace("\"hidden_cells\":[]", "\"hidden_cells\":[[2,2]]"))));
+    }
+
+    [Test]
+    public void Parse_SingleCellBridgeWithoutAxis_Throws()
+    {
+        Assert.Throws<LevelImportException>(() =>
+            LevelJsonImporter.Parse(Json(bridges: "[{\"path\":[[1,0]],\"shape\":\"straight\"}]")));
+    }
+
+    [Test]
+    public void Parse_UnknownBridgeAxis_Throws()
+    {
+        Assert.Throws<LevelImportException>(() =>
+            LevelJsonImporter.Parse(Json(bridges: "[{\"path\":[[1,0]],\"shape\":\"straight\",\"axis\":\"diagonal\"}]")));
     }
 
     [Test]

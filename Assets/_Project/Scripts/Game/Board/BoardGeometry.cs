@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SnakeBlockJam.Core;
 using UnityEngine;
 
@@ -15,8 +16,28 @@ namespace SnakeBlockJam.Game
         // göz tepesi ~0,82; tabla altı 0,95 − 0,02 − 0,10 = 0,83 (BridgeView).
         public const float BridgeTopHeight = 0.95f;
 
+        // 1 hücrelik köprünün güvertesi iki yandaki hücrelere taşar (BridgeView.MinLength).
+        // Köprüye çıkan/inen yılanın bu "omuz" hücresindeki bloğu ara yükseklikte
+        // çizilir: zemin → omuz → köprü üstü basamakları (L19 referansı, v20). Sadece
+        // görüntü; modelde omuz hücresi zemindir.
+        public const float BridgeShoulderHeight = BridgeTopHeight * 0.5f;
+
+        private HashSet<Cell> _bridgeShoulders;
+
         public int Width { get; }
         public int Height { get; }
+
+        public bool HasBridgeShoulders => _bridgeShoulders != null && _bridgeShoulders.Count > 0;
+
+        public void AddBridgeShoulders(Cell bridgeCell, BridgeAxis axis)
+        {
+            Cell offset = axis == BridgeAxis.Horizontal ? new Cell(1, 0) : new Cell(0, 1);
+            _bridgeShoulders ??= new HashSet<Cell>();
+            _bridgeShoulders.Add(bridgeCell + offset);
+            _bridgeShoulders.Add(new Cell(bridgeCell.X - offset.X, bridgeCell.Y - offset.Y));
+        }
+
+        public bool IsBridgeShoulder(Cell cell) => _bridgeShoulders != null && _bridgeShoulders.Contains(cell);
 
         public BoardGeometry(int width, int height)
         {

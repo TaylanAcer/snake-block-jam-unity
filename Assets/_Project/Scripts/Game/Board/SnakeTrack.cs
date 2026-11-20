@@ -34,9 +34,13 @@ namespace SnakeBlockJam.Game
         // Duran yılan: gövde + baştan bir hücre ileri (başın yönünü vermek için).
         public static SnakeTrack ForBody(SnakeDefinition snake, BoardGeometry geometry)
         {
-            var points = BodyPoints(snake, geometry, 1);
+            var cells = new List<Cell>(snake.Body.Count + 1);
+            var points = BodyPoints(snake, geometry, 1, cells);
             LayeredCell head = snake.Body[0];
-            points.Add(geometry.CellToWorld(head.Cell + snake.Direction.ToOffset(), head.Layer));
+            Cell ahead = head.Cell + snake.Direction.ToOffset();
+            points.Add(geometry.CellToWorld(ahead, head.Layer));
+            cells.Add(ahead);
+            StepShoulders(points, cells, geometry);
             return new SnakeTrack(points, snake.Body.Count);
         }
 
@@ -53,19 +57,17 @@ namespace SnakeBlockJam.Game
             bool offBoard = result.Outcome == MoveOutcome.EscapedOffBoard;
             bool blocked = result.Outcome == MoveOutcome.Blocked;
 
-            var points = BodyPoints(
-                snake,
-                geometry,
-                result.HeadPath.Count
-                    + (offBoard ? extensionCells : 0)
-                    + (blocked ? 1 : 0)
-            );
+            int capacity = snake.Body.Count + result.HeadPath.Count
+                           + (offBoard ? extensionCells : 0) + (blocked ? 1 : 0);
+            var cells = new List<Cell>(capacity);
+            var points = BodyPoints(snake, geometry, capacity - snake.Body.Count, cells);
 
             var track = new SnakeTrack(points, snake.Body.Count);
             for (int i = 0; i < result.HeadPath.Count; i++)
             {
                 LayeredCell step = result.HeadPath[i];
                 points.Add(geometry.CellToWorld(step.Cell, step.Layer));
+                cells.Add(step.Cell);
                 for (int j = 0; j < (arrows?.Count ?? 0); j++)
                 {
                     if (arrows[j].Position != step.Cell)
@@ -84,6 +86,7 @@ namespace SnakeBlockJam.Game
                         blockedCell.Layer
                     )
                 );
+                cells.Add(blockedCell.Cell);
             }
 
             if (offBoard)
@@ -97,10 +100,39 @@ namespace SnakeBlockJam.Game
                 {
                     cell += offset;
                     points.Add(geometry.CellToWorld(cell));
+                    cells.Add(cell);
                 }
             }
 
+            StepShoulders(points, cells, geometry);
             return track;
+        }
+
+        // 1 hücrelik köprünün omzundaki zemin noktası, iz üzerinde köprü üstü bir
+        // noktaya komşuysa (yılan oradan köprüye çıkıyor/iniyor) ara yüksekliğe alınır.
+        // Komşuluk orijinal yüksekliklerle kontrol edilir; yalnız zemin noktaları değişir.
+        private static void StepShoulders(List<Vector3> points, List<Cell> cells, BoardGeometry geometry)
+        {
+            if (!geometry.HasBridgeShoulders)
+                return;
+
+            const float epsilon = 1e-3f;
+
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (points[i].y > epsilon || !geometry.IsBridgeShoulder(cells[i]))
+                    continue;
+
+                bool nextOnTop = i + 1 < points.Count && points[i + 1].y >= BoardGeometry.BridgeTopHeight - epsilon;
+                bool previousOnTop = i > 0 && points[i - 1].y >= BoardGeometry.BridgeTopHeight - epsilon;
+
+                if (!nextOnTop && !previousOnTop)
+                    continue;
+
+                Vector3 point = points[i];
+                point.y = BoardGeometry.BridgeShoulderHeight;
+                points[i] = point;
+            }
         }
 
         // Segmentin iz üzerindeki mesafesi.
@@ -152,12 +184,16 @@ namespace SnakeBlockJam.Game
             return direction.normalized;
         }
 
-        private static List<Vector3> BodyPoints(SnakeDefinition snake, BoardGeometry geometry, int extraCapacity)
+        private static List<Vector3> BodyPoints(
+            SnakeDefinition snake, BoardGeometry geometry, int extraCapacity, List<Cell> cells)
         {
             var points = new List<Vector3>(snake.Body.Count + extraCapacity);
 
             for (int i = snake.Body.Count - 1; i >= 0; i--)
+            {
                 points.Add(geometry.CellToWorld(snake.Body[i].Cell, snake.Body[i].Layer));
+                cells.Add(snake.Body[i].Cell);
+            }
 
             return points;
         }

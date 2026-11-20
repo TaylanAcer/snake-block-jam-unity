@@ -60,6 +60,9 @@ namespace SnakeBlockJam.EditorTools
 
         private static readonly string[] SegmentKeys = { "cell", "layer" };
         private static readonly string[] BridgeKeys = { "path", "shape" };
+
+        // 1 hücrelik köprüde zorunlu (R-BRG-11): yön yoldan çıkarılamaz.
+        private const string BridgeAxisKey = "axis";
         private static readonly string[] ArrowKeys = { "cell", "dir" };
 
         public static string AssetPath(int levelNumber)
@@ -365,7 +368,7 @@ namespace SnakeBlockJam.EditorTools
         private static BridgeData ParseBridge(JObject json, string levelContext)
         {
             string context = $"{levelContext} bridge";
-            RequireExactKeys(json, BridgeKeys, context);
+            RequireExactKeys(json, BridgeKeys, context, BridgeAxisKey);
 
             var bridge = new BridgeData();
 
@@ -375,8 +378,23 @@ namespace SnakeBlockJam.EditorTools
             if (bridge.path.Count == 0)
                 throw new LevelImportException($"{context}: path is empty.");
 
-            // JSON'da eksen alanı yok: 1 hücrelik köprü Core tarafından reddedilir
-            // (R-BRG-11), içe aktarma eksen uydurmaz.
+            // Eksen yalnızca 1 hücrelik köprüde anlamlı ve orada zorunlu (R-BRG-11);
+            // içe aktarma eksen uydurmaz.
+            if (json[BridgeAxisKey] != null)
+            {
+                string axis = ReadString(json, BridgeAxisKey, context);
+                bridge.hasAxis = true;
+                bridge.axis = axis switch
+                {
+                    "horizontal" => BridgeAxis.Horizontal,
+                    "vertical" => BridgeAxis.Vertical,
+                    _ => throw new LevelImportException($"{context}: unknown axis '{axis}'.")
+                };
+            }
+
+            if (bridge.path.Count == 1 && !bridge.hasAxis)
+                throw new LevelImportException($"{context}: a single-cell bridge needs an \"axis\".");
+
             string shape = ReadString(json, "shape", context);
             bool straight = IsStraight(bridge.path);
 
@@ -459,11 +477,11 @@ namespace SnakeBlockJam.EditorTools
 
         // --- JSON yardımcıları ----------------------------------------------------
 
-        private static void RequireExactKeys(JObject json, string[] keys, string context)
+        private static void RequireExactKeys(JObject json, string[] keys, string context, params string[] optional)
         {
             foreach (var property in json.Properties())
             {
-                if (Array.IndexOf(keys, property.Name) < 0)
+                if (Array.IndexOf(keys, property.Name) < 0 && Array.IndexOf(optional, property.Name) < 0)
                     throw new LevelImportException($"{context}: unknown field '{property.Name}'.");
             }
 

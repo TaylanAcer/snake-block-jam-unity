@@ -23,8 +23,6 @@ namespace SnakeBlockJam.Game
             if (pointer == null || !pointer.press.wasPressedThisFrame)
                 return;
 
-            // UI dahil her basış "oyuncu burada" demektir (otomatik ipucu sayacı, R-HNT-04).
-            controller.NotifyPlayerInput();
             HandlePress(pointer.position.ReadValue());
         }
 

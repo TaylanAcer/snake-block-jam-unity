@@ -105,13 +105,6 @@ namespace SnakeBlockJam.Game
         public bool HasHint => HintsLeft > 0 || IsHintFree;
         public bool HasShovel => ShovelsLeft > 0 || IsShovelFree;
 
-        // R-HNT-04: oyuncu uzun süre dokunmazsa kaçabilecek yılan kendiliğinden
-        // gösterilir (booster açılmadan önce de). Hamle ve stok harcamaz; ilk
-        // dokunuşta kalkar. Süre ve görünüm referansta ölçülmedi: ipucu vurgusu ve
-        // FeelSettings.idleHintDelay kullanılır (ASSUMED).
-        public int AutoHintedSnakeId { get; private set; }
-        private float _idleTime;
-
         // Booster yalnızca level oynanırken kullanılır (pencere/ALL CLEAR'da değil).
         public bool CanUseBoosters =>
             State != null && State.Status == GameStatus.Playing && Phase == GamePhase.Playing;
@@ -139,47 +132,6 @@ namespace SnakeBlockJam.Game
         {
             level = newLevel;
             LoadLevel();
-        }
-
-        private void Update()
-        {
-            bool canAutoHint = feel != null && feel.idleHintDelay > 0f && CanUseBoosters &&
-                               !IsInputLocked && !IsShovelTargeting && HintedSnakeId == 0;
-
-            if (!canAutoHint)
-            {
-                _idleTime = 0f;
-                return;
-            }
-
-            _idleTime += Time.deltaTime;
-
-            if (AutoHintedSnakeId != 0 || _idleTime < feel.idleHintDelay)
-                return;
-
-            int snakeId = Solver.PickHint(State);
-            if (snakeId == 0)
-                return;
-
-            AutoHintedSnakeId = snakeId;
-            boardView.SetHighlight(snakeId, feel.hintPulsePeriod);
-        }
-
-        // Ekrana (UI dahil) her basış: bekleme sayacı sıfırlanır, otomatik ipucu kalkar.
-        public void NotifyPlayerInput()
-        {
-            _idleTime = 0f;
-            ClearAutoHint();
-        }
-
-        private void ClearAutoHint()
-        {
-            if (AutoHintedSnakeId == 0)
-                return;
-
-            if (boardView.HighlightedSnakeId == AutoHintedSnakeId)
-                boardView.ClearHighlight();
-            AutoHintedSnakeId = 0;
         }
 
         // TutorialView, L13/L18 tanıtımında "Free" işaretçisini gösterirken verir.
@@ -241,8 +193,6 @@ namespace SnakeBlockJam.Game
             IsShovelTargeting = false;
             IsHintFree = false;
             IsShovelFree = false;
-            AutoHintedSnakeId = 0;
-            _idleTime = 0f;
 
             _consecutiveEscapes = 0;
             _nextHawkEligible = 4;
@@ -295,7 +245,6 @@ namespace SnakeBlockJam.Game
             if (!State.IsActive(snakeId))
                 return false;
 
-            NotifyPlayerInput();
             Cell head = State.GetSnake(snakeId).Body[0].Cell;
 
             if (IsShovelTargeting)
@@ -364,7 +313,6 @@ namespace SnakeBlockJam.Game
                 IsHintFree = false;
             else
                 HintsLeft--;
-            AutoHintedSnakeId = 0;
             HintedSnakeId = snakeId;
             boardView.SetHighlight(snakeId, feel.hintPulsePeriod);
             BoosterUsed?.Invoke();

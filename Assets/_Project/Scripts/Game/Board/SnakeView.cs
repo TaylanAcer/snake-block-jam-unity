@@ -128,6 +128,7 @@ namespace SnakeBlockJam.Game
         private float _peakTravel;
         private int _nextArrow;
         internal event Action ArrowPassed;
+        internal event Action TunnelEntered;
         internal event Action ShovelChipped;
 
         private void AdvanceForward()
@@ -362,8 +363,9 @@ namespace SnakeBlockJam.Game
             float t = Mathf.Clamp01(_removeElapsed / _removeSegmentTime - removed);
             Vector3 from = _segments[index].position;
             Vector3 to = _segments[Mathf.Max(0, index - 1)].position;
-            _shovel.position = Vector3.Lerp(from, to, t) + new Vector3(0.35f, 1.25f, 0.35f);
-            _shovel.rotation = Quaternion.Euler(75f, 0f, 12f * Mathf.Sin(t * Mathf.PI));
+            float lift = Mathf.Sin(t * Mathf.PI);
+            _shovel.position = Vector3.Lerp(from, to, t) + new Vector3(0.35f, 1.15f + 0.32f * lift, 0.35f);
+            _shovel.rotation = Quaternion.Euler(72f - 14f * lift, 0f, -9f + 25f * lift);
         }
 
         private void EmitBurrowChips(Vector3 center, int segment)
@@ -594,6 +596,8 @@ namespace SnakeBlockJam.Game
                     {
                         int buried = Mathf.Clamp(1 + Mathf.FloorToInt(_track.SegmentDistance(0, Travel) - _track.Length),
                             0, _segments.Count);
+                        if (_buriedSegments == 0 && buried > 0)
+                            TunnelEntered?.Invoke();
                         while (_buriedSegments < buried)
                             EmitBurrowChips(_track.Sample(_track.Length), _buriedSegments++);
                     }

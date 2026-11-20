@@ -514,6 +514,8 @@ public class GameSceneTests
         yield return LoadLevel(CatalogLevel(13));
         Transform overlay = GameObject.Find("Tutorials").transform.Find("Overlay");
         Assert.IsTrue(overlay.gameObject.activeSelf);
+        yield return new WaitUntil(() => overlay.GetComponent<CanvasGroup>().interactable);
+        Assert.AreEqual("Tutorial", Object.FindAnyObjectByType<SfxPlayer>().LastPlayed);
         Assert.AreEqual("İpucu", overlay.Find("Card/Header/Title").GetComponent<Text>().text);
         Assert.IsTrue(_input.IsOverUI(ScreenPointOf(3, 4)));
         overlay.Find("Card/Accept").GetComponent<Button>().onClick.Invoke();

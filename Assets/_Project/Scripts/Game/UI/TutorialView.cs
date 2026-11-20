@@ -28,6 +28,9 @@ namespace SnakeBlockJam.Game
         [SerializeField] private RectTransform shovelButton;
         private SnakeBlockJam.Core.BoardState previous;
         private RectTransform focus;
+        private CanvasGroup cardVisibility;
+        private float showAt;
+        private bool awaitingReveal;
 
         public void Configure(GameController game, GameObject panel, Text heading, Text body, Image icon, Sprite[] art)
         {
@@ -73,11 +76,18 @@ namespace SnakeBlockJam.Game
             previous = controller.State;
             int index = System.Array.IndexOf(Levels, controller.Level.levelNumber);
             bool show = index >= 0 && !seen[index];
+            awaitingReveal = show;
             overlay.SetActive(show);
             if (!show)
                 return;
 
             seen[index] = true;
+            if (cardVisibility == null && !overlay.TryGetComponent(out cardVisibility))
+                cardVisibility = overlay.AddComponent<CanvasGroup>();
+            cardVisibility.alpha = 0f;
+            cardVisibility.interactable = false;
+            var sounds = controller.GetComponent<SfxPlayer>();
+            showAt = Time.time + (sounds != null ? sounds.RevealDuration : 0f);
             title.text = Titles[index];
             description.text = Descriptions[index];
             picture.sprite = illustrations[index];
@@ -88,6 +98,7 @@ namespace SnakeBlockJam.Game
             if (!overlay.activeSelf)
                 return;
 
+            awaitingReveal = false;
             overlay.SetActive(false);
             if (controller.Level.levelNumber == GameController.HintUnlockLevel && controller.HintsLeft > 0)
                 focus = hintButton;
@@ -103,6 +114,14 @@ namespace SnakeBlockJam.Game
 
         private void LateUpdate()
         {
+            if (awaitingReveal && Time.time >= showAt)
+            {
+                awaitingReveal = false;
+                cardVisibility.alpha = 1f;
+                cardVisibility.interactable = true;
+                controller.GetComponent<SfxPlayer>()?.PlayTutorial();
+            }
+
             if (focus != null)
                 guide.position = focus.position;
         }

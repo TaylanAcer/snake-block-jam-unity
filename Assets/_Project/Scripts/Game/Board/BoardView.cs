@@ -124,6 +124,26 @@ namespace SnakeBlockJam.Game
         public int BurrowCount { get; private set; }
         public int ArrowCount { get; private set; }
         public event System.Action ArrowPassed;
+        public event System.Action RevealStarted;
+        public event System.Action TunnelEntered;
+        public event System.Action<int> EscapeStarted;
+        public event System.Action HawkShown;
+
+        private void OnTunnelEntered() => TunnelEntered?.Invoke();
+
+        public void ShowHawkEye(Cell cell)
+        {
+            var eye = new GameObject("Hawk eye").transform;
+            eye.SetParent(_content, false);
+            eye.position = Geometry.CellToWorld(cell) + Vector3.up * 0.6f;
+            eye.localRotation = Quaternion.Euler(0f, -18f, 0f);
+            eye.localScale = new Vector3(1f, 1f, 0.54f);
+            CreateFlatDisk(eye, "Outline", 0.94f, 0f, _pupilMaterial);
+            CreateFlatDisk(eye, "Iris", 0.75f, 0.06f, _snakeMaterials[(int)SnakeColor.Yellow]);
+            CreateFlatDisk(eye, "Pupil", 0.4f, 0.12f, _pupilMaterial);
+            HawkShown?.Invoke();
+            Destroy(eye.gameObject, 0.5f);
+        }
         public event System.Action ShovelChipped;
         private IReadOnlyList<ArrowDefinition> _arrows;
         private void OnArrowPassed() => ArrowPassed?.Invoke();
@@ -190,6 +210,7 @@ namespace SnakeBlockJam.Game
                 view.BeginReveal();
                 _snakes.Add(snake.Id, view);
             }
+            RevealStarted?.Invoke();
         }
 
         // Kaçışta yılanın view'ı tahtadaki yılanlardan ayrılır ve "hayalet" olarak
@@ -210,6 +231,10 @@ namespace SnakeBlockJam.Game
 
             int extension = view.Definition.Body.Count + EscapeMarginCells;
             var track = SnakeTrack.ForMove(view.Definition, result, Geometry, extension, _arrows);
+            if (result.Outcome == MoveOutcome.EscapedIntoBurrow)
+                view.TunnelEntered += OnTunnelEntered;
+            else
+                EscapeStarted?.Invoke(view.Definition.Body.Count);
             view.PlayEscape(track, result.Outcome, speed, viewCamera, OnEscapeFinished);
         }
 

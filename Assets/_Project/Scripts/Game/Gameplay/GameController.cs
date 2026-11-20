@@ -66,6 +66,7 @@ namespace SnakeBlockJam.Game
 
         // İpucu veya Kürek kullanıldı (ses).
         public event Action BoosterUsed;
+        public event Action ToolSelected;
 
         public BoardState State { get; private set; }
         public LevelData Level => level;
@@ -208,6 +209,8 @@ namespace SnakeBlockJam.Game
                     HintedSnakeId = 0;
 
                 boardView.PlayEscape(result, feel.escapeSpeed, gameCamera);
+                if (State.EscapedCount == FeedbackView.Streaks[1].Threshold)
+                    boardView.ShowHawkEye(cell);
             }
             else
             {
@@ -248,6 +251,7 @@ namespace SnakeBlockJam.Game
             if (snakeId == 0)
                 return false;
 
+            ToolSelected?.Invoke();
             HintsLeft--;
             HintedSnakeId = snakeId;
             boardView.SetHighlight(snakeId, feel.hintPulsePeriod);
@@ -262,6 +266,7 @@ namespace SnakeBlockJam.Game
             if (!CanUseBoosters || ShovelsLeft <= 0 || IsShovelTargeting)
                 return false;
 
+            ToolSelected?.Invoke();
             IsShovelTargeting = true;
             Changed?.Invoke();
             return true;

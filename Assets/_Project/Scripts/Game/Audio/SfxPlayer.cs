@@ -3,9 +3,6 @@ using UnityEngine;
 
 namespace SnakeBlockJam.Game
 {
-    // Oyun olaylarını efekt seslerine bağlar (spec §12 uygulama notu: minimum
-    // liste dokunma, çarpma, kaçış, ALL CLEAR, seri yazısı, booster). Sesler
-    // SfxSynth ile açılışta üretilir. Kural bilmez; sadece olayları dinler.
     [RequireComponent(typeof(AudioSource))]
     public sealed class SfxPlayer : MonoBehaviour
     {
@@ -14,11 +11,12 @@ namespace SnakeBlockJam.Game
         [Range(0f, 1f)] [SerializeField] private float volume = 0.8f;
 
         private AudioSource _source;
-        private AudioClip _shovelChip;
-        private AudioClip _tap, _bump, _escape, _allClear, _streak, _booster, _button, _arrowSlide;
+        private AudioClip _arrowSlide;
+        private readonly System.Collections.Generic.Dictionary<string, AudioClip> _clips = new();
 
-        // Son çalınan sesin adı (testler için; batchmode'da ses aygıtı olmayabilir).
+        // Son Ã§alÄ±nan sesin adÄ± (testler iÃ§in; batchmode'da ses aygÄ±tÄ± olmayabilir).
         public string LastPlayed { get; private set; }
+        public float RevealDuration => _clips["Reveal"].length;
 
         private void Awake()
         {
@@ -26,22 +24,21 @@ namespace SnakeBlockJam.Game
             _source.playOnAwake = false;
             _source.spatialBlend = 0f;
 
-            _tap = SfxSynth.ToClip("Tap", SfxSynth.Tap());
-            _bump = SfxSynth.ToClip("Bump", SfxSynth.Bump());
+            foreach (var clip in Resources.LoadAll<AudioClip>("GameSounds"))
+                _clips.Add(clip.name, clip);
             _arrowSlide = SfxSynth.ToClip("ArrowSlide", SfxSynth.ArrowSlide());
-            _escape = SfxSynth.ToClip("Escape", SfxSynth.Escape());
-            _allClear = SfxSynth.ToClip("AllClear", SfxSynth.AllClear());
-            _streak = SfxSynth.ToClip("Streak", SfxSynth.Streak());
-            _button = SfxSynth.ToClip("Button", SfxSynth.Button());
-            _booster = SfxSynth.ToClip("Booster", SfxSynth.Booster());
-            _shovelChip = SfxSynth.ToClip("ShovelChip", SfxSynth.ShovelChip());
         }
 
         private void OnEnable()
         {
             controller.MovePlayed += OnMovePlayed;
+            controller.BoardView.RevealStarted += OnReveal;
+            controller.BoardView.TunnelEntered += OnTunnel;
+            controller.BoardView.EscapeStarted += OnEscape;
+            controller.BoardView.HawkShown += OnHawk;
+            controller.ToolSelected += PlayButton;
             controller.LevelCleared += OnLevelCleared;
-            controller.BoosterUsed += OnBoosterUsed;
+
             controller.BoardView.ArrowPassed += OnArrowPassed;
             controller.BoardView.ShovelChipped += OnShovelChipped;
             controller.BoardView.BlockedContact += OnBlockedContact;
@@ -53,11 +50,15 @@ namespace SnakeBlockJam.Game
         private void OnDisable()
         {
             controller.MovePlayed -= OnMovePlayed;
+            controller.ToolSelected -= PlayButton;
             controller.LevelCleared -= OnLevelCleared;
-            controller.BoosterUsed -= OnBoosterUsed;
 
             if (controller.BoardView != null)
             {
+                controller.BoardView.RevealStarted -= OnReveal;
+                controller.BoardView.TunnelEntered -= OnTunnel;
+                controller.BoardView.EscapeStarted -= OnEscape;
+                controller.BoardView.HawkShown -= OnHawk;
                 controller.BoardView.BlockedContact -= OnBlockedContact;
                 controller.BoardView.ArrowPassed -= OnArrowPassed;
                 controller.BoardView.ShovelChipped -= OnShovelChipped;
@@ -67,24 +68,24 @@ namespace SnakeBlockJam.Game
                 feedback.StreakShown -= OnStreakShown;
         }
 
-        // Her kabul edilen dokunuş yumuşak bir tık; kaçışsa üstüne kaçış sesi.
-        // Çarpma sesi temas anında gelir (R-FX-11: ikinci, yüksek vuruş).
         private void OnMovePlayed(MoveResult result)
         {
-            Play(_tap);
-
-            if (result.IsEscaped)
-                Play(_escape);
+            if (result.Outcome == MoveOutcome.Blocked)
+                Play(_clips["Tap"]);
         }
 
+        private void OnReveal() => Play(_clips["Reveal"]);
+        private void OnTunnel() => Play(_clips["Tunnel"]);
+        private void OnEscape(int segments) => Play(_clips[segments <= 3 ? "ShortEscape" : "Escape"]);
+        private void OnHawk() => Play(_clips["Hawk"]);
         private void OnArrowPassed() => Play(_arrowSlide);
-        private void OnShovelChipped() => Play(_shovelChip);
-        private void OnBlockedContact(MoveResult result) => Play(_bump);
-        private void OnLevelCleared() => Play(_allClear);
-        private void OnStreakShown(int index) => Play(_streak);
-        private void OnBoosterUsed() => Play(_booster);
+        private void OnShovelChipped() => Play(_clips["ShovelChip"]);
+        private void OnBlockedContact(MoveResult result) => Play(_clips["Bump"]);
+        private void OnLevelCleared() => Play(_clips["AllClear"]);
+        private void OnStreakShown(int index) => Play(_clips[FeedbackView.Streaks[index].Text.TrimEnd('!')]);
 
-        public void PlayButton() => Play(_button);
+        public void PlayButton() => Play(_clips["Button"]);
+        public void PlayTutorial() => Play(_clips["Tutorial"]);
 
         private void Play(AudioClip clip)
         {
@@ -94,11 +95,8 @@ namespace SnakeBlockJam.Game
 
         private void OnDestroy()
         {
-            foreach (var clip in new[] { _tap, _bump, _escape, _allClear, _streak, _booster, _button, _arrowSlide, _shovelChip })
-            {
-                if (clip != null)
-                    Destroy(clip);
-            }
+            if (_arrowSlide != null)
+                Destroy(_arrowSlide);
         }
     }
 }

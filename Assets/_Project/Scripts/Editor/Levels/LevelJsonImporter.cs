@@ -24,11 +24,10 @@ namespace SnakeBlockJam.EditorTools
         public const string LevelFolder = "Assets/_Project/Data/Levels";
 
         // Tahtası bütün W × H dikdörtgen olan level'lar (JSON'da tahta şekli yok).
-        // OBSERVED: Level_15.png'de yılansız 24 çift (x, y) hücrenin 24'ünde de
-        // nokta var. Diğer 19 başlangıç karesinde yılansız hücrede nokta yok
-        // (L16'daki 6 nokta, açılış animasyonunda henüz çizilmemiş yılan
-        // başlarının altında). Level Editor'de tahta maskesi gelince kalkacak.
-        public static readonly int[] RectangularBoardLevels = { 15 };
+        // L1–L20'de yok: Level_15.png ve Level_16.png'de yılansız görünen noktalar,
+        // açılış animasyonunda henüz çizilmemiş yılan başlarının altındaydı (v16/v17
+        // açılış sonrası karelerde nokta yok). Alan, Level Editor'de elle açılabilir.
+        public static readonly int[] RectangularBoardLevels = { };
 
         // Level başındaki booster stoku: (level, İpucu, Kürek). JSON'da yok.
         // OBSERVED, 17 Kasım oyunu: Level_13–20.png alt bölümü + probe_shovel_v19_p1
@@ -41,6 +40,48 @@ namespace SnakeBlockJam.EditorTools
         {
             (13, 1, 0), (14, 1, 0), (15, 1, 0), (16, 1, 0),
             (17, 0, 0), (18, 0, 1), (19, 0, 1), (20, 1, 1)
+        };
+
+        // İlerleme kuralları (JSON'da yok; LevelData'ya yazılır, oyun kodunda level
+        // numarası yok). R-FX-08: İpucu L13'te, Kürek L18'de tanıtılıyor; öncesinde
+        // butonları yok (Level_11/12.png'de booster yok, L13–L17'de sadece İpucu, L18+
+        // ikisi). R-WIN-03: TAMAMLANDI L5'ten itibaren; L1–L4'te sonraki bölüm açılır.
+        public const int HintUnlockLevel = 13;
+        public const int ShovelUnlockLevel = 18;
+        public const int FirstCompletedScreenLevel = 5;
+
+        // R-FX-08: tanıtım kartları (öğretici metinleri: 180308, 203758, 204056, 205128, 205721).
+        public static readonly (int level, TutorialKind kind)[] Tutorials =
+        {
+            (5, TutorialKind.Bridge), (11, TutorialKind.Burrow), (13, TutorialKind.Hint),
+            (18, TutorialKind.Shovel), (20, TutorialKind.Arrow)
+        };
+
+        // Portre kamera çerçevesi: (genişlik, yükseklik, hücre çarpanı, aşağı kayma px).
+        // 720×1616 karelerdeki dolu gövde maskelerinden ölçüldü (learning/16). Sıra
+        // L1–L20; genişlik/yükseklik JSON'la uyuşmazsa genel fit (1, 0) kullanılır.
+        public static readonly (int width, int height, float scale, int downPixels)[] CameraFraming =
+        {
+            (7, 9, 0.985f, 9),
+            (9, 11, 0.961f, 14),
+            (23, 23, 1.033f, 7),
+            (23, 28, 1.019f, -7),
+            (13, 21, 1.005f, 3),
+            (13, 21, 1.003f, 29),
+            (21, 29, 0.989f, 28),
+            (21, 29, 0.985f, 29),
+            (19, 29, 1.011f, 20),
+            (23, 35, 1.017f, 17),
+            (25, 29, 0.989f, 30),
+            (25, 33, 0.981f, 27),
+            (21, 33, 0.981f, 2),
+            (23, 23, 1.033f, 10),
+            (25, 25, 0.993f, 11),
+            (27, 31, 1.021f, 5),
+            (25, 29, 0.993f, 8),
+            (21, 29, 0.989f, 6),
+            (21, 31, 0.983f, 4),
+            (19, 27, 1.015f, 2)
         };
 
         // "meta" (açıklamalar) ve "validation" (çözücü çıktısı) türetilmiş
@@ -265,6 +306,26 @@ namespace SnakeBlockJam.EditorTools
 
                     level.hintCount = hints;
                     level.shovelCount = shovels;
+                }
+
+                level.hintUnlocked = expectedNumber >= HintUnlockLevel;
+                level.shovelUnlocked = expectedNumber >= ShovelUnlockLevel;
+                level.showCompletedScreen = expectedNumber >= FirstCompletedScreenLevel;
+
+                foreach (var (tutorialLevel, kind) in Tutorials)
+                {
+                    if (tutorialLevel == expectedNumber)
+                        level.tutorial = kind;
+                }
+
+                if (expectedNumber >= 1 && expectedNumber <= CameraFraming.Length)
+                {
+                    var frame = CameraFraming[expectedNumber - 1];
+                    if (frame.width == level.width && frame.height == level.height)
+                    {
+                        level.cameraScale = frame.scale;
+                        level.cameraDownPixels = frame.downPixels;
+                    }
                 }
 
                 foreach (var token in RequireArray(json, "snakes", context))

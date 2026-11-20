@@ -182,16 +182,6 @@ public class BoardGeometryTests
         Assert.IsFalse(BoardView.HasDot(state, new Cell(3, 0)), "odd x, under yellow snake 4");
     }
 
-    // Level_15.png: yılansız 24 çift (x, y) hücrenin hepsinde nokta var →
-    // dikdörtgen tahta. Hücreler kareden piksel → hücre eşlemesiyle okundu.
-    private static readonly Cell[] Level15VisibleDots =
-    {
-        new Cell(0, 0), new Cell(0, 16), new Cell(0, 18), new Cell(0, 20), new Cell(0, 22), new Cell(0, 24),
-        new Cell(2, 0), new Cell(4, 0), new Cell(6, 0), new Cell(8, 0), new Cell(10, 8), new Cell(10, 16),
-        new Cell(12, 8), new Cell(14, 8), new Cell(16, 0), new Cell(16, 24), new Cell(18, 0), new Cell(18, 24),
-        new Cell(20, 0), new Cell(20, 24), new Cell(22, 0), new Cell(22, 24), new Cell(24, 0), new Cell(24, 24)
-    };
-
     private static List<LevelData> SourceLevels()
     {
         return SnakeBlockJam.EditorTools.LevelJsonImporter.Parse(
@@ -217,26 +207,11 @@ public class BoardGeometryTests
         return visible;
     }
 
+    // 20 bölümün hiçbirinde açılış bittiğinde yılansız hücrede nokta görünmüyor.
+    // L15: Level_15.png'deki 24 nokta açılış animasyonunda henüz çizilmemiş yılan
+    // başlarının altındaydı; v16 açılış sonrası karede nokta yok (20 Kasım düzeltmesi).
     [Test]
-    public void Level15_RectangularBoard_ShowsExactlyTheReferenceDots()
-    {
-        var levels = SourceLevels();
-
-        try
-        {
-            Assert.IsTrue(levels[14].isRectangularBoard);
-            CollectionAssert.AreEquivalent(Level15VisibleDots, VisibleDotsAtStart(levels[14]));
-        }
-        finally
-        {
-            foreach (var level in levels)
-                Object.DestroyImmediate(level);
-        }
-    }
-
-    // Diğer 19 başlangıç karesinde yılansız hücrede nokta yok.
-    [Test]
-    public void OtherLevels_ShowNoDotsAtStart()
+    public void AllLevels_ShowNoDotsAtStart()
     {
         var levels = SourceLevels();
 
@@ -244,9 +219,6 @@ public class BoardGeometryTests
         {
             foreach (var level in levels)
             {
-                if (level.levelNumber == 15)
-                    continue;
-
                 Assert.IsFalse(level.isRectangularBoard, $"L{level.levelNumber}");
                 CollectionAssert.IsEmpty(VisibleDotsAtStart(level), $"L{level.levelNumber}");
             }

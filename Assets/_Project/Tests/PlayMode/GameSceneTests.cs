@@ -107,6 +107,29 @@ public class GameSceneTests
         Assert.AreEqual(3, _controller.State.EscapedCount);
     }
 
+    // Kameradan noktaya giden ışın, noktadan önce başka bir yılanın parçasına
+    // çarpıyorsa nokta ekranda görünmez (o noktaya dokunuş öndeki yılanı seçer).
+    private static bool HiddenByAnotherSnake(Camera camera, Vector3 point, SnakeView owner)
+    {
+        Vector3 origin = camera.transform.position;
+        float distance = Vector3.Distance(origin, point);
+        var ray = new Ray(origin, (point - origin) / distance);
+
+        foreach (var other in Object.FindObjectsByType<SnakeView>(FindObjectsSortMode.None))
+        {
+            if (other == owner)
+                continue;
+
+            foreach (var piece in other.PickRenderers)
+            {
+                if (piece.bounds.IntersectRay(ray, out float hit) && hit < distance - 0.02f)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     // Cihaz gözlemi: göze/başa dokunuş bazen hamle başlatmıyordu. Gözler blok
     // üstünden yükselir ve hücreden taşar; yalnız üst düzlem hit-testi bu noktaları
     // komşu hücreye düşürüyordu (20 level ölçümü: göz %12–18, dil %42–48, kuyruk
@@ -146,6 +169,8 @@ public class GameSceneTests
                             continue; // kameraya bakmıyor
 
                         world = Vector3.Lerp(world, renderer.bounds.center, 0.05f);
+                        if (HiddenByAnotherSnake(camera, world, view))
+                            continue; // ör. başı alttaki yılana dayanan yılanın dili: ekranda görünmüyor
                         points++;
                         if (!_input.TryPickSnake(camera.WorldToScreenPoint(world), out int picked) ||
                             picked != view.SnakeId)
@@ -157,6 +182,19 @@ public class GameSceneTests
             Assert.Greater(points, 100, $"L{number} sampled points");
             Assert.LessOrEqual(misses, points / 200, $"L{number}: {misses}/{points} face points miss their snake");
         }
+    }
+
+    // R-TRN-06: bölüm başında yılanlar yolları boyunca çizilir; L7'nin 95 hücrelik
+    // çevre yılanı referansta ~0,5 sn'de tamamlanıyor. Çizim bitince yılan tek mesh'e
+    // birleştirildiği için IsBaked, çizimin bittiğini gösterir.
+    [UnityTest]
+    public IEnumerator Reveal_LongestSnakeOfL7_IsDrawnWithinHalfASecond()
+    {
+        yield return LoadLevel(CatalogLevel(7));
+        yield return new WaitForSeconds(0.6f);
+
+        foreach (var view in Object.FindObjectsByType<SnakeView>(FindObjectsSortMode.None))
+            Assert.IsTrue(view.IsBaked, $"snake {view.SnakeId} ({view.Definition.Body.Count} cells) still drawing");
     }
 
     // Çizim çağrısı bütçesi (Galaxy A13, L7 render thread %75): dururken gövde tek
@@ -195,7 +233,7 @@ public class GameSceneTests
     public IEnumerator Tap_JustOutsideSnakeEdge_PicksThatSnake()
     {
         yield return LoadLevel(CatalogLevel(7));
-        yield return new WaitForSeconds(1.5f); // 95 segmentlik yılanın çizimi ~1,2 sn
+        yield return new WaitForSeconds(0.8f); // 95 segmentlik yılanın çizimi ~0,5 sn
         Camera camera = _controller.GameCamera;
         BoardState state = _controller.State;
         Direction[] sides = { Direction.Up, Direction.Down, Direction.Left, Direction.Right };
@@ -1284,7 +1322,8 @@ public class GameSceneTests
     [UnityTest]
     public IEnumerator Shovel_LastSnake_WinsLevel()
     {
-        LevelData level = BurrowTestLevel(); // numara 98 ≥ 18: kürek butonu açık
+        LevelData level = BurrowTestLevel();
+        level.shovelUnlocked = true; // kürek açıklığı bölüm verisinde
         level.shovelCount = 1;
 
         try

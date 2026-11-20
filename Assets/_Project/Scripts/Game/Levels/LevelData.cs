@@ -69,7 +69,7 @@ namespace SnakeBlockJam.Game
         // Tahtanın şekli (sadece sunum: grid noktaları). false: tahta =
         // başlangıçta yılanların kapladığı hücreler. true: bütün W × H dikdörtgen.
         // JSON'da yok; importer kanıta göre doldurur (LevelJsonImporter).
-        [Tooltip("true: grid noktaları bütün W×H dikdörtgende (L15). false: sadece başlangıçta yılan altındaki hücrelerde.")]
+        [Tooltip("true: grid noktaları bütün W×H dikdörtgende. false: sadece başlangıçta yılan altındaki hücrelerde.")]
         public bool isRectangularBoard;
 
         // Level başındaki booster stoku (R-HNT-03, R-SHV-04). Referansta stok
@@ -81,6 +81,29 @@ namespace SnakeBlockJam.Game
 
         [Tooltip("Level başında Kürek sayısı. Buton L18'den itibaren görünür; 0 ise '+' rozetli ve pasif.")]
         [Min(0)] public int shovelCount;
+
+        // İlerleme kuralları veride (kodda level numarası yok). Importer referans
+        // kanıtına göre doldurur (LevelJsonImporter): İpucu L13+, Kürek L18+ (R-FX-08),
+        // TAMAMLANDI L5+ (R-WIN-03), tanıtımlar L5/L11/L13/L18/L20.
+        [Tooltip("İpucu butonu bu bölümde görünür (R-HNT-03).")]
+        public bool hintUnlocked;
+
+        [Tooltip("Kürek butonu bu bölümde görünür (R-SHV-04).")]
+        public bool shovelUnlocked;
+
+        [Tooltip("Kazanınca ALL CLEAR'dan sonra TAMAMLANDI penceresi çıkar; kapalıysa sonraki bölüm doğrudan açılır (R-WIN-03).")]
+        public bool showCompletedScreen;
+
+        [Tooltip("Bölüm başında gösterilen tanıtım kartı (R-FX-08). İpucu ve Kürek tanıtımı ilk kullanımı ücretsiz yapar.")]
+        public TutorialKind tutorial;
+
+        // Portre kamera çerçevesi (sadece sunum). L1–L20 için 720×1616 referans
+        // karelerindeki gövde maskelerinden ölçüldü (learning/16); yeni bölümde 1 / 0.
+        [Tooltip("Hücre boyutu çarpanı (genel fit × bu değer). Yeni bölümde 1.")]
+        [Min(0.5f)] public float cameraScale = 1f;
+
+        [Tooltip("Tahtanın aşağı kaydırılması, 720 px genişlikli referans karede piksel. Yeni bölümde 0.")]
+        public int cameraDownPixels;
 
         public List<SnakeData> snakes = new List<SnakeData>();
         public List<BridgeData> bridges = new List<BridgeData>();

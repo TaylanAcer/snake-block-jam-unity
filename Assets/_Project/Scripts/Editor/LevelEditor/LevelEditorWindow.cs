@@ -227,9 +227,21 @@ namespace SnakeBlockJam.EditorTools
 
             EditorGUILayout.PropertyField(_serialized.FindProperty("isHard"), new GUIContent("Hard"));
             EditorGUILayout.PropertyField(_serialized.FindProperty("isRectangularBoard"),
-                new GUIContent("Dikdörtgen tahta", "Grid noktaları bütün W×H'de (L15)."));
+                new GUIContent("Dikdörtgen tahta", "Grid noktaları bütün W×H'de."));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("hintUnlocked"),
+                new GUIContent("İpucu açık", "İpucu butonu bu bölümde görünür."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("hintCount"), new GUIContent("İpucu"));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("shovelUnlocked"),
+                new GUIContent("Kürek açık", "Kürek butonu bu bölümde görünür."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("shovelCount"), new GUIContent("Kürek"));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("showCompletedScreen"),
+                new GUIContent("TAMAMLANDI ekranı", "Kapalıysa kazanınca sonraki bölüm doğrudan açılır (L1–L4)."));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("tutorial"),
+                new GUIContent("Tanıtım kartı", "Bölüm başında gösterilir; İpucu/Kürek tanıtımı ilk kullanımı ücretsiz yapar."));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("cameraScale"),
+                new GUIContent("Kamera ölçeği", "Hücre boyutu çarpanı (1 = genel fit)."));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("cameraDownPixels"),
+                new GUIContent("Kamera kayması (px)", "720 px genişlikli karede tahtanın aşağı kayması."));
 
             if (_serialized.ApplyModifiedProperties())
                 Revalidate();
@@ -673,6 +685,12 @@ namespace SnakeBlockJam.EditorTools
                 created.width = 9;
                 created.height = 11;
                 created.name = $"Level_{number:00}";
+
+                // İlerleme varsayılanları referans kurallarıyla aynı (LevelJsonImporter);
+                // Inspector'dan değiştirilebilir.
+                created.hintUnlocked = number >= LevelJsonImporter.HintUnlockLevel;
+                created.shovelUnlocked = number >= LevelJsonImporter.ShovelUnlockLevel;
+                created.showCompletedScreen = number >= LevelJsonImporter.FirstCompletedScreenLevel;
             }
 
             string path = LevelJsonImporter.AssetPath(number);

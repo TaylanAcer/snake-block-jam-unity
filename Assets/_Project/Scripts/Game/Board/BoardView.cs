@@ -109,7 +109,8 @@ namespace SnakeBlockJam.Game
         private Material _arrowMaterial;
         private Mesh _arrowMesh;
         private Transform _content;
-        private int _levelNumber;
+        private float _cameraScale = 1f;
+        private int _cameraDownPixels;
 
         // Köprü yolu üzerindeki hücreler: dokunuş önce köprü üstü yüksekliğinde aranır.
         private readonly HashSet<Cell> _bridgeCells = new HashSet<Cell>();
@@ -172,13 +173,14 @@ namespace SnakeBlockJam.Game
             Clear();
             EnsureMaterials();
 
-            _levelNumber = level.levelNumber;
+            _cameraScale = level.cameraScale;
+            _cameraDownPixels = level.cameraDownPixels;
             Geometry = new BoardGeometry(level.width, level.height);
             _content = new GameObject("Content").transform;
             _content.SetParent(transform, false);
 
             _chipsByColor = new ParticleSystem[_snakeMaterials.Length];
-            bool usesChips = state.Level.Burrows.Count > 0 || level.levelNumber >= GameController.ShovelUnlockLevel;
+            bool usesChips = state.Level.Burrows.Count > 0 || level.shovelUnlocked;
             CreateGround();
             CreateDots(state, level.isRectangularBoard);
             CreateBridges(state.Level.Bridges);
@@ -402,10 +404,9 @@ namespace SnakeBlockJam.Game
             float shiftPixels = 0f;
             if (screenHeight > screenWidth)
             {
-                var frame = CameraFit.ReferenceFraming(_levelNumber, Geometry.Width, Geometry.Height);
-                cellPixels = Mathf.Min(cellPixels * frame.scale,
+                cellPixels = Mathf.Min(cellPixels * _cameraScale,
                     fitSettings.BoardHeightFill * screenHeight / Geometry.Height);
-                shiftPixels = screenWidth * frame.downFraction;
+                shiftPixels = screenWidth * _cameraDownPixels / CameraFit.ReferenceWidth;
             }
             float distance = CameraFit.DistanceForPixelsPerUnit(
                 cellPixels, screenHeight, cameraFieldOfView);

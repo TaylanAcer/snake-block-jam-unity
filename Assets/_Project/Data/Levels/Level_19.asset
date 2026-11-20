@@ -21,6 +21,12 @@ MonoBehaviour:
   isRectangularBoard: 0
   hintCount: 0
   shovelCount: 1
+  hintUnlocked: 1
+  shovelUnlocked: 1
+  showCompletedScreen: 1
+  tutorial: 0
+  cameraScale: 0.983
+  cameraDownPixels: 4
   snakes:
   - id: 1
     color: 5

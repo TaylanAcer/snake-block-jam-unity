@@ -136,6 +136,46 @@ public class LevelJsonImporterTests
         Assert.AreEqual(2, top);
     }
 
+    // İlerleme kuralları veride (oyun kodunda level numarası yok): İpucu L13+,
+    // Kürek L18+ (R-FX-08), TAMAMLANDI L5+ (R-WIN-03), tanıtımlar L5/11/13/18/20.
+    [Test]
+    public void Progression_IsWrittenToLevelData()
+    {
+        for (int n = 1; n <= 20; n++)
+        {
+            var level = Level(n);
+            Assert.AreEqual(n >= 13, level.hintUnlocked, $"L{n} hint");
+            Assert.AreEqual(n >= 18, level.shovelUnlocked, $"L{n} shovel");
+            Assert.AreEqual(n >= 5, level.showCompletedScreen, $"L{n} completed screen");
+        }
+
+        Assert.AreEqual(TutorialKind.Bridge, Level(5).tutorial);
+        Assert.AreEqual(TutorialKind.Burrow, Level(11).tutorial);
+        Assert.AreEqual(TutorialKind.Hint, Level(13).tutorial);
+        Assert.AreEqual(TutorialKind.Shovel, Level(18).tutorial);
+        Assert.AreEqual(TutorialKind.Arrow, Level(20).tutorial);
+        Assert.AreEqual(TutorialKind.None, Level(6).tutorial);
+    }
+
+    // Kamera çerçevesi referans karelerden (learning/16), bölüm verisinde.
+    [Test]
+    public void CameraFraming_IsWrittenToLevelData()
+    {
+        Assert.AreEqual(1.003f, Level(6).cameraScale, 1e-5f);
+        Assert.AreEqual(29, Level(6).cameraDownPixels);
+        Assert.AreEqual(0.985f, Level(1).cameraScale, 1e-5f);
+        Assert.AreEqual(9, Level(1).cameraDownPixels);
+    }
+
+    [Test]
+    public void NewLevelData_UsesGenericCameraFit()
+    {
+        var level = ScriptableObject.CreateInstance<LevelData>();
+        Assert.AreEqual(1f, level.cameraScale);
+        Assert.AreEqual(0, level.cameraDownPixels);
+        Object.DestroyImmediate(level);
+    }
+
     // R-BRG-11: L10 ve L19'daki kısa köprüler 1 hücre. Referans karelerde ~2,2 hücre
     // görünüyorlar (1 hücre + korkuluk taşması); BridgeView 1 hücrelik köprüyü 2 hücre
     // boyunda çizer. 1 hücrede yön yoldan çıkmadığı için JSON'da "axis" verilir.

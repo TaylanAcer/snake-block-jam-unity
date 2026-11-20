@@ -47,7 +47,7 @@ LevelData / LevelCatalog ──► GameController ◄── InputHandler
 2. **Köprüde hücre başına iki katman.** Doluluk `(hücre, katman)` çifti olarak tutulur (`Ground`, `BridgeTop`). Böylece aynı hücrede biri üstte biri altta iki yılan bulunabilir ve bir yılan aynı köprü hücresinden bir kez alttan bir kez üstten geçebilir (L19). Üst kata yalnızca köprü uçlarından, yol doğrultusunda girilir.
 3. **Tek Solver, iki kullanım.** Bir yılanın kaçması diğerlerinin yolunu yalnızca açar, hiçbir zaman kapatmaz; bu yüzden açgözlü (greedy) çözüm, bölüm çözülebilirse onu mutlaka bulur. Aynı `Solver` hem Level Editor'de bölümün çözülebilir olduğunu doğrular hem de İpucu'nda kaçabilecek yılanı seçer.
 4. **Kanıta dayalı kurallar.** Her mekanik referans kayıtlarından "doğrulandı / gözlendi / ölçüldü / varsayım" olarak etiketlendi. Doğrulanmamış davranış kural olarak kodlanmadı; zorunlu varsayımlar (ör. yılanın kendi gövdesinin engel olmaması) kodda ve bu README'de belirtildi.
-5. **Ayarlar veride, kural kodda.** Bölümler `LevelData` asset'leri, bütün süre ve hızlar `FeelSettings` asset'i. Yeni bölüm veya his ayarı için kod değişmez.
+5. **Ayarlar veride, kural kodda.** Bölümler `LevelData` asset'leri (yerleşim, stok, booster açılışı, tanıtım kartı, kamera çerçevesi), bütün süre ve hızlar `FeelSettings` asset'i. Yeni bölüm veya his ayarı için kod değişmez.
 6. **Görünenle seçim.** Dokunma, ekrandan atılan ışının yılanın görünen parçalarıyla (blok, göz, dil, kuyruk ucu) kesişmesiyle seçilir; tam isabet yoksa ~3 mm'lik parmak toleransı uygulanır. Eğik kamerada sadece blok üst yüzüne bakan eski yöntem, 20 bölümde göz ve dil üzerindeki örnek noktaların %12–48'ini kaçırıyordu; yeni yöntemde kaçırma yok.
 7. **Cihazda ölçerek optimizasyon.** Galaxy A13'te darboğaz önce GPU, sonra çizim çağrısı sayısı çıktı. Duran yılanların gövdesi tek mesh'te birleştirilir (yılan başına ~40 yerine 2 çizim çağrısı; hareket, göçük veya kürek başlarken parçalara dönülür). Mobil grafik ayarında HDR kapatıldı, MSAA 2× yapıldı. Telefonda sabit 30 FPS ve tam çözünürlük; masaüstü ve editörde 60.
 
@@ -61,7 +61,7 @@ LevelData / LevelCatalog ──► GameController ◄── InputHandler
 4. **Kaydet**; yeni bölümse **Kataloğa ekle**.
 5. **▶ Oyna** seçili bölümü doğrudan oyunda başlatır.
 
-Bölümler `Assets/_Project/Data/Levels/Level_NN.asset` (`LevelData`) dosyalarıdır, oyun bunları `Data/LevelCatalog.asset` sırasıyla yükler. 20 bölümün hepsi bu sistem üzerinden çalışır; gameplay koduna dokunmadan bölüm eklenip düzenlenebilir.
+Bölümler `Assets/_Project/Data/Levels/Level_NN.asset` (`LevelData`) dosyalarıdır, oyun bunları `Data/LevelCatalog.asset` sırasıyla yükler. 20 bölümün hepsi bu sistem üzerinden çalışır; gameplay koduna dokunmadan bölüm eklenip düzenlenebilir. Booster'ların açık olup olmadığı, TAMAMLANDI ekranı, tanıtım kartı ve kamera çerçevesi de bölüm verisindedir; oyun kodunda level numarasına bağlı kural yoktur.
 
 ![Level Editor'de L19 köprü hücrelerinin ayrıntısı](Media/level-editor-L19.png)
 
@@ -79,12 +79,14 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 
 ## Doğrulama
 
-- **Otomatik testler:** Unity Test Runner ile 377 EditMode ve 49 PlayMode testi (20 Kasım 2026). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır.
+- **Otomatik testler:** Unity Test Runner ile 387 EditMode ve 51 PlayMode testi (20 Kasım 2026). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır.
 - **Fiziksel cihaz (Samsung Galaxy A13, Android 12, Mali-G52):**
   - 20 bölüm baştan sona oynandı (performans optimizasyonu öncesi build): 20 ALL CLEAR, 1 HAMLE YOK, 419 hamle. Unity hatası, exception, çökme veya ANR görülmedi.
   - Dokunuştan hamleye gecikme: medyan 15 ms.
   - Bellek 270–341 MB, sızıntı yok.
   - Optimizasyon sonrası tam çözünürlükte bir kare ~22 ms; L1'de karelerin %97,8'i tam 33 ms (sabit 30 FPS).
+  - Bellek ayırma (development build, otomatik oynama L1–L9): boşta kare başına ≈ 0 B; ayırma sadece dokunuş anında (kare başı ortalama 0,5–1,5 KB) ve bölüm yüklemede (tek seferlik 130–570 KB). GC toplaması ~10 sn'de bir, Mono heap 3–4 MB.
+- **Bölüm düzenleri:** 20 bölümün render'ı, referans videolardaki açılış sonrası karelerle renk maskesiyle karşılaştırıldı. L15'te 11 yılanın başı geride okunmuştu (başlangıç karesi açılış animasyonu bitmeden çekilmiş); düzeltildi ve hücre hücre eşleşiyor. L10/L19'daki kısa köprüler 1 hücreye düşürüldü.
 - **Emülatör:** Android 15 Pixel 8 AVD'de L1–L20 geçildi.
 
 ![Release APK ekranları](Media/android-release.png)

@@ -35,15 +35,6 @@ namespace SnakeBlockJam.Game
     // (R-CON-01/02/05).
     public sealed class GameController : MonoBehaviour
     {
-        // R-WIN-03: TAMAMLANDI L5'ten itibaren; L1–L4'te sonraki level doğrudan açılır.
-        public const int FirstLevelWithCompletedScreen = 5;
-
-        // R-FX-08: İpucu L13'te, Kürek L18'de tanıtılıyor; öncesinde butonları yok
-        // (Level_11/12.png'de booster yok, L13–L17'de sadece İpucu, L18+ ikisi).
-        // Stok level verisinden gelir (LevelData.hintCount/shovelCount); Restart yeniler.
-        public const int HintUnlockLevel = 13;
-        public const int ShovelUnlockLevel = 18;
-
         [Tooltip("Başlangıç level'ı. Sonrakiler katalogdan gelir.")]
         [SerializeField] private LevelData level;
         [SerializeField] private LevelCatalog catalog;
@@ -85,8 +76,10 @@ namespace SnakeBlockJam.Game
         public bool IsInputLocked { get; private set; }
 
         // --- Boosterlar (Faz 9) ---
-        public bool IsHintUnlocked => level != null && level.levelNumber >= HintUnlockLevel;
-        public bool IsShovelUnlocked => level != null && level.levelNumber >= ShovelUnlockLevel;
+        // Hangi bölümde açık oldukları ve stok level verisinde (LevelData.hintUnlocked,
+        // shovelUnlocked, hintCount, shovelCount); Restart stoğu yeniler.
+        public bool IsHintUnlocked => level != null && level.hintUnlocked;
+        public bool IsShovelUnlocked => level != null && level.shovelUnlocked;
         public int HintsLeft { get; private set; }
         public int ShovelsLeft { get; private set; }
 
@@ -120,6 +113,12 @@ namespace SnakeBlockJam.Game
         private void Awake()
         {
             Application.targetFrameRate = Application.isMobilePlatform ? MobileFrameRate : DesktopFrameRate;
+
+            // Hamle ve level sonu logları cihazda doğrulama için kalır (logcat), ama release
+            // build'de her satıra yığın izi eklemek her hamlede gereksiz CPU ve bellek harcar
+            // (Galaxy A13 logcat: hamle başına 7 satır iz). Uyarı ve hatalar izini korur.
+            if (!Debug.isDebugBuild)
+                Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
         }
 
         private void Start()
@@ -390,7 +389,7 @@ namespace SnakeBlockJam.Game
             SetPhase(GamePhase.ClearWave);
             yield return boardView.PlayClearWave(feel.clearWaveDuration, feel.clearFadeDuration);
 
-            if (level.levelNumber >= FirstLevelWithCompletedScreen)
+            if (level.showCompletedScreen)
                 SetPhase(GamePhase.Completed);
             else
                 LoadNextLevel();

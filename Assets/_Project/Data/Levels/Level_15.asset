@@ -18,14 +18,40 @@ MonoBehaviour:
   hasMoveLimit: 1
   moveLimit: 34
   isHard: 0
-  isRectangularBoard: 1
+  isRectangularBoard: 0
   hintCount: 1
   shovelCount: 0
+  hintUnlocked: 1
+  shovelUnlocked: 0
+  showCompletedScreen: 1
+  tutorial: 0
+  cameraScale: 0.993
+  cameraDownPixels: 11
   snakes:
   - id: 1
     color: 1
-    direction: 3
+    direction: 2
     body:
+    - cell: {x: 0, y: 16}
+      layer: 0
+    - cell: {x: 0, y: 17}
+      layer: 0
+    - cell: {x: 0, y: 18}
+      layer: 0
+    - cell: {x: 0, y: 19}
+      layer: 0
+    - cell: {x: 0, y: 20}
+      layer: 0
+    - cell: {x: 0, y: 21}
+      layer: 0
+    - cell: {x: 0, y: 22}
+      layer: 0
+    - cell: {x: 0, y: 23}
+      layer: 0
+    - cell: {x: 0, y: 24}
+      layer: 0
+    - cell: {x: 1, y: 24}
+      layer: 0
     - cell: {x: 2, y: 24}
       layer: 0
     - cell: {x: 3, y: 24}
@@ -164,8 +190,28 @@ MonoBehaviour:
     notes: []
   - id: 6
     color: 1
-    direction: 0
+    direction: 3
     body:
+    - cell: {x: 16, y: 24}
+      layer: 0
+    - cell: {x: 17, y: 24}
+      layer: 0
+    - cell: {x: 18, y: 24}
+      layer: 0
+    - cell: {x: 19, y: 24}
+      layer: 0
+    - cell: {x: 20, y: 24}
+      layer: 0
+    - cell: {x: 21, y: 24}
+      layer: 0
+    - cell: {x: 22, y: 24}
+      layer: 0
+    - cell: {x: 23, y: 24}
+      layer: 0
+    - cell: {x: 24, y: 24}
+      layer: 0
+    - cell: {x: 24, y: 23}
+      layer: 0
     - cell: {x: 24, y: 22}
       layer: 0
     - cell: {x: 24, y: 21}
@@ -234,6 +280,8 @@ MonoBehaviour:
     color: 2
     direction: 2
     body:
+    - cell: {x: 6, y: 17}
+      layer: 0
     - cell: {x: 6, y: 18}
       layer: 0
     - cell: {x: 6, y: 19}
@@ -254,6 +302,12 @@ MonoBehaviour:
     color: 0
     direction: 2
     body:
+    - cell: {x: 10, y: 15}
+      layer: 0
+    - cell: {x: 10, y: 16}
+      layer: 0
+    - cell: {x: 10, y: 17}
+      layer: 0
     - cell: {x: 10, y: 18}
       layer: 0
     - cell: {x: 10, y: 19}
@@ -346,6 +400,8 @@ MonoBehaviour:
     color: 0
     direction: 2
     body:
+    - cell: {x: 6, y: 9}
+      layer: 0
     - cell: {x: 6, y: 10}
       layer: 0
     - cell: {x: 6, y: 11}
@@ -370,6 +426,8 @@ MonoBehaviour:
     color: 0
     direction: 2
     body:
+    - cell: {x: 8, y: 9}
+      layer: 0
     - cell: {x: 8, y: 10}
       layer: 0
     - cell: {x: 8, y: 11}
@@ -422,6 +480,8 @@ MonoBehaviour:
     color: 0
     direction: 2
     body:
+    - cell: {x: 16, y: 9}
+      layer: 0
     - cell: {x: 16, y: 10}
       layer: 0
     - cell: {x: 16, y: 11}
@@ -442,6 +502,8 @@ MonoBehaviour:
     color: 0
     direction: 2
     body:
+    - cell: {x: 24, y: 9}
+      layer: 0
     - cell: {x: 24, y: 10}
       layer: 0
     - cell: {x: 24, y: 11}
@@ -506,8 +568,20 @@ MonoBehaviour:
     notes: []
   - id: 20
     color: 0
-    direction: 0
+    direction: 3
     body:
+    - cell: {x: 10, y: 8}
+      layer: 0
+    - cell: {x: 11, y: 8}
+      layer: 0
+    - cell: {x: 12, y: 8}
+      layer: 0
+    - cell: {x: 13, y: 8}
+      layer: 0
+    - cell: {x: 14, y: 8}
+      layer: 0
+    - cell: {x: 14, y: 7}
+      layer: 0
     - cell: {x: 14, y: 6}
       layer: 0
     - cell: {x: 14, y: 5}
@@ -586,8 +660,28 @@ MonoBehaviour:
     notes: []
   - id: 23
     color: 1
-    direction: 2
+    direction: 3
     body:
+    - cell: {x: 0, y: 0}
+      layer: 0
+    - cell: {x: 1, y: 0}
+      layer: 0
+    - cell: {x: 2, y: 0}
+      layer: 0
+    - cell: {x: 3, y: 0}
+      layer: 0
+    - cell: {x: 4, y: 0}
+      layer: 0
+    - cell: {x: 5, y: 0}
+      layer: 0
+    - cell: {x: 6, y: 0}
+      layer: 0
+    - cell: {x: 7, y: 0}
+      layer: 0
+    - cell: {x: 8, y: 0}
+      layer: 0
+    - cell: {x: 8, y: 1}
+      layer: 0
     - cell: {x: 8, y: 2}
       layer: 0
     - cell: {x: 8, y: 3}
@@ -658,8 +752,28 @@ MonoBehaviour:
     notes: []
   - id: 25
     color: 1
-    direction: 2
+    direction: 3
     body:
+    - cell: {x: 16, y: 0}
+      layer: 0
+    - cell: {x: 17, y: 0}
+      layer: 0
+    - cell: {x: 18, y: 0}
+      layer: 0
+    - cell: {x: 19, y: 0}
+      layer: 0
+    - cell: {x: 20, y: 0}
+      layer: 0
+    - cell: {x: 21, y: 0}
+      layer: 0
+    - cell: {x: 22, y: 0}
+      layer: 0
+    - cell: {x: 23, y: 0}
+      layer: 0
+    - cell: {x: 24, y: 0}
+      layer: 0
+    - cell: {x: 24, y: 1}
+      layer: 0
     - cell: {x: 24, y: 2}
       layer: 0
     - cell: {x: 24, y: 3}
@@ -710,3 +824,6 @@ MonoBehaviour:
   notes:
   - "Sa\u011Fdaki k\u0131rm\u0131z\u0131 y\u0131lan\u0131n 2 h\xFCcresi timer balonu
     alt\u0131nda; tek y\u0131lan olarak birle\u015Ftirildi"
+  - "20 Kas\u0131m: 11 y\u0131lan v16 a\xE7\u0131l\u0131\u015F sonras\u0131 kareye
+    g\xF6re uzat\u0131ld\u0131; 17 Kas\u0131m ba\u015Flang\u0131\xE7 karesi a\xE7\u0131l\u0131\u015F
+    animasyonu bitmeden \xE7ekilmi\u015F (ba\u015Flar gerideydi)"

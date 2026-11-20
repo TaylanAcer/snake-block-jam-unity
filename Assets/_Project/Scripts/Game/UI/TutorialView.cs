@@ -5,7 +5,8 @@ namespace SnakeBlockJam.Game
 {
     public sealed class TutorialView : MonoBehaviour
     {
-        private static readonly int[] Levels = { 5, 11, 13, 18, 20 };
+        // Sıra TutorialKind ile aynı (None hariç): Bridge, Burrow, Hint, Shovel, Arrow.
+        // Hangi bölümde hangi kartın çıkacağı LevelData.tutorial'dadır.
         private static readonly string[] Titles = { "Köprü", "Tünel", "İpucu", "Kürek", "Ok" };
         private static readonly string[] Descriptions =
         {
@@ -22,7 +23,7 @@ namespace SnakeBlockJam.Game
         [SerializeField] private Text description;
         [SerializeField] private Image picture;
         [SerializeField] private Sprite[] illustrations;
-        private readonly bool[] seen = new bool[Levels.Length];
+        private readonly bool[] seen = new bool[Titles.Length];
         [SerializeField] private RectTransform guide;
         [SerializeField] private RectTransform hintButton;
         [SerializeField] private RectTransform shovelButton;
@@ -74,8 +75,8 @@ namespace SnakeBlockJam.Game
 
             HideGuide();
             previous = controller.State;
-            int index = System.Array.IndexOf(Levels, controller.Level.levelNumber);
-            bool show = index >= 0 && !seen[index];
+            int index = (int)controller.Level.tutorial - 1;
+            bool show = index >= 0 && index < Titles.Length && !seen[index];
             awaitingReveal = show;
             overlay.SetActive(show);
             if (!show)
@@ -102,12 +103,12 @@ namespace SnakeBlockJam.Game
             overlay.SetActive(false);
 
             // R-HNT-01 / R-SHV-01: tanıtım "Free" işaretçisiyle bir ücretsiz kullanım verir.
-            if (controller.Level.levelNumber == GameController.HintUnlockLevel)
+            if (controller.Level.tutorial == TutorialKind.Hint)
             {
                 controller.GrantFreeHint();
                 focus = hintButton;
             }
-            else if (controller.Level.levelNumber == GameController.ShovelUnlockLevel)
+            else if (controller.Level.tutorial == TutorialKind.Shovel)
             {
                 controller.GrantFreeShovel();
                 focus = shovelButton;

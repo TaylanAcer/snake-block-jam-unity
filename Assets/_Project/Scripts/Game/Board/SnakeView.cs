@@ -42,7 +42,9 @@ namespace SnakeBlockJam.Game
         private readonly float[] _blink = new float[2];
         private readonly float[] _gaze = new float[2];
         private const float FaceCycle = 6.4f;
-        private const float RevealCellsPerSecond = 80f;
+        // R-TRN-06 (GF §5, v06 32.781–33.31): L7'nin 95 hücrelik çevre yılanı ~0,5 sn'de,
+        // kısa yılanlar ~0,1 sn içinde çiziliyor; ikisi de ~190 hücre/sn sabit hızla uyumlu.
+        public const float RevealCellsPerSecond = 190f;
 
         // Ek parçası (dönüşlerde ve kuyrukta blokların arasını doldurur) bloktan
         // biraz içeride ve alçakta: dikişi kapatmaz.

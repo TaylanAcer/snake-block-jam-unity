@@ -197,6 +197,23 @@ public class GameSceneTests
             Assert.IsTrue(view.IsBaked, $"snake {view.SnakeId} ({view.Definition.Body.Count} cells) still drawing");
     }
 
+    // 22 Kasım: kısa yılanlar en az MinRevealSeconds'ta çizilir (L1'de çizim görünür olsun).
+    [UnityTest]
+    public IEnumerator Reveal_ShortSnakesTakeAtLeastMinimumTime()
+    {
+        Assert.AreEqual(SnakeView.RevealCellsPerSecond, SnakeView.RevealSpeed(95), "long snake keeps reference speed");
+        Assert.AreEqual(10f / SnakeView.MinRevealSeconds, SnakeView.RevealSpeed(10), 0.01f);
+
+        yield return LoadLevel(CatalogLevel(1));
+        yield return new WaitForSeconds(SnakeView.MinRevealSeconds * 0.5f);
+        foreach (var view in Object.FindObjectsByType<SnakeView>(FindObjectsSortMode.None))
+            Assert.IsFalse(view.IsBaked, $"snake {view.SnakeId} still drawing at half time");
+
+        yield return new WaitForSeconds(SnakeView.MinRevealSeconds);
+        foreach (var view in Object.FindObjectsByType<SnakeView>(FindObjectsSortMode.None))
+            Assert.IsTrue(view.IsBaked, $"snake {view.SnakeId} drawn");
+    }
+
     // Çizim çağrısı bütçesi (Galaxy A13, L7 render thread %75): dururken gövde tek
     // mesh; çarpma sırasında parçalar oynar, dönüşte yeniden birleşir. Dokunma
     // seçimi birleşik haldeyken de çalışır.
@@ -780,6 +797,30 @@ public class GameSceneTests
         _controller.Restart();
         Assert.IsFalse(overlay.gameObject.activeSelf);
         Assert.IsFalse(_controller.IsHintFree, "free only once, with the tutorial");
+    }
+
+    // 22 Kasım (kullanıcı): Hard bandı ekrandayken yılana dokunuş geçmemeli.
+    [UnityTest]
+    public IEnumerator HardIntro_BlocksBoardWhileVisible()
+    {
+        LevelData level = CatalogLevel(10);
+        Assert.IsTrue(level.isHard);
+        yield return LoadLevel(level);
+        Transform band = GameObject.Find("Hud").transform.Find("HardIntro");
+        yield return WaitUntilOrTimeout(() => band.gameObject.activeSelf, 3f);
+        Assert.IsTrue(band.gameObject.activeSelf, "Hard band shown");
+        yield return null; // arayüz öğesi ilk çizimden sonra ışın testine girer
+
+        Cell head = _controller.State.GetSnake(Solver.PickHint(_controller.State)).Body[0].Cell;
+        Vector2 onSnake = ScreenPointOf(head.X, head.Y);
+        int moves = _controller.State.RemainingMoves ?? -1;
+        Assert.IsTrue(_input.IsOverUI(onSnake));
+        Assert.IsFalse(_input.HandlePress(onSnake));
+        Assert.AreEqual(moves, _controller.State.RemainingMoves ?? -1, "no move spent");
+        Assert.AreEqual(0, _controller.State.EscapedCount);
+
+        yield return WaitUntilOrTimeout(() => !band.gameObject.activeSelf, 3f);
+        Assert.IsFalse(_input.IsOverUI(onSnake), "board free after the band");
     }
 
     // R-SHV-01: Kürek tanıtımındaki ilk kullanım da "Free"; iptal hakkı yakmaz,

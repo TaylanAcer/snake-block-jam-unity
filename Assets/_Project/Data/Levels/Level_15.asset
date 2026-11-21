@@ -282,8 +282,6 @@ MonoBehaviour:
     color: 2
     direction: 2
     body:
-    - cell: {x: 6, y: 17}
-      layer: 0
     - cell: {x: 6, y: 18}
       layer: 0
     - cell: {x: 6, y: 19}
@@ -299,13 +297,15 @@ MonoBehaviour:
     - cell: {x: 4, y: 18}
       layer: 0
     hiddenCells: []
-    notes: []
+    notes:
+    - "Ba\u015F 6,17 \u2192 6,18: 20 Kas\u0131m uzatmas\u0131 bir h\xFCcre fazlayd\u0131
+      (a\u015Fa\u011F\u0131 bakan ba\u015F\u0131n \xF6n y\xFCz\xFC sonraki h\xFCcreye
+      ta\u015F\u0131yor); v16 a\xE7\u0131l\u0131\u015F sonras\u0131 karede g\xF6zler
+      bu h\xFCcrede (22 Kas\u0131m, kullan\u0131c\u0131 onay\u0131)"
   - id: 9
     color: 0
     direction: 2
     body:
-    - cell: {x: 10, y: 15}
-      layer: 0
     - cell: {x: 10, y: 16}
       layer: 0
     - cell: {x: 10, y: 17}
@@ -329,7 +329,11 @@ MonoBehaviour:
     - cell: {x: 12, y: 24}
       layer: 0
     hiddenCells: []
-    notes: []
+    notes:
+    - "Ba\u015F 10,15 \u2192 10,16: 20 Kas\u0131m uzatmas\u0131 bir h\xFCcre fazlayd\u0131
+      (a\u015Fa\u011F\u0131 bakan ba\u015F\u0131n \xF6n y\xFCz\xFC sonraki h\xFCcreye
+      ta\u015F\u0131yor); v16 a\xE7\u0131l\u0131\u015F sonras\u0131 karede g\xF6zler
+      bu h\xFCcrede (22 Kas\u0131m, kullan\u0131c\u0131 onay\u0131)"
   - id: 10
     color: 0
     direction: 3
@@ -402,8 +406,6 @@ MonoBehaviour:
     color: 0
     direction: 2
     body:
-    - cell: {x: 6, y: 9}
-      layer: 0
     - cell: {x: 6, y: 10}
       layer: 0
     - cell: {x: 6, y: 11}
@@ -423,13 +425,15 @@ MonoBehaviour:
     - cell: {x: 0, y: 12}
       layer: 0
     hiddenCells: []
-    notes: []
+    notes:
+    - "Ba\u015F 6,9 \u2192 6,10: 20 Kas\u0131m uzatmas\u0131 bir h\xFCcre fazlayd\u0131
+      (a\u015Fa\u011F\u0131 bakan ba\u015F\u0131n \xF6n y\xFCz\xFC sonraki h\xFCcreye
+      ta\u015F\u0131yor); v16 a\xE7\u0131l\u0131\u015F sonras\u0131 karede g\xF6zler
+      bu h\xFCcrede (22 Kas\u0131m, kullan\u0131c\u0131 onay\u0131)"
   - id: 14
     color: 0
     direction: 2
     body:
-    - cell: {x: 8, y: 9}
-      layer: 0
     - cell: {x: 8, y: 10}
       layer: 0
     - cell: {x: 8, y: 11}
@@ -457,7 +461,11 @@ MonoBehaviour:
     - cell: {x: 0, y: 14}
       layer: 0
     hiddenCells: []
-    notes: []
+    notes:
+    - "Ba\u015F 8,9 \u2192 8,10: 20 Kas\u0131m uzatmas\u0131 bir h\xFCcre fazlayd\u0131
+      (a\u015Fa\u011F\u0131 bakan ba\u015F\u0131n \xF6n y\xFCz\xFC sonraki h\xFCcreye
+      ta\u015F\u0131yor); v16 a\xE7\u0131l\u0131\u015F sonras\u0131 karede g\xF6zler
+      bu h\xFCcrede (22 Kas\u0131m, kullan\u0131c\u0131 onay\u0131)"
   - id: 15
     color: 0
     direction: 1
@@ -482,8 +490,6 @@ MonoBehaviour:
     color: 0
     direction: 2
     body:
-    - cell: {x: 16, y: 9}
-      layer: 0
     - cell: {x: 16, y: 10}
       layer: 0
     - cell: {x: 16, y: 11}
@@ -499,13 +505,15 @@ MonoBehaviour:
     - cell: {x: 12, y: 12}
       layer: 0
     hiddenCells: []
-    notes: []
+    notes:
+    - "Ba\u015F 16,9 \u2192 16,10: 20 Kas\u0131m uzatmas\u0131 bir h\xFCcre fazlayd\u0131
+      (a\u015Fa\u011F\u0131 bakan ba\u015F\u0131n \xF6n y\xFCz\xFC sonraki h\xFCcreye
+      ta\u015F\u0131yor); v16 a\xE7\u0131l\u0131\u015F sonras\u0131 karede g\xF6zler
+      bu h\xFCcrede (22 Kas\u0131m, kullan\u0131c\u0131 onay\u0131)"
   - id: 17
     color: 0
     direction: 2
     body:
-    - cell: {x: 24, y: 9}
-      layer: 0
     - cell: {x: 24, y: 10}
       layer: 0
     - cell: {x: 24, y: 11}
@@ -527,7 +535,11 @@ MonoBehaviour:
     hiddenCells:
     - {x: 24, y: 13}
     - {x: 24, y: 14}
-    notes: []
+    notes:
+    - "Ba\u015F 24,9 \u2192 24,10: 20 Kas\u0131m uzatmas\u0131 bir h\xFCcre fazlayd\u0131
+      (a\u015Fa\u011F\u0131 bakan ba\u015F\u0131n \xF6n y\xFCz\xFC sonraki h\xFCcreye
+      ta\u015F\u0131yor); v16 a\xE7\u0131l\u0131\u015F sonras\u0131 karede g\xF6zler
+      bu h\xFCcrede (22 Kas\u0131m, kullan\u0131c\u0131 onay\u0131)"
   - id: 18
     color: 2
     direction: 1
@@ -829,3 +841,6 @@ MonoBehaviour:
   - "20 Kas\u0131m: 11 y\u0131lan v16 a\xE7\u0131l\u0131\u015F sonras\u0131 kareye
     g\xF6re uzat\u0131ld\u0131; 17 Kas\u0131m ba\u015Flang\u0131\xE7 karesi a\xE7\u0131l\u0131\u015F
     animasyonu bitmeden \xE7ekilmi\u015F (ba\u015Flar gerideydi)"
+  - "22 Kas\u0131m: 8, 9, 13, 14, 16, 17 numaral\u0131 y\u0131lanlar\u0131n ba\u015Ftaki
+    fazla h\xFCcresi silindi (di\u011Fer b\xF6l\xFCmlerdeki 55 a\u015Fa\u011F\u0131
+    bakan ba\u015Fla kar\u015F\u0131la\u015Ft\u0131r\u0131ld\u0131)"

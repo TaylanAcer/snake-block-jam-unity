@@ -320,9 +320,11 @@ namespace SnakeBlockJam.EditorTools
 
             RectTransform hard = CreateRect("HardIntro", root);
             Stretch(hard);
-            CreateImage(hard, new Color(0f, 0f, 0f, 0.83f));
+            // Bant ekrandayken tahtaya dokunuş geçmez (kullanıcı geri bildirimi, 22 Kasım):
+            // karartma ışın yakalar, InputHandler.IsOverUI dokunuşu tahtaya iletmez.
+            CreateImage(hard, new Color(0f, 0f, 0f, 0.83f)).raycastTarget = true;
             CanvasGroup hardGroup = hard.gameObject.AddComponent<CanvasGroup>();
-            hardGroup.blocksRaycasts = false;
+            hardGroup.blocksRaycasts = true;
             RectTransform strip = CreateRect("Band", hard);
             strip.anchorMin = new Vector2(0f, 0.5f);
             strip.anchorMax = new Vector2(1f, 0.5f);

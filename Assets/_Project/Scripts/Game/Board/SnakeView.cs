@@ -46,6 +46,15 @@ namespace SnakeBlockJam.Game
         // kısa yılanlar ~0,1 sn içinde çiziliyor; ikisi de ~190 hücre/sn sabit hızla uyumlu.
         public const float RevealCellsPerSecond = 190f;
 
+        // Kısa yılanlar bu süreden hızlı çizilmez. Referansta L1 ~0,05 sn (v01 33,84–33,88);
+        // kullanıcı geri bildirimi (22 Kasım): ilk bölümlerde çizim fark edilmiyor. Bilinçli
+        // sapma; ~57 hücreden uzun yılanlar referans hızında kalır.
+        public const float MinRevealSeconds = 0.3f;
+
+        // Bu yılanın çizim hızı (hücre/sn).
+        public static float RevealSpeed(int cells) =>
+            Mathf.Min(RevealCellsPerSecond, cells / MinRevealSeconds);
+
         // Ek parçası (dönüşlerde ve kuyrukta blokların arasını doldurur) bloktan
         // biraz içeride ve alçakta: dikişi kapatmaz.
         private const float LinkInset = 0.03f;
@@ -740,7 +749,7 @@ namespace SnakeBlockJam.Game
         {
             if (_hiddenSegments > 0)
             {
-                _revealProgress += Time.deltaTime * RevealCellsPerSecond;
+                _revealProgress += Time.deltaTime * RevealSpeed(_segments.Count);
                 RevealTo(Mathf.Max(0, _segments.Count - Mathf.CeilToInt(_revealProgress)));
             }
             UpdateDent();

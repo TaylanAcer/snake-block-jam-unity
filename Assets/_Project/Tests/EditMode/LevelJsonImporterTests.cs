@@ -250,6 +250,22 @@ public class LevelJsonImporterTests
         Assert.AreEqual(new Vector2Int(2, 14), snake.body[snake.body.Count - 1].cell);
     }
 
+    // 22 Kasım: L15'te aşağı bakan 6 yılanın başı 20 Kasım'da bir hücre fazla
+    // uzatılmıştı (iç içe görünüyordu). v16 açılış sonrası karede gözler bu hücrelerde.
+    [TestCase(8, 6, 18)]
+    [TestCase(9, 10, 16)]
+    [TestCase(13, 6, 10)]
+    [TestCase(14, 8, 10)]
+    [TestCase(16, 16, 10)]
+    [TestCase(17, 24, 10)]
+    public void Level15_DownFacingHeadsMatchReference(int id, int x, int y)
+    {
+        var snake = Level(15).snakes.Find(s => s.id == id);
+
+        Assert.AreEqual(new Vector2Int(x, y), snake.body[0].cell);
+        Assert.AreEqual(Direction.Down, snake.direction);
+    }
+
     // Monotonluk (yol haritası §7.4): greedy tahtayı boşaltıyorsa level çözülebilir.
     // İçe aktarılan 20 level Core ile kurulup çözülebilmeli ve hamle limitine sığmalı.
     [Test]

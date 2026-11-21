@@ -90,6 +90,16 @@ namespace SnakeBlockJam.Game
         {
             if (hintTarget == 0)
                 return;
+
+            // Açılış çizimi sürerken başın yeri belli değil: animasyon baş çizilince başlar.
+            if (!controller.BoardView.TryGetSnakeHead(hintTarget, out Vector3 head))
+            {
+                hintAt = Time.time;
+                if (!controller.CanUseBoosters || controller.IsShovelTargeting)
+                    StopHintAnimation();
+                return;
+            }
+
             float t = (Time.time - hintAt) / controller.Feel.hintActivationDuration;
             if (t >= 1f || !controller.CanUseBoosters || controller.IsShovelTargeting)
             {
@@ -99,8 +109,6 @@ namespace SnakeBlockJam.Game
 
             float pop = GuideMotion.EaseOutBack(t);
             hintButton.localScale = Vector3.one * Mathf.LerpUnclamped(0.88f, 1f, pop);
-            if (!controller.BoardView.TryGetSnakeHead(hintTarget, out Vector3 head))
-                return;
             hintFlash.gameObject.SetActive(true);
             RectTransform ring = hintFlash.rectTransform;
             ring.anchoredPosition = GuideMotion.CanvasPoint((RectTransform)ring.parent, controller.GameCamera, head);

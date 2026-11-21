@@ -26,20 +26,34 @@ namespace SnakeBlockJam.Game
         [SerializeField] private RectTransform shovelButton;
         [SerializeField] private Text shovelCount;
         [SerializeField] private GameObject shovelBanner;
+        [SerializeField] private Image hintFlash;
+        private SnakeBlockJam.Core.BoardState state;
+        private float hintAt;
+        private int hintTarget;
 
         private void OnEnable()
         {
             controller.Changed += Refresh;
+            controller.HintUsed += AnimateHint;
             Refresh();
         }
 
         private void OnDisable()
         {
             controller.Changed -= Refresh;
+            controller.HintUsed -= AnimateHint;
         }
 
         public void Refresh()
         {
+            if (state != controller.State)
+            {
+                state = controller.State;
+                StopHintAnimation();
+            }
+            else if (hintTarget != 0 && hintTarget != controller.HintedSnakeId)
+                StopHintAnimation();
+
             bool targeting = controller.IsShovelTargeting;
             bool showHint = controller.IsHintUnlocked && !targeting;
             bool showShovel = controller.IsShovelUnlocked && !targeting;
@@ -57,6 +71,41 @@ namespace SnakeBlockJam.Game
 
             hintButton.GetComponent<Button>().interactable = controller.CanUseBoosters && controller.HasHint;
             shovelButton.GetComponent<Button>().interactable = controller.CanUseBoosters && controller.HasShovel;
+        }
+
+        private void AnimateHint(int snakeId)
+        {
+            hintAt = Time.time;
+            hintTarget = snakeId;
+        }
+
+        private void StopHintAnimation()
+        {
+            hintTarget = 0;
+            hintButton.localScale = Vector3.one;
+            hintFlash.gameObject.SetActive(false);
+        }
+
+        private void LateUpdate()
+        {
+            if (hintTarget == 0)
+                return;
+            float t = (Time.time - hintAt) / controller.Feel.hintActivationDuration;
+            if (t >= 1f || !controller.CanUseBoosters || controller.IsShovelTargeting)
+            {
+                StopHintAnimation();
+                return;
+            }
+
+            float pop = GuideMotion.EaseOutBack(t);
+            hintButton.localScale = Vector3.one * Mathf.LerpUnclamped(0.88f, 1f, pop);
+            if (!controller.BoardView.TryGetSnakeHead(hintTarget, out Vector3 head))
+                return;
+            hintFlash.gameObject.SetActive(true);
+            RectTransform ring = hintFlash.rectTransform;
+            ring.anchoredPosition = GuideMotion.CanvasPoint((RectTransform)ring.parent, controller.GameCamera, head);
+            ring.localScale = Vector3.one * Mathf.Lerp(0.63f, 1.54f, Mathf.SmoothStep(0f, 1f, t));
+            hintFlash.color = new Color(1f, 1f, 0.68f, 1f - t);
         }
 
         public void OnHint()

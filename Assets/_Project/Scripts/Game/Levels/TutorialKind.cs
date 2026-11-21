@@ -9,6 +9,7 @@ namespace SnakeBlockJam.Game
         Burrow,
         Hint,
         Shovel,
-        Arrow
+        Arrow,
+        Tap
     }
 }

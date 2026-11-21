@@ -47,6 +47,7 @@ namespace SnakeBlockJam.Game
         private float _lastHawkTime;
         private int _fittedWidth;
         private int _fittedHeight;
+        private Coroutine _idleNudge;
 
         // Level kuruldu, hamle oynandı veya evre değişti: HUD yeniden okur.
         public event Action Changed;
@@ -60,6 +61,7 @@ namespace SnakeBlockJam.Game
 
         // İpucu veya Kürek kullanıldı (ses).
         public event Action BoosterUsed;
+        public event Action<int> HintUsed;
         public event Action ToolSelected;
 
         public BoardState State { get; private set; }
@@ -183,6 +185,7 @@ namespace SnakeBlockJam.Game
         private void LoadLevel()
         {
             StopAllCoroutines();
+            _idleNudge = null;
             Phase = GamePhase.Playing;
             IsInputLocked = false;
 
@@ -200,6 +203,27 @@ namespace SnakeBlockJam.Game
             boardView.Build(level, State);
             FitCamera();
             Changed?.Invoke();
+            if (level.showIdleNudge)
+                _idleNudge = StartCoroutine(PlayIdleNudge());
+        }
+
+        private IEnumerator PlayIdleNudge()
+        {
+            yield return new WaitForSeconds(feel.nudgeIdleDelay);
+            _idleNudge = null;
+            int target = Solver.PickHint(State);
+            if (target != 0 && CanUseBoosters)
+                boardView.PlayNudge(State, target, feel);
+        }
+
+        internal void StopIdleNudge()
+        {
+            if (_idleNudge != null)
+            {
+                StopCoroutine(_idleNudge);
+                _idleNudge = null;
+            }
+            boardView.StopNudge();
         }
 
         private void FitCamera()
@@ -232,12 +256,16 @@ namespace SnakeBlockJam.Game
         // Hamle oynandıysa true döner.
         public bool HandleCellTap(Cell cell)
         {
-            return TryGetSnakeAt(cell, out int snakeId) && HandleSnakeTap(snakeId);
+            if (TryGetSnakeAt(cell, out int snakeId))
+                return HandleSnakeTap(snakeId);
+            StopIdleNudge();
+            return false;
         }
 
         // Ekranda seçilen yılana dokunuş (InputHandler). Kurallar HandleCellTap ile aynı.
         public bool HandleSnakeTap(int snakeId)
         {
+            StopIdleNudge();
             if (State == null || State.Status != GameStatus.Playing || IsInputLocked)
                 return false;
 
@@ -257,7 +285,9 @@ namespace SnakeBlockJam.Game
                 if (snakeId == HintedSnakeId)
                     HintedSnakeId = 0;
 
-                boardView.PlayEscape(result, feel.escapeSpeed, gameCamera);
+                bool cleanFinish = State.Status == GameStatus.Won && boardView.BridgeCount > 0 &&
+                                   _consecutiveEscapes + 1 == State.EscapedCount;
+                boardView.PlayEscape(result, feel.escapeSpeed, gameCamera, cleanFinish);
                 _consecutiveEscapes++;
                 if (_consecutiveEscapes > 3 && State.EscapedCount >= _nextHawkEligible &&
                     Time.time - _lastHawkTime >= 5f && UnityEngine.Random.value < 0.12f)
@@ -308,12 +338,14 @@ namespace SnakeBlockJam.Game
                 return false;
 
             ToolSelected?.Invoke();
+            StopIdleNudge();
             if (IsHintFree)
                 IsHintFree = false;
             else
                 HintsLeft--;
             HintedSnakeId = snakeId;
             boardView.SetHighlight(snakeId, feel.hintPulsePeriod);
+            HintUsed?.Invoke(snakeId);
             BoosterUsed?.Invoke();
             Changed?.Invoke();
             return true;
@@ -326,6 +358,7 @@ namespace SnakeBlockJam.Game
                 return false;
 
             ToolSelected?.Invoke();
+            StopIdleNudge();
             IsShovelTargeting = true;
             Changed?.Invoke();
             return true;

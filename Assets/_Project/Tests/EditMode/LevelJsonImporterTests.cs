@@ -149,6 +149,10 @@ public class LevelJsonImporterTests
             Assert.AreEqual(n >= 5, level.showCompletedScreen, $"L{n} completed screen");
         }
 
+        Assert.AreEqual(TutorialKind.Tap, Level(1).tutorial);
+        Assert.IsFalse(Level(1).showIdleNudge);
+        Assert.IsTrue(Level(2).showIdleNudge);
+        Assert.IsFalse(Level(3).showIdleNudge);
         Assert.AreEqual(TutorialKind.Bridge, Level(5).tutorial);
         Assert.AreEqual(TutorialKind.Burrow, Level(11).tutorial);
         Assert.AreEqual(TutorialKind.Hint, Level(13).tutorial);

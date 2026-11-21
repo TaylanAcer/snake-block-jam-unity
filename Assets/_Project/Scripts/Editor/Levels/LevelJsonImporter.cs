@@ -53,7 +53,7 @@ namespace SnakeBlockJam.EditorTools
         // R-FX-08: tanıtım kartları (öğretici metinleri: 180308, 203758, 204056, 205128, 205721).
         public static readonly (int level, TutorialKind kind)[] Tutorials =
         {
-            (5, TutorialKind.Bridge), (11, TutorialKind.Burrow), (13, TutorialKind.Hint),
+            (1, TutorialKind.Tap), (5, TutorialKind.Bridge), (11, TutorialKind.Burrow), (13, TutorialKind.Hint),
             (18, TutorialKind.Shovel), (20, TutorialKind.Arrow)
         };
 
@@ -298,6 +298,7 @@ namespace SnakeBlockJam.EditorTools
 
                 level.isHard = ReadBool(json, "hard", context);
                 level.isRectangularBoard = System.Array.IndexOf(RectangularBoardLevels, expectedNumber) >= 0;
+                level.showIdleNudge = expectedNumber == 2; // v02, bölüm başlangıcındaki hareketli işaret.
 
                 foreach (var (boosterLevel, hints, shovels) in BoosterCounts)
                 {

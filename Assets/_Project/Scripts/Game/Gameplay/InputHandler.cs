@@ -31,9 +31,15 @@ namespace SnakeBlockJam.Game
         {
             // UI'a (ör. Restart butonu) yapılan dokunuş tahtaya geçmez.
             if (IsOverUI(screenPosition))
+            {
+                controller.StopIdleNudge();
                 return false;
+            }
 
-            return TryPickSnake(screenPosition, out int snakeId) && controller.HandleSnakeTap(snakeId);
+            if (TryPickSnake(screenPosition, out int snakeId))
+                return controller.HandleSnakeTap(snakeId);
+            controller.StopIdleNudge();
+            return false;
         }
 
         // Ekran noktasındaki yılan; hamle oynamaz. Önce görünen parçalar (göz ve

@@ -86,7 +86,7 @@ namespace SnakeBlockJam.Game
         private const float TrailingReach = 1f;
         private const float ViewportMargin = 0.02f;
 
-        private enum Motion { None, Escape, BlockedForward, BlockedReturn, Remove }
+        private enum Motion { None, Escape, BlockedForward, BlockedReturn, Remove, Nudge }
 
         // Segment kökleri: zeminde, hücre merkezinde; +z ilerleme yönü.
         private readonly List<Transform> _segments = new List<Transform>();
@@ -128,6 +128,8 @@ namespace SnakeBlockJam.Game
         private MoveOutcome _outcome;
         private Motion _motion;
         private float _peakTravel;
+        private FeelSettings _nudgeFeel;
+        private float _nudgeTime;
         private int _nextArrow;
         internal event Action ArrowPassed;
         internal event Action TunnelEntered;
@@ -274,6 +276,8 @@ namespace SnakeBlockJam.Game
         }
 
         public bool IsMoving => _motion != Motion.None;
+        internal bool HasRevealedHead => _hiddenSegments == 0;
+        internal Vector3 HeadWorld => _segments[0].position + Vector3.up * BlockHeight;
 
         // Çarpma animasyonu (gidiş veya dönüş) sürüyor.
         public bool IsBlockedMoving => _motion == Motion.BlockedForward || _motion == Motion.BlockedReturn;
@@ -403,6 +407,40 @@ namespace SnakeBlockJam.Game
             Travel = 0f;
             _motion = Motion.Escape;
             SetPose(track, 0f);
+        }
+
+        internal void PlayNudge(SnakeTrack track, FeelSettings feel)
+        {
+            Unbake();
+            _track = track;
+            _nudgeFeel = feel;
+            _nudgeTime = 0f;
+            _motion = Motion.Nudge;
+        }
+
+        internal void StopNudge()
+        {
+            if (_motion != Motion.Nudge)
+                return;
+            Travel = 0f;
+            SetPose(_restTrack, 0f);
+            _motion = Motion.None;
+        }
+
+        private void UpdateNudge()
+        {
+            float duration = Mathf.Max(0.01f, _nudgeFeel.nudgeDuration);
+            float secondPress = duration + _nudgeFeel.nudgeGap;
+            _nudgeTime = Mathf.Repeat(_nudgeTime + Time.deltaTime,
+                secondPress + duration + _nudgeFeel.nudgeRepeatPause);
+            float pulseTime = _nudgeTime >= secondPress ? _nudgeTime - secondPress : _nudgeTime;
+            float phase = Mathf.Clamp01(pulseTime / duration);
+            float distance = Mathf.Min(_nudgeFeel.nudgeDistance, _track.Length - _restTrack.Length + 1f);
+            float travel = phase >= 1f ? 0f : distance * (0.5f - 0.5f * Mathf.Cos(2f * Mathf.PI * phase));
+            if (Travel == travel)
+                return;
+            Travel = travel;
+            SetPose(travel > 0f ? _track : _restTrack, travel);
         }
 
         // Başarısız hamle (R-COL-01/05): yılan 'peakTravel' mesafesine kadar ilerler,
@@ -710,6 +748,10 @@ namespace SnakeBlockJam.Game
 
             switch (_motion)
             {
+                case Motion.Nudge:
+                    UpdateNudge();
+                    break;
+
                 case Motion.Remove:
                     UpdateRemove();
                     break;

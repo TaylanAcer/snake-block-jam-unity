@@ -129,6 +129,8 @@ namespace SnakeBlockJam.Game
         public event System.Action TunnelEntered;
         public event System.Action<int> EscapeStarted;
         public event System.Action HawkShown;
+        public event System.Action<Vector3> PraiseReached;
+        private SnakeView _nudged;
 
         private void OnTunnelEntered() => TunnelEntered?.Invoke();
 
@@ -161,6 +163,37 @@ namespace SnakeBlockJam.Game
 
         // İpucuyla vurgulanan yılan (0: yok).
         public int HighlightedSnakeId => _highlighted != null ? _highlighted.SnakeId : 0;
+        public int NudgedSnakeId => _nudged != null ? _nudged.SnakeId : 0;
+
+        public bool TryGetSnakeHead(int snakeId, out Vector3 head)
+        {
+            if (_snakes.TryGetValue(snakeId, out var view) && view.HasRevealedHead)
+            {
+                head = view.HeadWorld;
+                return true;
+            }
+
+            head = default;
+            return false;
+        }
+
+        internal void PlayNudge(BoardState state, int snakeId, FeelSettings feel)
+        {
+            if (!_snakes.TryGetValue(snakeId, out var view))
+                return;
+
+            MoveResult move = MoveSimulator.Simulate(state, snakeId);
+            var track = SnakeTrack.ForMove(view.Definition, move, Geometry, 1);
+            _nudged = view;
+            view.PlayNudge(track, feel);
+        }
+
+        internal void StopNudge()
+        {
+            if (_nudged != null)
+                _nudged.StopNudge();
+            _nudged = null;
+        }
 
         public bool HasSnakeView(int snakeId)
         {
@@ -216,7 +249,7 @@ namespace SnakeBlockJam.Game
         // ekrandan çıkana kadar oynar; sonra yok edilir. Model yılanı zaten sildi
         // (R-CON-04), bu yüzden hayalet seçilemez ve başka yılanlarla çarpışmaz.
         // Birden fazla kaçış aynı anda oynayabilir (R-CON-03).
-        public void PlayEscape(MoveResult result, float speed, Camera viewCamera)
+        public void PlayEscape(MoveResult result, float speed, Camera viewCamera, bool cleanFinish = false)
         {
             if (!_snakes.TryGetValue(result.SnakeId, out var view))
                 return;
@@ -235,6 +268,22 @@ namespace SnakeBlockJam.Game
             else
                 EscapeStarted?.Invoke(view.Definition.Body.Count);
             view.PlayEscape(track, result.Outcome, speed, viewCamera, OnEscapeFinished);
+            if (QualifiesForPraise(view.Definition, result, cleanFinish))
+                PraiseReached?.Invoke(view.HeadWorld);
+        }
+
+        private static bool QualifiesForPraise(SnakeDefinition snake, MoveResult result, bool cleanFinish)
+        {
+            if (snake.Body[0].Layer == BoardLayer.BridgeTop)
+                return true;
+
+            for (int i = 0; i < result.HeadPath.Count; i++)
+            {
+                if (result.HeadPath[i].Layer == BoardLayer.BridgeTop)
+                    return true;
+            }
+
+            return cleanFinish && result.Outcome == MoveOutcome.EscapedOffBoard;
         }
 
         private void OnEscapeFinished(SnakeView view)
@@ -379,6 +428,7 @@ namespace SnakeBlockJam.Game
             _blocking.Clear();
             _removing.Clear();
             _highlighted = null;
+            _nudged = null;
             _dots.Clear();
             _markers.Clear();
             _bridgeCells.Clear();

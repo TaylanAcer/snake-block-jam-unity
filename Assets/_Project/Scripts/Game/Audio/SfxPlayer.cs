@@ -91,7 +91,11 @@ namespace SnakeBlockJam.Game
         public const long BumpVibrationMilliseconds = 60;
         public const int BumpVibrationAmplitude = 255;
         private void OnLevelCleared() => Play(_clips["AllClear"]);
-        private void OnStreakShown(int index) => Play(_clips[FeedbackView.Streaks[index].Text.TrimEnd('!')]);
+        private void OnStreakShown(int index)
+        {
+            int style = Mathf.Min(index, FeedbackView.Streaks.Length - 1);
+            Play(_clips[FeedbackView.Streaks[style].Text.TrimEnd('!')]);
+        }
 
         public void PlayButton() => Play(_clips["Button"]);
         public void PlayTutorial() => Play(_clips["Tutorial"]);

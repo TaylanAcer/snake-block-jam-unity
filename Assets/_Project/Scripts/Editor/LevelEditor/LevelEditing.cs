@@ -265,6 +265,7 @@ namespace SnakeBlockJam.EditorTools
             copy.name = $"Level_{levelNumber:00}";
             // Tanıtım kartı bir mekaniği bir kez tanıtır; kopya bölüm tekrar göstermez.
             copy.tutorial = TutorialKind.None;
+            copy.showIdleNudge = false;
             return copy;
         }
 

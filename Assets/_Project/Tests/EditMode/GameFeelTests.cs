@@ -15,6 +15,8 @@ public class GameFeelTests
     [TestCase(18, 3)]
     [TestCase(23, 4)]
     [TestCase(24, -1)]
+    [TestCase(28, 5)]
+    [TestCase(33, 6)]
     public void StreakIndex_Thresholds(int escapes, int expected)
     {
         Assert.AreEqual(expected, FeedbackView.StreakIndex(escapes));
@@ -23,8 +25,10 @@ public class GameFeelTests
     [Test]
     public void Streaks_TextsInReferenceOrder()
     {
-        Assert.That(System.Array.ConvertAll(FeedbackView.Streaks, s => s.Text),
-            Is.EqualTo(new[] { "Great!", "Amazing!", "Perfect!", "Unbelievable!", "Unbelievable!" }));
+        Assert.That(System.Array.ConvertAll(new[] { 3, 8, 13, 18, 23, 28 }, count =>
+                FeedbackView.StreakLabel(FeedbackView.StreakIndex(count))),
+            Is.EqualTo(new[] { "Great!", "Amazing!", "Perfect!", "Unbelievable!",
+                "Unbelievable! x2", "Unbelievable! x3" }));
     }
 
     // R-COL-03: +0,125 sn başlar, +0,24 sn tepe, sonra söner.

@@ -1,3 +1,4 @@
+using SnakeBlockJam.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -27,11 +28,27 @@ namespace SnakeBlockJam.Game
         [SerializeField] private RectTransform guide;
         [SerializeField] private RectTransform hintButton;
         [SerializeField] private RectTransform shovelButton;
-        private SnakeBlockJam.Core.BoardState previous;
+        [SerializeField] private RectTransform card;
+        [SerializeField] private Image bulbGlow;
+        [SerializeField] private RectTransform freeHand;
+        [SerializeField] private Image freeRing;
+        [SerializeField] private GameObject tapBanner;
+        [SerializeField] private RectTransform tapMarker;
+        [SerializeField] private RectTransform tapHand;
+        [SerializeField] private Image tapRing;
+        private BoardState previous;
         private RectTransform focus;
         private CanvasGroup cardVisibility;
         private float showAt;
-        private bool awaitingReveal;
+        private float dismissAt;
+        private float guideAt;
+        private float tapAt;
+        private float tapRevealAt;
+        private int tapTarget;
+        private bool tapHasEscape;
+        private SfxPlayer sounds;
+        private enum CardPhase { Hidden, Waiting, Visible, Closing }
+        private CardPhase cardPhase;
 
         public void Configure(GameController game, GameObject panel, Text heading, Text body, Image icon, Sprite[] art)
         {
@@ -45,6 +62,8 @@ namespace SnakeBlockJam.Game
 
         private void OnEnable()
         {
+            sounds = controller.GetComponent<SfxPlayer>();
+            cardVisibility = overlay.GetComponent<CanvasGroup>();
             controller.Changed += Refresh;
             controller.BoosterUsed += HideGuide;
             controller.MovePlayed += OnMove;
@@ -58,7 +77,16 @@ namespace SnakeBlockJam.Game
             controller.MovePlayed -= OnMove;
         }
 
-        private void OnMove(SnakeBlockJam.Core.MoveResult result) => HideGuide();
+        private void OnMove(MoveResult result)
+        {
+            HideGuide();
+            if (controller.Level.tutorial == TutorialKind.Tap && result.IsEscaped)
+            {
+                tapHasEscape = true;
+                HideTap();
+                SetTapTarget();
+            }
+        }
 
         private void HideGuide()
         {
@@ -70,36 +98,51 @@ namespace SnakeBlockJam.Game
         {
             if (focus != null && controller.IsShovelTargeting)
                 HideGuide();
+
+            if (controller.State != null && controller.State.Status != GameStatus.Playing)
+                HideTap();
+
             if (controller.State == null || controller.State == previous)
                 return;
 
             HideGuide();
+            HideTap();
             previous = controller.State;
+            tapHasEscape = false;
+            tapRevealAt = Time.time + (sounds != null ? sounds.RevealDuration : 0f);
+            SetTapTarget();
+
             int index = (int)controller.Level.tutorial - 1;
             bool show = index >= 0 && index < Titles.Length && !seen[index];
-            awaitingReveal = show;
+            cardPhase = show ? CardPhase.Waiting : CardPhase.Hidden;
             overlay.SetActive(show);
             if (!show)
                 return;
 
             seen[index] = true;
-            if (cardVisibility == null && !overlay.TryGetComponent(out cardVisibility))
-                cardVisibility = overlay.AddComponent<CanvasGroup>();
             cardVisibility.alpha = 0f;
             cardVisibility.interactable = false;
-            var sounds = controller.GetComponent<SfxPlayer>();
-            showAt = Time.time + (sounds != null ? sounds.RevealDuration : 0f);
+            card.localScale = Vector3.one * 0.72f;
+            showAt = tapRevealAt;
             title.text = Titles[index];
             description.text = Descriptions[index];
             picture.sprite = illustrations[index];
+            bulbGlow.gameObject.SetActive(controller.Level.tutorial == TutorialKind.Hint);
         }
 
         public void Dismiss()
         {
-            if (!overlay.activeSelf)
+            if (cardPhase != CardPhase.Visible)
                 return;
 
-            awaitingReveal = false;
+            cardPhase = CardPhase.Closing;
+            dismissAt = Time.time;
+            cardVisibility.interactable = false;
+        }
+
+        private void FinishDismiss()
+        {
+            cardPhase = CardPhase.Hidden;
             overlay.SetActive(false);
 
             // R-HNT-01 / R-SHV-01: tanıtım "Free" işaretçisiyle bir ücretsiz kullanım verir.
@@ -117,22 +160,79 @@ namespace SnakeBlockJam.Game
             if (focus != null)
             {
                 guide.position = focus.position;
+                guideAt = Time.time;
                 guide.gameObject.SetActive(true);
             }
         }
 
+        private void SetTapTarget()
+        {
+            if (controller.Level.tutorial != TutorialKind.Tap || !controller.CanUseBoosters)
+                return;
+            tapTarget = Solver.PickHint(controller.State);
+            tapAt = Time.time + (tapHasEscape ? controller.Feel.tutorialRetargetDelay : 0f);
+        }
+
+        private void HideTap()
+        {
+            tapTarget = 0;
+            tapBanner.SetActive(false);
+            tapMarker.gameObject.SetActive(false);
+        }
+
         private void LateUpdate()
         {
-            if (awaitingReveal && Time.time >= showAt)
+            FeelSettings feel = controller.Feel;
+            if (cardPhase == CardPhase.Waiting && Time.time >= showAt)
             {
-                awaitingReveal = false;
-                cardVisibility.alpha = 1f;
-                cardVisibility.interactable = true;
-                controller.GetComponent<SfxPlayer>()?.PlayTutorial();
+                cardPhase = CardPhase.Visible;
+                showAt = Time.time;
+                sounds?.PlayTutorial();
+            }
+
+            if (cardPhase == CardPhase.Visible)
+            {
+                float t = Mathf.Clamp01((Time.time - showAt) / feel.tutorialCardInDuration);
+                cardVisibility.alpha = Mathf.SmoothStep(0f, 1f, t * 2f);
+                cardVisibility.interactable = t >= 1f;
+                card.localScale = Vector3.one * Mathf.LerpUnclamped(0.72f, 1f, GuideMotion.EaseOutBack(t));
+                card.anchoredPosition = Vector2.down * (56f * (1f - GuideMotion.EaseOutBack(t)));
+
+                if (bulbGlow.gameObject.activeSelf)
+                {
+                    float glow = Mathf.Sin((Time.time - showAt) * 2f);
+                    bulbGlow.color = new Color(1f, 0.73f, 0.26f, 0.30f + 0.12f * glow);
+                }
+            }
+            else if (cardPhase == CardPhase.Closing)
+            {
+                float t = Mathf.Clamp01((Time.time - dismissAt) / feel.tutorialCardOutDuration);
+                float shrink = Mathf.SmoothStep(0f, 1f, (t - 0.32f) / 0.68f);
+                float lift = Mathf.SmoothStep(0f, 1f, t / 0.32f);
+                cardVisibility.alpha = 1f - shrink;
+                card.localScale = Vector3.one * (1f + 0.035f * lift - 0.20f * shrink);
+                if (t >= 1f)
+                    FinishDismiss();
             }
 
             if (focus != null)
+            {
                 guide.position = focus.position;
+                GuideMotion.AnimatePress(freeHand, new Vector2(34f, 36f), freeRing,
+                    Time.time - guideAt, feel.freeGuidePeriod);
+            }
+
+            float tapStartsAt = Mathf.Max(tapAt, tapRevealAt);
+            if (tapTarget != 0 && Time.time >= tapStartsAt &&
+                controller.BoardView.TryGetSnakeHead(tapTarget, out Vector3 head))
+            {
+                tapBanner.SetActive(!tapHasEscape);
+                tapMarker.gameObject.SetActive(true);
+                tapMarker.anchoredPosition = GuideMotion.CanvasPoint((RectTransform)tapMarker.parent,
+                    controller.GameCamera, head);
+                GuideMotion.AnimatePress(tapHand, new Vector2(19f, 17f), tapRing,
+                    Time.time - tapStartsAt, feel.tutorialTapPeriod);
+            }
         }
     }
 }

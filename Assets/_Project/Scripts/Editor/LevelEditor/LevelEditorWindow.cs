@@ -237,7 +237,9 @@ namespace SnakeBlockJam.EditorTools
             EditorGUILayout.PropertyField(_serialized.FindProperty("showCompletedScreen"),
                 new GUIContent("TAMAMLANDI ekranı", "Kapalıysa kazanınca sonraki bölüm doğrudan açılır (L1–L4)."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("tutorial"),
-                new GUIContent("Tanıtım kartı", "Bölüm başında gösterilir; İpucu/Kürek tanıtımı ilk kullanımı ücretsiz yapar."));
+                new GUIContent("Öğretici", "Bölüm başındaki kart veya dokunma öğreticisi."));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("showIdleNudge"),
+                new GUIContent("Dokunma dürtmesi", "İlk dokunuşa kadar kaçabilen yılanı ileri geri oynatır."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("cameraScale"),
                 new GUIContent("Kamera ölçeği", "Hücre boyutu çarpanı (1 = genel fit)."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("cameraDownPixels"),

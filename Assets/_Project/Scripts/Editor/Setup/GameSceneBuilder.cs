@@ -415,6 +415,9 @@ namespace SnakeBlockJam.EditorTools
 
             SetReference(view, "controller", controller);
             SetReference(view, "hintButton", hint);
+            var hintFlash = Icon("HintFlash", root, "TapRing", 116f, 0f, 0f).GetComponent<Image>();
+            hintFlash.gameObject.SetActive(false);
+            SetReference(view, "hintFlash", hintFlash);
             SetReference(view, "hintCount", hintCount);
             SetReference(view, "shovelButton", shovel);
             SetReference(view, "shovelCount", shovelCount);
@@ -480,6 +483,10 @@ namespace SnakeBlockJam.EditorTools
             Text label = CreateText("Label", streak, "Great!", 80, Color.white);
             var outline = label.gameObject.AddComponent<Outline>();
             outline.effectDistance = new Vector2(5f, -5f);
+            Text multiplier = CreateText("Multiplier", streak, "", 94, Color.white);
+            var multiplierOutline = multiplier.gameObject.AddComponent<Outline>();
+            multiplierOutline.effectDistance = outline.effectDistance;
+            multiplier.gameObject.SetActive(false);
             streak.gameObject.SetActive(false);
 
             SetReference(view, "controller", controller);
@@ -488,6 +495,14 @@ namespace SnakeBlockJam.EditorTools
             SetReference(view, "streakGlow", glow);
             SetReference(view, "streakText", label);
             SetReference(view, "streakOutline", outline);
+            SetReference(view, "streakMultiplier", multiplier);
+            SetReference(view, "streakMultiplierOutline", multiplierOutline);
+            RectTransform praise = CreateRect("Praise", root);
+            praise.sizeDelta = Vector2.one * 108f;
+            Icon("Thumb", praise, "PraiseThumb", 108f, 0f, 0f);
+            praise.gameObject.AddComponent<CanvasGroup>();
+            praise.gameObject.SetActive(false);
+            SetReference(view, "praiseRoot", praise);
             return view;
         }
 
@@ -590,6 +605,7 @@ namespace SnakeBlockJam.EditorTools
             RectTransform overlay = CreateRect("Overlay", root);
             Stretch(overlay);
             CreateImage(overlay, new Color(0f, 0f, 0f, 0.982f)).raycastTarget = true;
+            overlay.gameObject.AddComponent<CanvasGroup>();
             RectTransform card = CreateRect("Card", overlay);
             card.sizeDelta = new Vector2(884f, 1174f);
             CreateImage(card, Color.white, "TutorialCard");
@@ -601,6 +617,7 @@ namespace SnakeBlockJam.EditorTools
             AddTutorialShadow(header, new Vector2(0f, -7f));
             Text title = CreateText("Title", header, "", 54, Color.white);
             OutlineText(title, 3f);
+            var bulbGlow = Icon("BulbGlow", card, "LampGlow", 570f, 32f, 151f).GetComponent<Image>();
             var picture = Icon("Picture", card, "Bridge", 605f, 0f, 120f);
             picture.GetComponent<Image>().preserveAspect = true;
             RectTransform line = CreateRect("Description", card);
@@ -631,15 +648,56 @@ namespace SnakeBlockJam.EditorTools
             free.sizeDelta = new Vector2(115f, 47f);
             CreateImage(free, Color.white, "Action");
             OutlineText(CreateText("Label", free, "Free", 33, Color.white), 2f);
-            Icon("Pointer", guide, "Pointer", 124f, 68f, 48f);
+            var freeRing = Icon("PressRing", guide, "TapRing", 162f, 0f, 0f).GetComponent<Image>();
+            RectTransform freeHand = CreatePressHand(guide, 187f, 195f);
             guide.gameObject.SetActive(false);
+
+            RectTransform banner = CreateRect("TapBanner", root);
+            banner.anchorMin = new Vector2(0.08f, 0.23f);
+            banner.anchorMax = new Vector2(0.92f, 0.23f);
+            banner.sizeDelta = new Vector2(0f, 108f);
+            CreateImage(banner, new Color32(255, 222, 68, 255), "Panel").pixelsPerUnitMultiplier = 0.65f;
+            RectTransform bannerFill = CreateRect("Fill", banner);
+            Stretch(bannerFill);
+            bannerFill.offsetMin = new Vector2(5f, 5f);
+            bannerFill.offsetMax = new Vector2(-5f, -5f);
+            CreateImage(bannerFill, new Color32(55, 69, 89, 255), "Panel").pixelsPerUnitMultiplier = 0.65f;
+            Text tapLabel = CreateText("Label", bannerFill, "Dokun ve yılanı çıkar!", 46, Color.white);
+            tapLabel.resizeTextForBestFit = true;
+            tapLabel.resizeTextMinSize = 22;
+            tapLabel.resizeTextMaxSize = 46;
+            OutlineText(tapLabel, 2f);
+            banner.gameObject.SetActive(false);
+
+            RectTransform tapMarker = CreateRect("TapMarker", root);
+            var tapRing = Icon("TapRing", tapMarker, "TapRing", 160f, 0f, 0f).GetComponent<Image>();
+            RectTransform tapHand = CreatePressHand(tapMarker, 170f, 65f);
+            tapMarker.gameObject.SetActive(false);
+
             SetReference(view, "guide", guide);
             SetReference(view, "hintButton", canvas.Find("Boosters/HintButton"));
             SetReference(view, "shovelButton", canvas.Find("Boosters/ShovelButton"));
+            SetReference(view, "card", card);
+            SetReference(view, "bulbGlow", bulbGlow);
+            SetReference(view, "freeHand", freeHand);
+            SetReference(view, "freeRing", freeRing);
+            SetReference(view, "tapBanner", banner.gameObject);
+            SetReference(view, "tapMarker", tapMarker);
+            SetReference(view, "tapHand", tapHand);
+            SetReference(view, "tapRing", tapRing);
             view.Configure(controller, overlay.gameObject, title, description, picture.GetComponent<Image>(),
                 new[] { InterfaceSprite("Bridge"), InterfaceSprite("Tunnel"), InterfaceSprite("Bulb"),
                         InterfaceSprite("Spade"), InterfaceSprite("Arrow") });
             overlay.gameObject.SetActive(false);
+        }
+
+        private static RectTransform CreatePressHand(RectTransform parent, float size, float angle)
+        {
+            RectTransform hand = CreateRect("Hand", parent);
+            RectTransform pointer = Icon("Pointer", hand, "Pointer", size, 0f, 0f);
+            pointer.pivot = new Vector2(0.48f, 0.86f);
+            pointer.localRotation = Quaternion.Euler(0f, 0f, angle);
+            return hand;
         }
 
         private static void AddTutorialShadow(RectTransform rect, Vector2 offset)

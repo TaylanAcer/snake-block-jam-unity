@@ -46,6 +46,9 @@ namespace SnakeBlockJam.Game
 
         [Tooltip("Yazının ekranda kalma süresi (sn). R-FX-06: ~1.")]
         [Min(0.1f)] public float streakDuration = 1f;
+        [Min(0f)] public float streakMultiplierDelay = 0.37f;
+        [Min(0.01f)] public float streakMultiplierPopDuration = 0.18f;
+        [Min(0f)] public float streakMultiplierHold = 0.24f;
 
         [Tooltip("Şahin gözünün ekranda kalma süresi (sn). R-FX-07, v19 29,70–30,85: ~1,15 " +
                  "(belirme + parlama ~0,3, bekleme, ~0,1 sönme; OBSERVED).")]
@@ -62,6 +65,23 @@ namespace SnakeBlockJam.Game
         [Tooltip("İpucu vurgusunun nabız periyodu (sn). R-HNT-02: v14'te parlak anlar ~7,15 / ~8,75 / ~10,5 sn " +
                  "(OBSERVED, kaba).")]
         [Min(0.1f)] public float hintPulsePeriod = 1.6f;
+
+        [Header("Öğretici ve övgü")]
+        [Min(0.01f)] public float hintActivationDuration = 0.23f;
+        [Min(0.01f)] public float tutorialCardInDuration = 0.32f;
+        [Min(0.01f)] public float tutorialCardOutDuration = 0.18f;
+        [Min(0.1f)] public float tutorialTapPeriod = 1.25f;
+        [Min(0f)] public float tutorialRetargetDelay = 0.20f;
+        [Min(0.1f)] public float freeGuidePeriod = 1.35f;
+        [Min(0f)] public float nudgeIdleDelay = 1.6f;
+        [Min(0.01f)] public float nudgeDuration = 0.20f;
+        [Min(0f)] public float nudgeGap = 0.05f;
+        [Min(0f)] public float nudgeRepeatPause = 1.10f;
+        [Range(0f, 1f)] public float nudgeDistance = 0.85f;
+        [Min(0.25f)] public float praiseDuration = 1.28f;
+        [Min(0.01f)] public float praisePopDuration = 0.22f;
+        [Min(0.01f)] public float praiseFadeDuration = 0.13f;
+        [Min(0.01f)] public float praiseConfettiDuration = 0.62f;
 
         [Tooltip("Kürek: kuyruktan başa her segmentin kaybolma süresi (sn). R-SHV-03: yılan uzunluğuna bağlı " +
                  "~1–2 sn; 15–25 segmentte 1,2–2 sn (ASSUMED).")]

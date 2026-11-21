@@ -20,6 +20,8 @@ Release APK varsayılan Android Debug sertifikasıyla imzalanır.
 
 **Oyun akışı:** İlk beş bölümde hamle sayacı görünmez. Sonraki bölümlerde başarısız hamle de bir hamle harcar. L1–L4'te kazanınca sonraki bölüm doğrudan açılır; L5'ten itibaren TAMAMLANDI → Devam, kayıpta HAMLE YOK → Tekrar Dene. İpucu L13'te, Kürek L18'de açılır; tanıtımdaki ilk kullanımları ücretsizdir (stok düşmez). Yeni mekanikler (köprü L5, tünel L11, ok L20) ilk göründükleri bölümde tanıtım kartıyla gelir.
 
+**Öğretici ve geri bildirim:** L1'de el ve halka kaçabilecek yılanı gösterir. L2'de ilk dokunuşa kadar bir yılan kısa süre ileri geri hareket eder. İpucu düğmesi hedef yılanı vurgular. Köprü üstü kaçışları başparmak ve konfetiyle, başarılı kaçış serileri ise `Unbelievable! x2` gibi çarpanlarla kutlanır.
+
 ## Mimari
 
 ```text
@@ -45,7 +47,7 @@ LevelData / LevelCatalog ──► GameController ◄── InputHandler
 
 1. **Hamle dokunulduğu anda çözülür, görünüm sonradan oynar.** `MoveSimulator` sonucu hesaplar, `BoardState` hemen günceller; animasyon modeli beklemez. Referansta kaçış sürerken başka yılanlara dokunulabildiği ve hareket eden yılanların birbirinin içinden geçtiği görüldüğü için tick tabanlı bir simülasyon yerine bu model seçildi. Giriş yalnızca başarısız hamlenin gidiş-dönüşü boyunca kilitlenir.
 2. **Köprüde hücre başına iki katman.** Doluluk `(hücre, katman)` çifti olarak tutulur (`Ground`, `BridgeTop`). Böylece aynı hücrede biri üstte biri altta iki yılan bulunabilir ve bir yılan aynı köprü hücresinden bir kez alttan bir kez üstten geçebilir (L19). Üst kata yalnızca köprü uçlarından, yol doğrultusunda girilir.
-3. **Tek Solver, iki kullanım.** Bir yılanın kaçması diğerlerinin yolunu yalnızca açar, hiçbir zaman kapatmaz; bu yüzden açgözlü (greedy) çözüm, bölüm çözülebilirse onu mutlaka bulur. Aynı `Solver` hem Level Editor'de bölümün çözülebilir olduğunu doğrular hem de İpucu'nda kaçabilecek yılanı seçer.
+3. **Tek çözücü.** Bir yılanın kaçması diğerlerinin yolunu açar. Bu yüzden açgözlü (greedy) çözüm, bölüm çözülebiliyorsa bir çözüm bulur. Aynı `Solver` Level Editor'de bölümü doğrular ve İpucu, dokunma öğreticisi ve dürtme için kaçabilen hedefi seçer.
 4. **Kanıta dayalı kurallar.** Her mekanik referans kayıtlarından "doğrulandı / gözlendi / ölçüldü / varsayım" olarak etiketlendi. Doğrulanmamış davranış kural olarak kodlanmadı; zorunlu varsayımlar (ör. yılanın kendi gövdesinin engel olmaması) kodda ve bu README'de belirtildi.
 5. **Ayarlar veride, kural kodda.** Bölümler `LevelData` asset'leri (yerleşim, stok, booster açılışı, tanıtım kartı, kamera çerçevesi), bütün süre ve hızlar `FeelSettings` asset'i. Yeni bölüm veya his ayarı için kod değişmez.
 6. **Görünenle seçim.** Dokunma, ekrandan atılan ışının yılanın görünen parçalarıyla (blok, göz, dil, kuyruk ucu) kesişmesiyle seçilir; tam isabet yoksa ~3 mm'lik parmak toleransı uygulanır. Eğik kamerada sadece blok üst yüzüne bakan eski yöntem, 20 bölümde göz ve dil üzerindeki örnek noktaların %12–48'ini kaçırıyordu; yeni yöntemde kaçırma yok.
@@ -104,6 +106,6 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 ## Bilinen eksikler ve kararlar
 
 - **30 FPS:** Giriş seviyesi cihazlarda (Mali-G52) 60 FPS ancak çözünürlük ve kenar yumuşatma belirgin düşürülürse tutuyor. Görüntü kalitesi için telefonda sabit 30 FPS seçildi; hızlı kaçışlar kare başına 2 hücre ilerler.
-- **Referansta ölçülemeyenler (varsayım):** Referans oyunun titreşimi, şahin gözünün tetikleyicisi, yüz animasyonlarının kesin periyotları ve bazı seri eşikleri videolardan kesin ölçülemedi. Seçilen değerler kodda kaynak ve gerekçesiyle not edildi.
+- **Referansta ölçülemeyenler (varsayım):** Titreşim, şahin gözü ve başparmağın kesin tetikleri, yüz animasyonlarının periyotları, `x3` ve sonrası seri eşikleri açık. Proje, 23. başarılı kaçışta `x2`, 28. kaçışta `x3` ve sonrasında her beş kaçışta yeni bir çarpan kullanır.
 - **Kapsam dışı (case gereği):** Ana menü, level seçimi, mağaza, coin, kalp, reklam, ek hamle satışı ve kalıcı ilerleme kaydı. Booster stoğu her bölümün başında referans karelerinden okunan değerle başlar. L20'den sonra Devam ilk bölüme döner.
 - **Samsung cihazlar:** Ekranın en altına dokununca Samsung Game Booster paneli açılabilir; bu sırada oyun duraklar. Sistem davranışıdır.

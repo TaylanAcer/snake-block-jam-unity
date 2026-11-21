@@ -94,8 +94,11 @@ namespace SnakeBlockJam.Game
         [Tooltip("Kazanınca ALL CLEAR'dan sonra TAMAMLANDI penceresi çıkar; kapalıysa sonraki bölüm doğrudan açılır (R-WIN-03).")]
         public bool showCompletedScreen;
 
-        [Tooltip("Bölüm başında gösterilen tanıtım kartı (R-FX-08). İpucu ve Kürek tanıtımı ilk kullanımı ücretsiz yapar.")]
+        [Tooltip("Bölüm başındaki kart veya dokunma öğreticisi. İpucu ve Kürek kartı ilk kullanımı ücretsiz yapar.")]
         public TutorialKind tutorial;
+
+        [Tooltip("İlk dokunuşa kadar kaçabilen bir yılanı hareketle işaretler.")]
+        public bool showIdleNudge;
 
         // Portre kamera çerçevesi (sadece sunum). L1–L20 için 720×1616 referans
         // karelerindeki gövde maskelerinden ölçüldü (learning/16); yeni bölümde 1 / 0.

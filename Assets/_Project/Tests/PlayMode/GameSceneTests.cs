@@ -670,6 +670,64 @@ public class GameSceneTests
     }
 
     [UnityTest]
+    public IEnumerator TapTutorial_TracksEscapingHeadsAndClosesAfterLastEscape()
+    {
+        GameObject banner = FindChild("Tutorials", "TapBanner");
+        GameObject marker = FindChild("Tutorials", "TapMarker");
+        yield return WaitUntilOrTimeout(() => marker.activeSelf, 2f);
+        Assert.IsTrue(banner.activeSelf);
+        Assert.IsTrue(marker.activeSelf);
+        Assert.AreEqual("Dokun ve yılanı çıkar!", banner.GetComponentInChildren<Text>().text);
+
+        int target = Solver.PickHint(_controller.State);
+        Assert.IsTrue(_controller.BoardView.TryGetSnakeHead(target, out Vector3 head));
+        Vector2 expected = _controller.GameCamera.WorldToScreenPoint(head);
+        Vector2 actual = RectTransformUtility.WorldToScreenPoint(null, marker.transform.position);
+        Assert.Less(Vector2.Distance(expected, actual), 1f);
+        Assert.IsTrue(_controller.HandleSnakeTap(target));
+        Assert.IsFalse(banner.activeSelf);
+        yield return WaitUntilOrTimeout(() => marker.activeSelf, 2f);
+        Assert.IsTrue(marker.activeSelf);
+        Assert.Greater(Solver.PickHint(_controller.State), 0);
+
+        while (_controller.State.Status == GameStatus.Playing)
+            Assert.IsTrue(TapFirstEscapingSnake());
+        Assert.IsFalse(marker.activeSelf);
+        yield return LoadLevel(CatalogLevel(2));
+        Assert.IsFalse(banner.activeSelf);
+        Assert.IsFalse(marker.activeSelf);
+    }
+
+    [UnityTest]
+    public IEnumerator IdleNudge_MovesOnlyEscapingSnakeAndReturnsOnPress()
+    {
+        yield return LoadLevel(CatalogLevel(2));
+        var board = _controller.BoardView;
+        int target = Solver.PickHint(_controller.State);
+        SnakeView view = FindView(target);
+        Vector3 rest = view.Segments[0].position;
+        Assert.AreEqual(0, board.NudgedSnakeId);
+
+        yield return WaitUntilOrTimeout(() => view.Travel > 0.02f, _controller.Feel.nudgeIdleDelay + 2f);
+        Assert.AreEqual(target, board.NudgedSnakeId);
+        Assert.Greater(Vector3.Distance(rest, view.Segments[0].position), 0.02f);
+        yield return WaitUntilOrTimeout(() => view.Travel == 0f, 1f);
+        Assert.Less(Vector3.Distance(rest, view.Segments[0].position), 1e-4f);
+
+        yield return WaitUntilOrTimeout(() => view.Travel > 0.02f, 1f);
+        Assert.Greater(view.Travel, 0.02f);
+        Assert.IsFalse(_input.HandlePress(new Vector2(-500f, -500f)));
+        Assert.AreEqual(0, board.NudgedSnakeId);
+        Assert.IsFalse(view.IsMoving);
+        Assert.Less(Vector3.Distance(rest, view.Segments[0].position), 1e-4f);
+        Assert.AreEqual(0, _controller.State.EscapedCount);
+
+        yield return LoadLevel(CatalogLevel(1));
+        yield return new WaitForSeconds(_controller.Feel.nudgeIdleDelay + 0.1f);
+        Assert.AreEqual(0, board.NudgedSnakeId);
+    }
+
+    [UnityTest]
     public IEnumerator Tutorial_AtFirstHintLevel_BlocksBoardUntilDismissed()
     {
         yield return LoadLevel(CatalogLevel(13));
@@ -680,6 +738,7 @@ public class GameSceneTests
         Assert.AreEqual("İpucu", overlay.Find("Card/Header/Title").GetComponent<Text>().text);
         Assert.IsTrue(_input.IsOverUI(ScreenPointOf(3, 4)));
         overlay.Find("Card/Accept").GetComponent<Button>().onClick.Invoke();
+        yield return WaitUntilOrTimeout(() => !overlay.gameObject.activeSelf, 2f);
         Assert.IsFalse(overlay.gameObject.activeSelf);
         Transform guide = GameObject.Find("Tutorials").transform.Find("FreeGuide");
         Assert.IsTrue(guide.gameObject.activeSelf);
@@ -707,6 +766,7 @@ public class GameSceneTests
         Transform overlay = GameObject.Find("Tutorials").transform.Find("Overlay");
         yield return new WaitUntil(() => overlay.GetComponent<CanvasGroup>().interactable);
         overlay.Find("Card/Accept").GetComponent<Button>().onClick.Invoke();
+        yield return WaitUntilOrTimeout(() => !overlay.gameObject.activeSelf, 2f);
 
         Assert.IsTrue(_controller.IsShovelFree);
         Assert.AreEqual(1, _controller.ShovelsLeft);
@@ -1232,6 +1292,29 @@ public class GameSceneTests
 
     // R-HNT-02: vurgu, o yılan tahtadan çıkınca biter.
     [UnityTest]
+    public IEnumerator Hint_ActivationFinishesOrClearsOnRestart()
+    {
+        yield return LoadLevel(CatalogLevel(13));
+        GameObject flash = FindChild("Boosters", "HintFlash");
+        Assert.IsTrue(_controller.UseHint());
+        yield return WaitUntilOrTimeout(() => flash.activeSelf, 1f);
+        Assert.IsTrue(flash.activeSelf);
+        yield return WaitUntilOrTimeout(() => !flash.activeSelf, 1f);
+        Assert.IsFalse(flash.activeSelf);
+        Assert.AreEqual(_controller.HintedSnakeId, _controller.BoardView.HighlightedSnakeId);
+        Assert.AreNotEqual(0, _controller.HintedSnakeId);
+
+        _controller.Restart();
+        yield return null;
+        Assert.IsTrue(_controller.UseHint());
+        yield return WaitUntilOrTimeout(() => flash.activeSelf, 1f);
+        Assert.IsTrue(flash.activeSelf);
+        _controller.Restart();
+        Assert.IsFalse(flash.activeSelf);
+        Assert.AreEqual(0, _controller.BoardView.HighlightedSnakeId);
+    }
+
+    [UnityTest]
     public IEnumerator Hint_ClearsWhenHintedSnakeEscapes()
     {
         yield return LoadLevel(CatalogLevel(13));
@@ -1420,6 +1503,88 @@ public class GameSceneTests
     // Cihaz gözlemi: açılış sesi tahta çizilmeye başladıktan sonra geliyordu;
     // Reveal.wav başında ~0,41 sn sessizlik vardı. Ses, çizimle aynı karede
     // başlamalı ve ilk duyulur örnek ~0'da olmalı.
+    [UnityTest]
+    public IEnumerator Streak_ShowsSecondMultiplierWithExistingSound()
+    {
+        yield return LoadLevel(CatalogLevel(12));
+        for (int i = 0; i < 23; i++)
+            Assert.IsTrue(_controller.HandleSnakeTap(Solver.PickHint(_controller.State)));
+
+        var feedback = Object.FindAnyObjectByType<FeedbackView>();
+        yield return WaitUntilOrTimeout(() => feedback.CurrentStreakText != null, 2f);
+        Assert.AreEqual("Unbelievable! x2", feedback.CurrentStreakText);
+        Assert.AreEqual("Unbelievable", Object.FindAnyObjectByType<SfxPlayer>().LastPlayed);
+        Transform multiplier = feedback.transform.Find("Streak/Multiplier");
+        Assert.IsFalse(multiplier.gameObject.activeSelf);
+        yield return WaitUntilOrTimeout(() => multiplier.gameObject.activeSelf, 2f);
+        Assert.IsTrue(multiplier.gameObject.activeSelf);
+        Assert.AreEqual("x2", multiplier.GetComponent<Text>().text);
+    }
+
+    [UnityTest]
+    public IEnumerator Streak_ShowsThirdMultiplierOnLongBoard()
+    {
+        var level = ScriptableObject.CreateInstance<LevelData>();
+        level.width = 29;
+        level.height = 2;
+        try
+        {
+            for (int i = 0; i < 29; i++)
+            {
+                var snake = new SnakeData { id = i + 1, direction = Direction.Up };
+                snake.body.Add(new SegmentData { cell = new Vector2Int(i, 1) });
+                snake.body.Add(new SegmentData { cell = new Vector2Int(i, 0) });
+                level.snakes.Add(snake);
+            }
+            yield return LoadLevel(level);
+
+            for (int id = 1; id <= 28; id++)
+                Assert.IsTrue(_controller.HandleSnakeTap(id));
+            var feedback = Object.FindAnyObjectByType<FeedbackView>();
+            Transform multiplier = feedback.transform.Find("Streak/Multiplier");
+            yield return WaitUntilOrTimeout(() => multiplier.gameObject.activeInHierarchy, 2f);
+            Assert.IsTrue(multiplier.gameObject.activeInHierarchy);
+            Assert.AreEqual("Unbelievable! x3", feedback.CurrentStreakText);
+            Assert.AreEqual("x3", multiplier.GetComponent<Text>().text);
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator Praise_ShowsAtBridgeEscapeAndExpires()
+    {
+        yield return LoadLevel(CatalogLevel(10));
+        GameObject praise = FindChild("Feedback", "Praise");
+        bool bridged = false;
+
+        while (!bridged && _controller.State.Status == GameStatus.Playing)
+        {
+            int target = Solver.PickHint(_controller.State);
+            Assert.AreNotEqual(0, target);
+            MoveResult move = MoveSimulator.Simulate(_controller.State, target);
+            bridged = _controller.State.GetSnake(target).Body[0].Layer == BoardLayer.BridgeTop;
+            foreach (var step in move.HeadPath)
+                bridged |= step.Layer == BoardLayer.BridgeTop;
+
+            Assert.IsTrue(_controller.HandleSnakeTap(target));
+            if (!bridged)
+            {
+                yield return WaitUntilOrTimeout(() => _controller.BoardView.EscapingSnakeCount == 0, 2f);
+                Assert.IsFalse(praise.activeSelf, "ordinary escape");
+            }
+        }
+
+        Assert.IsTrue(bridged);
+        yield return WaitUntilOrTimeout(() => praise.activeSelf, 2f);
+        Assert.IsTrue(praise.activeSelf);
+        Assert.Greater(praise.GetComponentsInChildren<Image>().Length, 1, "confetti pool");
+        yield return WaitUntilOrTimeout(() => !praise.activeSelf, _controller.Feel.praiseDuration + 1f);
+        Assert.IsFalse(praise.activeSelf);
+    }
+
     [UnityTest]
     public IEnumerator Reveal_SoundStartsWithFirstDrawnFrame()
     {

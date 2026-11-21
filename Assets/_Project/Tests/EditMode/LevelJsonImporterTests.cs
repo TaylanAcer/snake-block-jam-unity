@@ -153,6 +153,8 @@ public class LevelJsonImporterTests
         Assert.IsFalse(Level(1).showIdleNudge);
         Assert.IsTrue(Level(2).showIdleNudge);
         Assert.IsFalse(Level(3).showIdleNudge);
+        for (int n = 1; n <= 20; n++)
+            Assert.AreEqual(n == 10 || n == 14, Level(n).showPraise, $"L{n} praise");
         Assert.AreEqual(TutorialKind.Bridge, Level(5).tutorial);
         Assert.AreEqual(TutorialKind.Burrow, Level(11).tutorial);
         Assert.AreEqual(TutorialKind.Hint, Level(13).tutorial);
@@ -235,6 +237,17 @@ public class LevelJsonImporterTests
         CollectionAssert.AreEqual(
             new[] { new Vector2Int(22, 14), new Vector2Int(22, 15) },
             snake.hiddenCells);
+    }
+
+    // 21 Kasım denetimi: v04 açılış sonrası karede kahverengi yılanın kuyruğu (2,14)'te;
+    // yılan kaçınca (2,14) noktası görünüyor. Eski veri bir hücre kısaydı.
+    [Test]
+    public void Level4_BrownSnakeTailReachesReferenceCell()
+    {
+        var snake = Level(4).snakes.Find(s => s.id == 1);
+
+        Assert.AreEqual(26, snake.body.Count);
+        Assert.AreEqual(new Vector2Int(2, 14), snake.body[snake.body.Count - 1].cell);
     }
 
     // Monotonluk (yol haritası §7.4): greedy tahtayı boşaltıyorsa level çözülebilir.

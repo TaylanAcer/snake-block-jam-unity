@@ -100,6 +100,9 @@ namespace SnakeBlockJam.Game
         [Tooltip("İlk dokunuşa kadar kaçabilen bir yılanı hareketle işaretler.")]
         public bool showIdleNudge;
 
+        [Tooltip("Köprü üstü veya son kaçışta başparmak + konfeti (bölüm başına en çok FeelSettings.praiseMaxPerLevel).")]
+        public bool showPraise;
+
         // Portre kamera çerçevesi (sadece sunum). L1–L20 için 720×1616 referans
         // karelerindeki gövde maskelerinden ölçüldü (learning/16); yeni bölümde 1 / 0.
         [Tooltip("Hücre boyutu çarpanı (genel fit × bu değer). Yeni bölümde 1.")]

@@ -83,6 +83,12 @@ namespace SnakeBlockJam.Game
         [Min(0.01f)] public float praiseFadeDuration = 0.13f;
         [Min(0.01f)] public float praiseConfettiDuration = 0.62f;
 
+        [Tooltip("Başparmağın ölçeği. v11 35,2 sn / v15 37,7 sn: 720 px genişlikte ~90 px (OBSERVED).")]
+        [Min(0.1f)] public float praiseScale = 1.45f;
+
+        [Tooltip("Bölüm başına en çok başparmak. v11 (L10): 2 kez (OBSERVED).")]
+        [Min(0)] public int praiseMaxPerLevel = 2;
+
         [Tooltip("Kürek: kuyruktan başa her segmentin kaybolma süresi (sn). R-SHV-03: yılan uzunluğuna bağlı " +
                  "~1–2 sn; 15–25 segmentte 1,2–2 sn (ASSUMED).")]
         [Min(0.01f)] public float shovelSegmentTime = 0.08f;

@@ -29,6 +29,14 @@ namespace SnakeBlockJam.EditorTools
         // açılış sonrası karelerde nokta yok). Alan, Level Editor'de elle açılabilir.
         public static readonly int[] RectangularBoardLevels = { };
 
+        // İlk dokunuşa kadar kaçabilen yılanın ileri geri "bas" hareketi.
+        // VERIFIED (kullanıcı): v02 ~0:04, L2. Diğer bölümlerde görülmedi.
+        public static readonly int[] IdleNudgeLevels = { 2 };
+
+        // Başparmak + konfeti. OBSERVED: v11 (L10) 22,4 ve 34,8 sn, v15 (L14) 37,7 sn;
+        // 21 Kasım taramasında diğer 18 bölümde hiç görülmedi.
+        public static readonly int[] PraiseLevels = { 10, 14 };
+
         // Level başındaki booster stoku: (level, İpucu, Kürek). JSON'da yok.
         // OBSERVED, 17 Kasım oyunu: Level_13–20.png alt bölümü + probe_shovel_v19_p1
         // (L18 açılışı, kürek tanıtım bandından önce):
@@ -298,7 +306,8 @@ namespace SnakeBlockJam.EditorTools
 
                 level.isHard = ReadBool(json, "hard", context);
                 level.isRectangularBoard = System.Array.IndexOf(RectangularBoardLevels, expectedNumber) >= 0;
-                level.showIdleNudge = expectedNumber == 2; // v02, bölüm başlangıcındaki hareketli işaret.
+                level.showIdleNudge = System.Array.IndexOf(IdleNudgeLevels, expectedNumber) >= 0;
+                level.showPraise = System.Array.IndexOf(PraiseLevels, expectedNumber) >= 0;
 
                 foreach (var (boosterLevel, hints, shovels) in BoosterCounts)
                 {

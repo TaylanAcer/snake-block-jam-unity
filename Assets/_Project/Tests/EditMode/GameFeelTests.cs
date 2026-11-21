@@ -28,7 +28,7 @@ public class GameFeelTests
         Assert.That(System.Array.ConvertAll(new[] { 3, 8, 13, 18, 23, 28 }, count =>
                 FeedbackView.StreakLabel(FeedbackView.StreakIndex(count))),
             Is.EqualTo(new[] { "Great!", "Amazing!", "Perfect!", "Unbelievable!",
-                "Unbelievable! x2", "Unbelievable! x3" }));
+                "Unbelievable! X2", "Unbelievable! X3" }));
     }
 
     // R-COL-03: +0,125 sn başlar, +0,24 sn tepe, sonra söner.

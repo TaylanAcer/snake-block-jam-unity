@@ -240,6 +240,8 @@ namespace SnakeBlockJam.EditorTools
                 new GUIContent("Öğretici", "Bölüm başındaki kart veya dokunma öğreticisi."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("showIdleNudge"),
                 new GUIContent("Dokunma dürtmesi", "İlk dokunuşa kadar kaçabilen yılanı ileri geri oynatır."));
+            EditorGUILayout.PropertyField(_serialized.FindProperty("showPraise"),
+                new GUIContent("Başparmak", "Köprü üstü veya son kaçışta başparmak + konfeti."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("cameraScale"),
                 new GUIContent("Kamera ölçeği", "Hücre boyutu çarpanı (1 = genel fit)."));
             EditorGUILayout.PropertyField(_serialized.FindProperty("cameraDownPixels"),

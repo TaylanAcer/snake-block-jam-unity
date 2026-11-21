@@ -89,7 +89,14 @@ namespace SnakeBlockJam.Game
         public static string StreakLabel(int index)
         {
             int style = Mathf.Min(index, Streaks.Length - 1);
-            return index == style ? Streaks[style].Text : $"{Streaks[style].Text} x{index - style + 1}";
+            return index == style ? Streaks[style].Text : $"{Streaks[style].Text} {MultiplierLabel(index)}";
+        }
+
+        // v13 36,6 / v16 48,8 / v19 51,2: büyük harf "X2", yazıdan iri (VERIFIED, video).
+        public static string MultiplierLabel(int index)
+        {
+            int style = Mathf.Min(index, Streaks.Length - 1);
+            return index == style ? null : $"X{index - style + 1}";
         }
 
         // R-COL-03: dokunuştan 'start'ta başlar, 'peak'te en yüksek, 'end'de söner.
@@ -164,8 +171,7 @@ namespace SnakeBlockJam.Game
             {
                 _pendingStreak = index;
                 _pendingLabel = StreakLabel(index);
-                int style = Mathf.Min(index, Streaks.Length - 1);
-                _pendingMultiplier = index == style ? null : $"x{index - style + 1}";
+                _pendingMultiplier = MultiplierLabel(index);
                 _streakTime = 0f;
             }
         }
@@ -204,16 +210,17 @@ namespace SnakeBlockJam.Game
             var canvasRect = (RectTransform)praiseRoot.parent;
             Vector2 anchor = GuideMotion.CanvasPoint(canvasRect, controller.GameCamera, _praiseWorld);
             Rect bounds = canvasRect.rect;
-            anchor.x = Mathf.Clamp(anchor.x, bounds.xMin + 72f, bounds.xMax - 72f);
+            float half = 68f * feel.praiseScale;
+            anchor.x = Mathf.Clamp(anchor.x, bounds.xMin + half + 4f, bounds.xMax - half - 4f);
             float ceiling = bounds.yMax + streakRoot.anchoredPosition.y - streakRoot.sizeDelta.y * 0.5f;
-            anchor.y = Mathf.Clamp(anchor.y + 68f, bounds.yMin + 65f, ceiling - 68f);
+            anchor.y = Mathf.Clamp(anchor.y + half, bounds.yMin + half, ceiling - half);
             praiseRoot.anchoredPosition = anchor;
 
             float pop = GuideMotion.EaseOutBack(_praiseTime / feel.praisePopDuration);
             float fade = Mathf.SmoothStep(0f, 1f,
                 (feel.praiseDuration - _praiseTime) / feel.praiseFadeDuration);
             praiseRoot.localScale = new Vector3(Mathf.LerpUnclamped(0.42f, 1f, pop),
-                Mathf.LerpUnclamped(0.24f, 1f, pop), 1f) * Mathf.Lerp(0.85f, 1f, fade);
+                Mathf.LerpUnclamped(0.24f, 1f, pop), 1f) * (Mathf.Lerp(0.85f, 1f, fade) * feel.praiseScale);
             _praiseVisibility.alpha = fade;
 
             float t = _praiseTime / feel.praiseConfettiDuration;

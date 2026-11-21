@@ -18,9 +18,9 @@ Oreon Studios Unity case çalışması: Snake Block Jam'in ilk 20 bölümünün 
 
 Release APK varsayılan Android Debug sertifikasıyla imzalanır.
 
-**Oyun akışı:** İlk beş bölümde hamle sayacı görünmez. Sonraki bölümlerde başarısız hamle de bir hamle harcar. L1–L4'te kazanınca sonraki bölüm doğrudan açılır; L5'ten itibaren TAMAMLANDI → Devam, kayıpta HAMLE YOK → Tekrar Dene. İpucu L13'te, Kürek L18'de açılır; tanıtımdaki ilk kullanımları ücretsizdir (stok düşmez). Yeni mekanikler (köprü L5, tünel L11, ok L20) ilk göründükleri bölümde tanıtım kartıyla gelir.
+**Oyun akışı:** İlk beş bölümde hamle sayacı görünmez. Sonraki bölümlerde başarısız hamle de bir hamle harcar. L1–L4'te kazanınca sonraki bölüm doğrudan açılır; L5'ten itibaren TAMAMLANDI → Devam, kayıpta HAMLE YOK → Tekrar Dene. Referanstaki gibi oyun içinde Restart butonu yok; bölüm yalnızca HAMLE YOK'tan yeniden başlar. Yılan kaçışı yolu sadece açtığı için hiçbir bölümde takılı kalınmaz. İpucu L13'te, Kürek L18'de açılır; tanıtımdaki ilk kullanımları ücretsizdir (stok düşmez). Yeni mekanikler (köprü L5, tünel L11, ok L20) ilk göründükleri bölümde tanıtım kartıyla gelir. Telefonda uygulama kapanıp açılınca kaldığı bölümden devam eder (editörde sahnedeki bölüm açılır).
 
-**Öğretici ve geri bildirim:** L1'de el ve halka kaçabilecek yılanı gösterir. L2'de ilk dokunuşa kadar bir yılan kısa süre ileri geri hareket eder. İpucu düğmesi hedef yılanı vurgular. Köprü üstü kaçışları başparmak ve konfetiyle, başarılı kaçış serileri ise `Unbelievable! x2` gibi çarpanlarla kutlanır.
+**Öğretici ve geri bildirim:** L1'de el ve halka kaçabilecek yılanı gösterir. L2'de ilk dokunuşa kadar bir yılan kısa süre ileri geri hareket eder. İpucu düğmesi hedef yılanı vurgular. L10 ve L14'te köprü üstü veya son kaçış başparmak ve konfetiyle kutlanır (referansta yalnızca bu iki bölümde görüldü). Uzun seriler `Unbelievable! X2` gibi çarpanlarla devam eder.
 
 ## Mimari
 
@@ -81,15 +81,16 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 
 ## Doğrulama
 
-- **Otomatik testler:** Unity Test Runner ile 387 EditMode ve 51 PlayMode testi (20 Kasım 2026). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır.
+- **Otomatik testler:** Unity Test Runner ile 392 EditMode ve 61 PlayMode testi (21 Kasım 2026). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır.
+- **Dayanıklılık testi (`StressTests`):** 20 bölümde rastgele oynayan test. Dokunuşlar (yılan, boş hücre, ekran noktası, aynı karede hızlı seri), İpucu, Kürek, kart kapatma, pencere butonu ve bölümü yeniden başlatma karışık gelir; bitiş ve kayıp ekranlarında da dokunulur. Hata, exception veya takılma testi düşürür. Ayrıca L1 → L20 → L1 tam tur oynanır. Teslim öncesi 3 turla koşuldu: ~4.950 hamle, hata yok.
 - **Fiziksel cihaz (Samsung Galaxy A13, Android 12, Mali-G52):**
   - 20 bölüm baştan sona oynandı (performans optimizasyonu öncesi build): 20 ALL CLEAR, 1 HAMLE YOK, 419 hamle. Unity hatası, exception, çökme veya ANR görülmedi.
   - Dokunuştan hamleye gecikme: medyan 15 ms.
   - Bellek 270–341 MB, sızıntı yok.
   - Optimizasyon sonrası tam çözünürlükte bir kare ~22 ms; L1'de karelerin %97,8'i tam 33 ms (sabit 30 FPS).
   - Bellek ayırma (development build, otomatik oynama L1–L9): boşta kare başına ≈ 0 B; ayırma sadece dokunuş anında (kare başı ortalama 0,5–1,5 KB) ve bölüm yüklemede (tek seferlik 130–570 KB). GC toplaması ~10 sn'de bir, Mono heap 3–4 MB.
-- **Bölüm düzenleri:** 20 bölümün render'ı, referans videolardaki açılış sonrası karelerle renk maskesiyle karşılaştırıldı. L15'te 11 yılanın başı geride okunmuştu (başlangıç karesi açılış animasyonu bitmeden çekilmiş); düzeltildi ve hücre hücre eşleşiyor. L10/L19'daki kısa köprüler 1 hücreye düşürüldü.
-- **Emülatör:** Android 15 Pixel 8 AVD'de L1–L20 geçildi.
+- **Bölüm düzenleri:** 20 bölümün render'ı, referans videolardaki açılış sonrası karelerle renk maskesiyle karşılaştırıldı. L15'te 11 yılanın başı geride okunmuştu (başlangıç karesi açılış animasyonu bitmeden çekilmiş); düzeltildi ve hücre hücre eşleşiyor. L10/L19'daki kısa köprüler 1 hücreye düşürüldü. 21 Kasım'da ikinci bir kontrol yapıldı: her bölümün videosu bölüm sonuna kadar tarandı, yılanlar kaçtıkça açılan grid noktaları ve başlangıçtaki her hücre bizim render'la karşılaştırıldı. Noktalar 20 bölümde de uyuşuyor. L4'te bir yılanın kuyruğu bir hücre kısaydı, düzeltildi.
+- **Emülatör:** Android 15 Pixel 8 AVD'de L1–L20 geçildi. 21 Kasım: Android 16 AVD'de release APK ile Android `monkey` testi yapıldı (20.000 rastgele olay; dokunma, kaydırma, uygulamadan çıkıp dönme, sistem tuşları). Sonuç: 790 hamle, L1–L6, çökme/ANR/Unity hatası yok. Uygulama zorla kapatılıp açılınca kaldığı bölümden devam etti. Not: Aynı gün Pixel 8 AVD'de (16 KB sayfa boyutlu x86_64 imaj, ps16k) emülatörün ARM çeviri katmanı açılışta çöktü (`berberis: Cannot process signal 11`, Vulkan başlatılırken). Çöküş çeviri katmanının içinde, oyun kodunda değil. Gerçek ARM cihazlarda çeviri katmanı yok.
 
 ![Release APK ekranları](Media/android-release.png)
 
@@ -106,6 +107,8 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 ## Bilinen eksikler ve kararlar
 
 - **30 FPS:** Giriş seviyesi cihazlarda (Mali-G52) 60 FPS ancak çözünürlük ve kenar yumuşatma belirgin düşürülürse tutuyor. Görüntü kalitesi için telefonda sabit 30 FPS seçildi; hızlı kaçışlar kare başına 2 hücre ilerler.
-- **Referansta ölçülemeyenler (varsayım):** Titreşim, şahin gözü ve başparmağın kesin tetikleri, yüz animasyonlarının periyotları, `x3` ve sonrası seri eşikleri açık. Proje, 23. başarılı kaçışta `x2`, 28. kaçışta `x3` ve sonrasında her beş kaçışta yeni bir çarpan kullanır.
-- **Kapsam dışı (case gereği):** Ana menü, level seçimi, mağaza, coin, kalp, reklam, ek hamle satışı ve kalıcı ilerleme kaydı. Booster stoğu her bölümün başında referans karelerinden okunan değerle başlar. L20'den sonra Devam ilk bölüme döner.
+- **Referansta ölçülemeyenler (varsayım):** Titreşimin, şahin gözünün ve başparmağın kesin tetikleri, yüz animasyonlarının periyotları ve `X3` ile sonrasının seri eşikleri açık.
+  - Başparmak referansta 20 bölümde yalnızca 3 kez görüldü. Klon onu sadece bu bölümlerde (L10, L14) gösteriyor: köprü üstü veya son kaçışta, bölüm başına en çok 2 kez.
+  - Seriler: 23. başarılı kaçışta `X2`, 28.'de `X3`, sonra her beş kaçışta bir yeni çarpan.
+- **Kapsam dışı (case gereği):** Ana menü, level seçimi, mağaza, coin, kalp, reklam ve ek hamle satışı. Booster stoğu her bölümün başında referans karelerinden okunan değerle başlar. L20'den sonra Devam ilk bölüme döner.
 - **Samsung cihazlar:** Ekranın en altına dokununca Samsung Game Booster paneli açılabilir; bu sırada oyun duraklar. Sistem davranışıdır.

@@ -26,6 +26,7 @@ MonoBehaviour:
   showCompletedScreen: 0
   tutorial: 0
   showIdleNudge: 1
+  showPraise: 0
   cameraScale: 0.961
   cameraDownPixels: 14
   snakes:

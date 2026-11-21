@@ -25,6 +25,8 @@ MonoBehaviour:
   shovelUnlocked: 0
   showCompletedScreen: 0
   tutorial: 0
+  showIdleNudge: 0
+  showPraise: 0
   cameraScale: 1.019
   cameraDownPixels: -7
   snakes:
@@ -82,8 +84,14 @@ MonoBehaviour:
       layer: 0
     - cell: {x: 1, y: 14}
       layer: 0
+    - cell: {x: 2, y: 14}
+      layer: 0
     hiddenCells: []
-    notes: []
+    notes:
+    - "Kuyruk (2,14): v04 a\xE7\u0131l\u0131\u015F sonras\u0131 karede dirsekten
+      sonra tam g\xF6vde blo\u011Fu + kuyruk ucu var; y\u0131lan ka\xE7\u0131nca
+      (2,14) noktas\u0131 g\xF6r\xFCn\xFCyor (21 Kas\u0131m denetimi, kullan\u0131c\u0131
+      onay\u0131)"
   - id: 2
     color: 7
     direction: 1

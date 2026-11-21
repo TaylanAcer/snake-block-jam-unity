@@ -25,6 +25,8 @@ MonoBehaviour:
   shovelUnlocked: 0
   showCompletedScreen: 1
   tutorial: 3
+  showIdleNudge: 0
+  showPraise: 0
   cameraScale: 0.981
   cameraDownPixels: 2
   snakes:

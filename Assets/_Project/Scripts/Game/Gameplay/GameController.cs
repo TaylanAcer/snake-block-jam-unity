@@ -43,6 +43,7 @@ namespace SnakeBlockJam.Game
         [SerializeField] private Camera gameCamera;
 
         private int _consecutiveEscapes;
+        private int _praiseCount;
         private int _nextHawkEligible;
         private float _lastHawkTime;
         private int _fittedWidth;
@@ -123,9 +124,43 @@ namespace SnakeBlockJam.Game
                 Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
         }
 
+        // Kaldığı bölümden devam: uygulama kapanıp açılınca son açılan bölüm yüklenir
+        // (referans oyun da böyle). Sadece cihazda; editörde sahnedeki veya Level
+        // Editor'ün seçtiği bölüm açılır, testler kayıttan etkilenmez.
+        public const string SavedLevelKey = "SnakeBlockJam.Level";
+
+        // Katalogda bu numaralı bölüm; yoksa 'fallback'.
+        public static LevelData FindLevel(LevelCatalog levels, int levelNumber, LevelData fallback)
+        {
+            if (levels != null)
+            {
+                foreach (var candidate in levels.levels)
+                {
+                    if (candidate != null && candidate.levelNumber == levelNumber)
+                        return candidate;
+                }
+            }
+
+            return fallback;
+        }
+
+        private static bool UsesSavedProgress => !Application.isEditor;
+
         private void Start()
         {
+            if (UsesSavedProgress)
+                level = FindLevel(catalog, PlayerPrefs.GetInt(SavedLevelKey, 0), level);
+
             LoadLevel();
+        }
+
+        private void SaveProgress()
+        {
+            if (!UsesSavedProgress || PlayerPrefs.GetInt(SavedLevelKey, 0) == level.levelNumber)
+                return;
+
+            PlayerPrefs.SetInt(SavedLevelKey, level.levelNumber);
+            PlayerPrefs.Save();
         }
 
         // Başka bir level'ı yükler (Devam, L1–L4 geçişi, testler).
@@ -197,11 +232,13 @@ namespace SnakeBlockJam.Game
             IsShovelFree = false;
 
             _consecutiveEscapes = 0;
+            _praiseCount = 0;
             _nextHawkEligible = 4;
             _lastHawkTime = float.NegativeInfinity;
             State = new BoardState(level.ToDefinition());
             boardView.Build(level, State);
             FitCamera();
+            SaveProgress();
             Changed?.Invoke();
             if (level.showIdleNudge)
                 _idleNudge = StartCoroutine(PlayIdleNudge());
@@ -262,6 +299,22 @@ namespace SnakeBlockJam.Game
             return false;
         }
 
+        // Başparmak: referansta 20 bölümde yalnızca 3 kez görüldü, hepsi Hard
+        // bölümde: v11 (L10) 22,4 sn köprü üstü kaçış ve 34,8 sn son yılan; v15 (L14)
+        // 37,7 sn köprü üstü kaçış. Diğer köprülü bölümlerde köprü üstü kaçışta çıkmıyor.
+        // Tetik UNKNOWN; klon: bölüm verisinde açıksa köprü üstü veya son kaçışta,
+        // bölüm başına en çok FeelSettings.praiseMaxPerLevel kez (ASSUMED).
+        private static bool CrossesBridgeTop(MoveResult result)
+        {
+            for (int i = 0; i < result.HeadPath.Count; i++)
+            {
+                if (result.HeadPath[i].Layer == BoardLayer.BridgeTop)
+                    return true;
+            }
+
+            return false;
+        }
+
         // Ekranda seçilen yılana dokunuş (InputHandler). Kurallar HandleCellTap ile aynı.
         public bool HandleSnakeTap(int snakeId)
         {
@@ -277,6 +330,7 @@ namespace SnakeBlockJam.Game
             if (IsShovelTargeting)
                 return ShovelSnake(snakeId);
 
+            bool startsOnBridge = State.GetSnake(snakeId).Body[0].Layer == BoardLayer.BridgeTop;
             MoveResult result = MoveSimulator.Simulate(State, snakeId);
             State.Apply(result);
 
@@ -285,9 +339,11 @@ namespace SnakeBlockJam.Game
                 if (snakeId == HintedSnakeId)
                     HintedSnakeId = 0;
 
-                bool cleanFinish = State.Status == GameStatus.Won && boardView.BridgeCount > 0 &&
-                                   _consecutiveEscapes + 1 == State.EscapedCount;
-                boardView.PlayEscape(result, feel.escapeSpeed, gameCamera, cleanFinish);
+                bool praise = level.showPraise && _praiseCount < feel.praiseMaxPerLevel &&
+                              (startsOnBridge || CrossesBridgeTop(result) || State.Status == GameStatus.Won);
+                if (praise)
+                    _praiseCount++;
+                boardView.PlayEscape(result, feel.escapeSpeed, gameCamera, praise);
                 _consecutiveEscapes++;
                 if (_consecutiveEscapes > 3 && State.EscapedCount >= _nextHawkEligible &&
                     Time.time - _lastHawkTime >= 5f && UnityEngine.Random.value < 0.12f)

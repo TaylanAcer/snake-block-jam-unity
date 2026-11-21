@@ -291,24 +291,49 @@ public class GameSceneTests
         Assert.IsFalse(_input.HandlePress(ScreenPointOf(0, 8)));
     }
 
-    [Test]
-    public void Tap_OnRestartButton_DoesNotReachBoard()
+    // UI'a (ör. pencere butonu) yapılan dokunuş tahtaya geçmez.
+    [UnityTest]
+    public IEnumerator Tap_OnUI_DoesNotReachBoard()
     {
-        var button = GameObject.Find("RestartButton").GetComponent<RectTransform>();
-        Vector2 onButton = button.TransformPoint(button.rect.center);
+        Vector2 onSnake = ScreenPointOf(0, 8);
+        var blocker = new GameObject("TestBlocker", typeof(RectTransform), typeof(Image));
+        try
+        {
+            var rect = (RectTransform)blocker.transform;
+            rect.SetParent(GameObject.Find("Canvas").transform, false);
+            rect.anchorMin = rect.anchorMax = Vector2.zero;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(80f, 80f);
+            rect.position = onSnake;
+            yield return null;
 
-        Assert.IsTrue(_input.IsOverUI(onButton));
-        Assert.IsFalse(_input.HandlePress(onButton));
-        Assert.IsFalse(_input.IsOverUI(ScreenPointOf(3, 4)));
+            Assert.IsTrue(_input.IsOverUI(onSnake));
+            Assert.IsFalse(_input.HandlePress(onSnake));
+            Assert.AreEqual(3, _controller.State.ActiveSnakeCount, "board untouched");
+            Assert.IsFalse(_input.IsOverUI(ScreenPointOf(3, 4)));
+        }
+        finally
+        {
+            Object.Destroy(blocker);
+        }
     }
 
+    // 21 Kasım: referansta oyun içi Restart yok (sağ üstte ayarlar dişlisi);
+    // bölüm yalnızca HAMLE YOK → Tekrar Dene ile yeniden başlar.
+    [Test]
+    public void Hud_HasNoRestartButton()
+    {
+        Assert.IsNull(GameObject.Find("RestartButton"));
+    }
+
+    // Tekrar Dene'nin kullandığı Restart: level ilk haline döner.
     [UnityTest]
-    public IEnumerator RestartButton_RestoresInitialState()
+    public IEnumerator Restart_RestoresInitialState()
     {
         _input.HandlePress(ScreenPointOf(0, 8));
         Assert.AreEqual(2, _controller.State.ActiveSnakeCount);
 
-        GameObject.Find("RestartButton").GetComponent<Button>().onClick.Invoke();
+        _controller.Restart();
         yield return null; // eski view'lar kare sonunda yok edilir
 
         Assert.AreEqual(3, _controller.State.ActiveSnakeCount);
@@ -1512,13 +1537,13 @@ public class GameSceneTests
 
         var feedback = Object.FindAnyObjectByType<FeedbackView>();
         yield return WaitUntilOrTimeout(() => feedback.CurrentStreakText != null, 2f);
-        Assert.AreEqual("Unbelievable! x2", feedback.CurrentStreakText);
+        Assert.AreEqual("Unbelievable! X2", feedback.CurrentStreakText);
         Assert.AreEqual("Unbelievable", Object.FindAnyObjectByType<SfxPlayer>().LastPlayed);
         Transform multiplier = feedback.transform.Find("Streak/Multiplier");
         Assert.IsFalse(multiplier.gameObject.activeSelf);
         yield return WaitUntilOrTimeout(() => multiplier.gameObject.activeSelf, 2f);
         Assert.IsTrue(multiplier.gameObject.activeSelf);
-        Assert.AreEqual("x2", multiplier.GetComponent<Text>().text);
+        Assert.AreEqual("X2", multiplier.GetComponent<Text>().text);
     }
 
     [UnityTest]
@@ -1544,8 +1569,8 @@ public class GameSceneTests
             Transform multiplier = feedback.transform.Find("Streak/Multiplier");
             yield return WaitUntilOrTimeout(() => multiplier.gameObject.activeInHierarchy, 2f);
             Assert.IsTrue(multiplier.gameObject.activeInHierarchy);
-            Assert.AreEqual("Unbelievable! x3", feedback.CurrentStreakText);
-            Assert.AreEqual("x3", multiplier.GetComponent<Text>().text);
+            Assert.AreEqual("Unbelievable! X3", feedback.CurrentStreakText);
+            Assert.AreEqual("X3", multiplier.GetComponent<Text>().text);
         }
         finally
         {
@@ -1583,6 +1608,59 @@ public class GameSceneTests
         Assert.Greater(praise.GetComponentsInChildren<Image>().Length, 1, "confetti pool");
         yield return WaitUntilOrTimeout(() => !praise.activeSelf, _controller.Feel.praiseDuration + 1f);
         Assert.IsFalse(praise.activeSelf);
+    }
+
+    // 21 Kasım taraması: L5, L6, L9, L16, L18, L19'da köprü üstü kaçışlarda başparmak yok.
+    [UnityTest]
+    public IEnumerator Praise_NotShownInBridgeLevelWithoutFlag()
+    {
+        LevelData level = CatalogLevel(5);
+        Assert.IsFalse(level.showPraise);
+        yield return LoadLevel(level);
+        GameObject praise = FindChild("Feedback", "Praise");
+
+        while (_controller.State.Status == GameStatus.Playing)
+        {
+            int target = Solver.PickHint(_controller.State);
+            Assert.AreNotEqual(0, target);
+            Assert.IsTrue(_controller.HandleSnakeTap(target));
+            yield return WaitUntilOrTimeout(() => _controller.BoardView.EscapingSnakeCount == 0, 2f);
+            Assert.IsFalse(praise.activeSelf, "no praise in L5");
+        }
+    }
+
+    // v11 34,8 sn: L10'un son yılanı köprüden geçmeden başparmak alıyor.
+    [UnityTest]
+    public IEnumerator Praise_ShowsOnLastEscapeWhenEnabled()
+    {
+        var level = ScriptableObject.CreateInstance<LevelData>();
+        level.width = 2;
+        level.height = 2;
+        level.showPraise = true;
+        try
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                var snake = new SnakeData { id = i + 1, direction = Direction.Up };
+                snake.body.Add(new SegmentData { cell = new Vector2Int(i, 1) });
+                snake.body.Add(new SegmentData { cell = new Vector2Int(i, 0) });
+                level.snakes.Add(snake);
+            }
+            yield return LoadLevel(level);
+            GameObject praise = FindChild("Feedback", "Praise");
+
+            Assert.IsTrue(_controller.HandleSnakeTap(1));
+            yield return null;
+            Assert.IsFalse(praise.activeSelf, "ordinary escape");
+
+            Assert.IsTrue(_controller.HandleSnakeTap(2));
+            yield return WaitUntilOrTimeout(() => praise.activeSelf, 1f);
+            Assert.IsTrue(praise.activeSelf, "last escape");
+        }
+        finally
+        {
+            Object.Destroy(level);
+        }
     }
 
     [UnityTest]

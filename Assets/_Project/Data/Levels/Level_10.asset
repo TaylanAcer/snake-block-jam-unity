@@ -25,6 +25,8 @@ MonoBehaviour:
   shovelUnlocked: 0
   showCompletedScreen: 1
   tutorial: 0
+  showIdleNudge: 0
+  showPraise: 1
   cameraScale: 1.017
   cameraDownPixels: 17
   snakes:
@@ -768,4 +770,6 @@ MonoBehaviour:
   burrows: []
   arrows: []
   notes:
-  - "K\u0131sa k\u00F6pr\u00FCler 1 h\u00FCcre (R-BRG-11): referans karelerde ~2,2 h\u00FCcre g\u00F6r\u00FCn\u00FCyor (1 h\u00FCcre + korkuluk ta\u015Fmas\u0131); 20 Kas\u0131m v11/v20 ve Level_10/19.png ile kar\u015F\u0131la\u015Ft\u0131r\u0131ld\u0131"
+  - "K\u0131sa k\xF6pr\xFCler 1 h\xFCcre (R-BRG-11): referans karelerde ~2,2 h\xFCcre
+    g\xF6r\xFCn\xFCyor (1 h\xFCcre + korkuluk ta\u015Fmas\u0131); 20 Kas\u0131m v11/v20
+    ve Level_10/19.png ile kar\u015F\u0131la\u015Ft\u0131r\u0131ld\u0131"

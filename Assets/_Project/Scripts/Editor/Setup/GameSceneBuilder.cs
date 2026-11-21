@@ -77,7 +77,7 @@ namespace SnakeBlockJam.EditorTools
             SetReference(input, "controller", controller);
 
             CreateEventSystem();
-            Transform canvas = CreateCanvas(controller);
+            Transform canvas = CreateCanvas();
             CreateHud(canvas, controller);
             CreateBoosters(canvas, controller);
             FeedbackView feedback = CreateFeedback(canvas, controller);
@@ -251,8 +251,10 @@ namespace SnakeBlockJam.EditorTools
             new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
         }
 
-        // Canvas ve Restart butonu (referanstaki ayarlar dişlisinin yeri).
-        private static Transform CreateCanvas(GameController controller)
+        // Canvas. Oyun içinde Restart butonu yok (21 Kasım kararı): referansta o köşede
+        // ayarlar dişlisi var, bölüm yalnızca HAMLE YOK → Tekrar Dene ile yeniden başlar
+        // (v01–v21). Yılan kaçışı yolu sadece açtığı için hiçbir bölümde takılı kalınmaz.
+        private static Transform CreateCanvas()
         {
             var canvasObject = new GameObject("Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasObject.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
@@ -261,18 +263,6 @@ namespace SnakeBlockJam.EditorTools
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 0.5f;
-
-            var buttonObject = new GameObject("RestartButton", typeof(RectTransform), typeof(Image), typeof(Button));
-            var buttonRect = (RectTransform)buttonObject.transform;
-            buttonRect.SetParent(canvasObject.transform, false);
-            buttonRect.anchorMin = buttonRect.anchorMax = buttonRect.pivot = new Vector2(1f, 1f);
-            buttonRect.anchoredPosition = new Vector2(-38f, -116f);
-            buttonRect.sizeDelta = new Vector2(92f, 92f);
-            Image image = buttonObject.GetComponent<Image>();
-            image.sprite = InterfaceSprite("Restart");
-            var button = buttonObject.GetComponent<Button>();
-            button.targetGraphic = image;
-            UnityEventTools.AddPersistentListener(button.onClick, controller.Restart);
 
             return canvasObject.transform;
         }

@@ -249,7 +249,8 @@ namespace SnakeBlockJam.Game
         // ekrandan çıkana kadar oynar; sonra yok edilir. Model yılanı zaten sildi
         // (R-CON-04), bu yüzden hayalet seçilemez ve başka yılanlarla çarpışmaz.
         // Birden fazla kaçış aynı anda oynayabilir (R-CON-03).
-        public void PlayEscape(MoveResult result, float speed, Camera viewCamera, bool cleanFinish = false)
+        // 'praise': başparmak gösterilsin mi (kararı GameController verir).
+        public void PlayEscape(MoveResult result, float speed, Camera viewCamera, bool praise = false)
         {
             if (!_snakes.TryGetValue(result.SnakeId, out var view))
                 return;
@@ -268,28 +269,14 @@ namespace SnakeBlockJam.Game
             else
                 EscapeStarted?.Invoke(view.Definition.Body.Count);
             view.PlayEscape(track, result.Outcome, speed, viewCamera, OnEscapeFinished);
-            if (QualifiesForPraise(view.Definition, result, cleanFinish))
+            if (praise)
                 PraiseReached?.Invoke(view.HeadWorld);
-        }
-
-        private static bool QualifiesForPraise(SnakeDefinition snake, MoveResult result, bool cleanFinish)
-        {
-            if (snake.Body[0].Layer == BoardLayer.BridgeTop)
-                return true;
-
-            for (int i = 0; i < result.HeadPath.Count; i++)
-            {
-                if (result.HeadPath[i].Layer == BoardLayer.BridgeTop)
-                    return true;
-            }
-
-            return cleanFinish && result.Outcome == MoveOutcome.EscapedOffBoard;
         }
 
         private void OnEscapeFinished(SnakeView view)
         {
             _escaping.Remove(view);
-            DestroyObject(view.gameObject);
+            DestroyOwned(view.gameObject);
         }
 
         // Başarısız hamle: yılan tahtada kalır (model değişmedi, R-COL-02), view
@@ -372,7 +359,7 @@ namespace SnakeBlockJam.Game
             view.PlayRemove(segmentTime, finished =>
             {
                 if (_removing.Remove(finished))
-                    DestroyObject(finished.gameObject);
+                    DestroyOwned(finished.gameObject);
             }, shovelSprite);
             return true;
         }
@@ -437,7 +424,7 @@ namespace SnakeBlockJam.Game
             ArrowCount = 0;
 
             if (_content != null)
-                DestroyObject(_content.gameObject);
+                DestroyOwned(_content.gameObject);
 
             _content = null;
             Geometry = null;
@@ -885,13 +872,13 @@ namespace SnakeBlockJam.Game
         private void OnDestroy()
         {
             foreach (var material in _materials)
-                DestroyObject(material);
+                DestroyOwned(material);
 
             if (_arrowMesh != null)
-                DestroyObject(_arrowMesh);
+                DestroyOwned(_arrowMesh);
         }
 
-        private static void DestroyObject(Object target)
+        private static void DestroyOwned(Object target)
         {
             if (Application.isPlaying)
                 Destroy(target);

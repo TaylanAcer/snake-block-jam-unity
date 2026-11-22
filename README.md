@@ -37,7 +37,10 @@ LevelData / LevelCatalog ──► GameController ◄── InputHandler
 
 - **Core** (`Scripts/Core`, `noEngineReferences`): `BoardState`, `MoveSimulator`, `MoveResult`, köprü/tünel/ok tanımları ve `Solver`. Kurallar burada; Unity'den bağımsız ve EditMode testleriyle doğrulanır.
 - **Game** (`Scripts/Game`):
-  - `Board/`: `BoardView` (tahta, işaretler, dokunma seçimi, temas olayları), `SnakeView` (hareket izi, çarpma, göçük, yüz animasyonları, kürek), `BridgeView`, `BlockMesh`, `ArrowMesh`, `HawkEye`, `DebrisBurst`, `CameraFit`.
+  - `Board/`: `BoardView` (tahtanın akışı: yılan görünümleri, kaçış/çarpma/kürek, İpucu vurgusu, olaylar) ve `SnakeView` (açılış çizimi, kaçış, çarpma, dürtme, hareket izi üzerindeki duruş). Yardımcıları tek sorumlulukludur:
+    - Tahta: `BoardMaterials` (runtime materyaller), `BoardDecorBuilder` (zemin, noktalar, köprü, tünel, ok, kıymık sistemleri), `SnakePicker` (dokunma seçimi ve parmak toleransı), `ClearWave` (bölüm sonu dalgası), `CameraFit` (kamera çerçevesi).
+    - Yılan: `SnakeFace` (göz, dil, sersem gözler), `SnakeBodyBaker` (dururken tek mesh), `SnakeDent` (göçük), `SnakeShovelRemoval` ve `SnakeChipEmitter` (kürek ve kıymıklar), `SnakeParts` (parça kurulumu).
+    - Diğer: `BridgeView`, `BlockMesh`, `ArrowMesh`, `HawkEye`, `DebrisBurst`.
   - `Gameplay/`: `GameController` (akış, evreler, booster'lar), `InputHandler` (Pointer API, mouse ve dokunma ortak), `FeelSettings` (bütün süre ve hızlar tek ScriptableObject'te).
   - `UI/`: HUD, sonuç ekranları, booster'lar, geri bildirim (vinyet, seri yazıları), tanıtım kartları.
   - `Audio/`: `SfxPlayer` (olaylara bağlı sesler), `SfxSynth` (kodla üretilen kayma sesi), `Haptics` (Android `VibrationEffect`).

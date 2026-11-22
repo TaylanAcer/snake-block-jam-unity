@@ -59,21 +59,10 @@ namespace SnakeBlockJam.Game
         [SerializeField] private float cameraPitch = 68f;
         [SerializeField] private CameraFit.Settings fitSettings = CameraFit.Settings.Default;
 
-        // Level_15.png: ~9 px çap / ~25 px hücre.
-        private const float DotSize = 0.35f;
-        private const float GroundSize = 400f;
-
         // Level_11.png (hücre ≈ 25 px, delikler arası 8 hücre = 199 px): siyah disk
         // ~36 px, gri halkanın dış çapı ~51 px. Delik hücreden büyük (R-BUR-03).
         public const float BurrowSize = 1.45f;
         public const float BurrowRimSize = 2.05f;
-
-        // Zemindeki düz işaretlerin yükseklikleri (z-fighting olmasın diye kademeli):
-        // nokta 0–0,004, halka 0,001–0,005, disk 0,003–0,007, ok 0,008.
-        private const float MarkerThickness = 0.002f;
-        private const float RimHeight = 0.003f;
-        private const float HoleHeight = 0.005f;
-        private const float ArrowHeight = 0.008f;
 
         // Tahta kenarından ekran kenarına kadar en fazla bu kadar hücre var
         // (portre ekranda L1: ~16). Kaçış izi yılan boyu + bu pay kadar uzatılır.
@@ -90,24 +79,10 @@ namespace SnakeBlockJam.Game
         private Material _highlightMaterial;
         private float _highlightStart;
         private float _highlightPeriod = 1f;
-        private readonly List<Material> _materials = new List<Material>();
-        private Material[] _snakeMaterials;
-        private Material[] _tailMaterials;
+        private BoardMaterials _materials;
+        private readonly BoardDecorBuilder _decor = new BoardDecorBuilder();
         private ParticleSystem[] _chipsByColor;
-        private Material _groundMaterial;
-        private Material _dotMaterial;
-        private Material _eyeWhiteMaterial;
-        private Material _pupilMaterial;
-        private Material _tongueMaterial;
-        private Material _bridgeDeckMaterial;
-        private Material _bridgeArchTrim;
-        private Material _bridgeAsphaltMaterial;
-        private Material _bridgeDashMaterial;
-        private Material _burrowMaterial;
-        private Material _burrowRimMaterial;
         [SerializeField] private Sprite shovelSprite;
-        private Material _arrowMaterial;
-        private Mesh _arrowMesh;
         private Transform _content;
         private float _cameraScale = 1f;
         private int _cameraDownPixels;
@@ -120,6 +95,10 @@ namespace SnakeBlockJam.Game
         private readonly List<Transform> _markers = new List<Transform>();
 
         public int DotCount => _dots.Count;
+
+        // Level sonu dalgası (ClearWave) için: Clear() bu listeleri boşaltır, yenilemez.
+        internal List<Transform> Dots => _dots;
+        internal List<Transform> Markers => _markers;
 
         public int BridgeCount { get; private set; }
         public int BurrowCount { get; private set; }
@@ -212,14 +191,15 @@ namespace SnakeBlockJam.Game
             _content = new GameObject("Content").transform;
             _content.SetParent(transform, false);
 
-            _chipsByColor = new ParticleSystem[_snakeMaterials.Length];
+            _chipsByColor = new ParticleSystem[_materials.Snakes.Length];
             bool usesChips = state.Level.Burrows.Count > 0 || level.shovelUnlocked;
-            CreateGround();
-            CreateDots(state, level.isRectangularBoard);
-            CreateBridges(state.Level.Bridges);
-            CreateBurrows(state.Level.Burrows);
+            _decor.CreateGround(_content, _materials.Ground);
+            _decor.CreateDots(_content, Geometry, state, level.isRectangularBoard, _materials.Dot, _dots);
+            BridgeCount = _decor.CreateBridges(_content, Geometry, state.Level.Bridges, _materials, _markers,
+                _bridgeCells);
+            BurrowCount = _decor.CreateBurrows(_content, Geometry, state.Level.Burrows, _materials, _markers);
             _arrows = state.Level.Arrows;
-            CreateArrows(_arrows);
+            ArrowCount = _decor.CreateArrows(_content, Geometry, _arrows, _materials.Arrow, _markers);
 
             foreach (var snake in state.Level.Snakes)
             {
@@ -228,13 +208,13 @@ namespace SnakeBlockJam.Game
 
                 var view = new GameObject().AddComponent<SnakeView>();
                 view.transform.SetParent(_content, false);
-                view.Build(snake, Geometry, _snakeMaterials[(int)data.color], _eyeWhiteMaterial, _pupilMaterial,
-                    _tongueMaterial, _tailMaterials[(int)data.color]);
+                view.Build(snake, Geometry, _materials.Snakes[(int)data.color], _materials.EyeWhite, _materials.Pupil,
+                    _materials.Tongue, _materials.Tails[(int)data.color]);
                 if (usesChips)
                 {
                     int color = (int)data.color;
                     if (_chipsByColor[color] == null)
-                        _chipsByColor[color] = CreateChips(_snakeMaterials[color]);
+                        _chipsByColor[color] = BoardDecorBuilder.CreateChips(_content, _materials.Snakes[color]);
                     view.Chips = _chipsByColor[color];
                 }
                 if (_arrows.Count > 0)
@@ -376,7 +356,7 @@ namespace SnakeBlockJam.Game
                 return;
 
             if (_highlightMaterial == null)
-                _highlightMaterial = CreateMaterial("Highlight", hintColor);
+                _highlightMaterial = _materials.Create("Highlight", hintColor);
 
             _highlighted = view;
             _highlightStart = Time.time;
@@ -436,449 +416,67 @@ namespace SnakeBlockJam.Game
             if (Geometry == null)
                 return;
 
-            float cellPixels = CameraFit.CellPixels(
-                screenWidth, screenHeight, Geometry.Width, Geometry.Height, fitSettings);
-            float shiftPixels = 0f;
-            if (screenHeight > screenWidth)
-            {
-                cellPixels = Mathf.Min(cellPixels * _cameraScale,
-                    fitSettings.BoardHeightFill * screenHeight / Geometry.Height);
-                shiftPixels = screenWidth * _cameraDownPixels / CameraFit.ReferenceWidth;
-            }
-            float distance = CameraFit.DistanceForPixelsPerUnit(
-                cellPixels, screenHeight, cameraFieldOfView);
-
-            Quaternion rotation = Quaternion.Euler(cameraPitch, 0f, 0f);
-            Vector3 target = Vector3.up * (SnakeView.BlockHeight * 0.5f);
-
-            target += rotation * Vector3.up * (shiftPixels / cellPixels);
-            targetCamera.fieldOfView = cameraFieldOfView;
-            targetCamera.transform.SetPositionAndRotation(
-                target - rotation * Vector3.forward * distance, rotation);
+            CameraFit.Place(targetCamera, screenWidth, screenHeight, Geometry.Width, Geometry.Height, fitSettings,
+                _cameraScale, _cameraDownPixels, cameraFieldOfView, cameraPitch, SnakeView.BlockHeight * 0.5f);
         }
 
-        // Dokunulan yılan: ışının kestiği, kameraya en yakın görünen yılan parçası
-        // (blok, ek, göz, dil, kuyruk ucu). Gözler blok üstünden yükselir ve hücre
-        // kenarından taşar, eğik kamerada blokların ön yüzü de görünür; yalnız üst
-        // düzleme ışın atmak bu bölgelere dokunuşu komşu (çoğu zaman boş) hücreye
-        // düşürüyordu. Kaçan yılanlar _snakes'te olmadığı için seçilmez.
-        //
-        // Parmak toleransı: tam isabet yoksa dokunuşun çevresine halkalarla bakılır,
-        // en içteki halkada bulunan yılan seçilir. Cihaz ölçümü (Galaxy A13, hızlı
-        // oynanış): 41 dokunuşun kaçanları yılan kenarının 10–40 px (1080p) dışına,
-        // çoğu gölge tarafına düşüyordu. Yarıçap ~3 mm, en çok 0,45 hücre: boş
-        // hücrenin ortasına dokunuş komşu yılanı seçmez (R-MV-03).
-        public const float TouchToleranceMillimeters = 3f;
-        public const float MaxToleranceCells = 0.45f;
-        private const float FallbackDpi = 400f;
-        private const int ToleranceRings = 3;
-        private const int ToleranceDirections = 8;
+        // Dokunuş seçimi (SnakePicker): görünen yılan parçası, yoksa ~3 mm parmak toleransı.
+        public const float TouchToleranceMillimeters = SnakePicker.TouchToleranceMillimeters;
+        public const float MaxToleranceCells = SnakePicker.MaxToleranceCells;
 
-        public bool TryPickSnake(Camera sourceCamera, Vector2 screenPosition, out int snakeId)
-        {
-            if (PickAlongRay(sourceCamera.ScreenPointToRay(screenPosition), out snakeId))
-                return true;
+        public bool TryPickSnake(Camera sourceCamera, Vector2 screenPosition, out int snakeId) =>
+            SnakePicker.TryPickSnake(_snakes, Geometry, sourceCamera, screenPosition, out snakeId);
 
-            float radius = TouchTolerancePixels(sourceCamera);
+        public float TouchTolerancePixels(Camera sourceCamera) =>
+            SnakePicker.TouchTolerancePixels(Geometry, sourceCamera);
 
-            var hits = new int[ToleranceDirections];
+        public bool TryScreenToCell(Camera sourceCamera, Vector2 screenPosition, out Cell cell) =>
+            SnakePicker.TryScreenToCell(Geometry, _bridgeCells, sourceCamera, screenPosition, out cell);
 
-            for (int ring = 1; ring <= ToleranceRings; ring++)
-            {
-                float r = radius * ring / ToleranceRings;
+        public static bool HasDot(BoardState initialState, Cell cell, bool rectangularBoard = false) =>
+            BoardDecorBuilder.HasDot(initialState, cell, rectangularBoard);
 
-                for (int direction = 0; direction < ToleranceDirections; direction++)
-                {
-                    float angle = direction * Mathf.PI * 2f / ToleranceDirections;
-                    Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * r;
-                    PickAlongRay(sourceCamera.ScreenPointToRay(screenPosition + offset), out hits[direction]);
-                }
+        // --- Level sonu (R-TRN-03, ClearWave) -------------------------------------
 
-                // Halkada en çok yönden görülen yılan (eşitlikte ilk bulunan).
-                int bestVotes = 0;
-                foreach (int candidate in hits)
-                {
-                    if (candidate == 0)
-                        continue;
+        public const float WavePeakScale = ClearWave.PeakScale;
 
-                    int votes = System.Array.FindAll(hits, id => id == candidate).Length;
-                    if (votes > bestVotes)
-                    {
-                        bestVotes = votes;
-                        snakeId = candidate;
-                    }
-                }
-
-                if (snakeId != 0)
-                    return true;
-            }
-
-            return false;
-        }
-
-        // ~3 mm ekranda, ama en fazla 0,45 hücre (tahta yüzeyinde ölçülür).
-        public float TouchTolerancePixels(Camera sourceCamera)
-        {
-            float dpi = Screen.dpi > 0f ? Screen.dpi : FallbackDpi;
-            float pixels = TouchToleranceMillimeters / 25.4f * dpi;
-
-            if (Geometry == null)
-                return pixels;
-
-            Vector3 up = Vector3.up * SnakeView.BlockHeight;
-            Vector3 a = sourceCamera.WorldToScreenPoint(Geometry.CellToWorld(new Cell(0, 0)) + up);
-            Vector3 b = sourceCamera.WorldToScreenPoint(Geometry.CellToWorld(new Cell(1, 0)) + up);
-            float cellPixels = Vector2.Distance(a, b);
-            return Mathf.Min(pixels, cellPixels * MaxToleranceCells);
-        }
-
-        private bool PickAlongRay(Ray ray, out int snakeId)
-        {
-            snakeId = 0;
-            float nearest = float.PositiveInfinity;
-
-            foreach (var pair in _snakes)
-            {
-                foreach (MeshRenderer piece in pair.Value.PickRenderers)
-                {
-                    if (piece == null || !piece.enabled || !piece.gameObject.activeInHierarchy)
-                        continue;
-
-                    if (piece.bounds.IntersectRay(ray, out float distance) && distance < nearest)
-                    {
-                        nearest = distance;
-                        snakeId = pair.Key;
-                    }
-                }
-            }
-
-            return snakeId != 0;
-        }
-
-        // Ekran noktası → hücre. Düzlem blokların üst yüzünde: oyuncu eğik
-        // kamerada yılanın üst yüzüne dokunur. Köprü daha yüksekte olduğu için
-        // önce köprü üstündeki yılanın üst yüzü denenir; ışın orada bir köprü
-        // hücresine düşüyorsa kameraya en yakın görünen yüzey odur.
-        public bool TryScreenToCell(Camera sourceCamera, Vector2 screenPosition, out Cell cell)
-        {
-            if (Geometry == null)
-            {
-                cell = default;
-                return false;
-            }
-
-            Ray ray = sourceCamera.ScreenPointToRay(screenPosition);
-
-            if (_bridgeCells.Count > 0 &&
-                Geometry.TryRayToCell(ray, BoardGeometry.BridgeTopHeight + SnakeView.BlockHeight, out cell) &&
-                _bridgeCells.Contains(cell))
-                return true;
-
-            return Geometry.TryRayToCell(ray, SnakeView.BlockHeight, out cell);
-        }
-
-        private void CreateBridges(IReadOnlyList<BridgeDefinition> bridges)
-        {
-            foreach (var bridge in bridges)
-            {
-                var view = new GameObject().AddComponent<BridgeView>();
-                view.transform.SetParent(_content, false);
-                view.Build(bridge, Geometry, _bridgeDeckMaterial, _bridgeAsphaltMaterial, _bridgeDashMaterial, _bridgeArchTrim);
-                _markers.Add(view.transform);
-
-                foreach (var cell in bridge.Path)
-                    _bridgeCells.Add(cell);
-
-                if (bridge.Path.Count == 1 && bridge.Axis.HasValue)
-                    Geometry.AddBridgeShoulders(bridge.Path[0], bridge.Axis.Value);
-            }
-
-            BridgeCount = bridges.Count;
-        }
-
-        // Tünel: zemine yatık siyah disk ve çevresinde gri halka (R-BUR-03).
-        // Tünele giren yılanın segmentleri delik merkezinde kaybolur (SnakeView).
-        private void CreateBurrows(IReadOnlyList<BurrowDefinition> burrows)
-        {
-            foreach (var burrow in burrows)
-            {
-                var root = new GameObject($"Burrow_{burrow.Position.X}_{burrow.Position.Y}").transform;
-                root.SetParent(_content, false);
-                root.position = Geometry.CellToWorld(burrow.Position);
-
-                CreateFlatDisk(root, "Rim", BurrowRimSize, RimHeight, _burrowRimMaterial);
-                CreateFlatDisk(root, "Hole", BurrowSize, HoleHeight, _burrowMaterial);
-                _markers.Add(root);
-            }
-
-            BurrowCount = burrows.Count;
-        }
-
-        // Ok: zemine yatık koyu gri ikon, okun yönüne bakar (R-ARW-02). Yılan
-        // üstünden geçer; ok tükenmez (R-ARW-05), bu yüzden hep yerinde kalır.
-        private void CreateArrows(IReadOnlyList<ArrowDefinition> arrows)
-        {
-            if (arrows.Count > 0 && _arrowMesh == null)
-                _arrowMesh = ArrowMesh.Create();
-
-            foreach (var arrow in arrows)
-            {
-                var piece = new GameObject(
-                    $"Arrow_{arrow.Position.X}_{arrow.Position.Y}", typeof(MeshFilter), typeof(MeshRenderer));
-                piece.GetComponent<MeshFilter>().sharedMesh = _arrowMesh;
-
-                var renderer = piece.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = _arrowMaterial;
-                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-                Transform t = piece.transform;
-                t.SetParent(_content, false);
-                t.SetPositionAndRotation(
-                    Geometry.CellToWorld(arrow.Position) + Vector3.up * ArrowHeight,
-                    Quaternion.LookRotation(BoardGeometry.DirectionToWorld(arrow.Direction)));
-                _markers.Add(t);
-            }
-
-            ArrowCount = arrows.Count;
-        }
-
-        // Yassı silindir (New-Cylinder: çap 1, boy 2): 'height' ortasında, kalınlık 2 × MarkerThickness.
-        private static void CreateFlatDisk(Transform parent, string objectName, float diameter, float height,
-                                           Material material)
-        {
-            var disk = Primitives.Create(PrimitiveType.Cylinder, objectName);
-
-            var renderer = disk.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-            Transform t = disk.transform;
-            t.SetParent(parent, false);
-            t.localPosition = Vector3.up * height;
-            t.localScale = new Vector3(diameter, MarkerThickness, diameter);
-        }
-
-        private ParticleSystem CreateChips(Material material)
-        {
-            var host = new GameObject("Chips_" + material.name);
-            host.transform.SetParent(_content, false);
-            var system = host.AddComponent<ParticleSystem>();
-            system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = system.main;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.startLifetime = 0.32f;
-            main.startSize = 0.14f;
-            main.gravityModifier = 1.8f;
-            main.maxParticles = 48;
-            var emission = system.emission;
-            emission.enabled = false;
-            var shape = system.shape;
-            shape.enabled = false;
-            var renderer = system.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Mesh;
-            renderer.mesh = BlockMesh.Get(Vector3.one, 0f);
-            renderer.sharedMaterial = material;
-            system.Play();
-            return system;
-        }
-
-        private void CreateGround()
-        {
-            var ground = Primitives.Create(PrimitiveType.Quad, "Ground");
-            ground.GetComponent<MeshRenderer>().sharedMaterial = _groundMaterial;
-
-            Transform t = ground.transform;
-            t.SetParent(_content, false);
-            t.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(90f, 0f, 0f));
-            t.localScale = new Vector3(GroundSize, GroundSize, 1f);
-        }
-
-        // Bu hücrede grid noktası var mı? 'initialState' level'ın başlangıç durumu
-        // olmalıdır. Nokta = çift (x, y) hücre (BoardGeometry.HasGridDot) VE
-        // tahtanın hücresi. Tahta: dikdörtgen level'da bütün W × H, diğerlerinde
-        // başlangıçta yılanların kapladığı hücreler. Yılan altındaki nokta yılan
-        // kaçınca görünür (R-MOV-07).
-        //
-        // Kanıt (20 başlangıç karesi, piksel → hücre eşlemesiyle kontrol edildi):
-        // 18 karede hiç nokta yok; L16'daki 6 nokta açılış animasyonunda henüz
-        // çizilmemiş yılan başlarının altında, hepsi çift (x, y); L15'te yılansız
-        // 24 çift hücrenin 24'ünde de nokta var (dikdörtgen tahta). L2 videosunda
-        // boş köşelerde nokta yok. Tahta şekli JSON'da yok → INFERRED.
-        public static bool HasDot(BoardState initialState, Cell cell, bool rectangularBoard = false)
-        {
-            if (!BoardGeometry.HasGridDot(cell))
-                return false;
-
-            return rectangularBoard
-                   || initialState.GetOccupant(new LayeredCell(cell, BoardLayer.Ground)) != 0
-                   || initialState.GetOccupant(new LayeredCell(cell, BoardLayer.BridgeTop)) != 0;
-        }
-
-        // Not: büyük level'larda yüzlerce obje olabilir; gerekirse tek mesh'e çevrilir.
-        private void CreateDots(BoardState initialState, bool rectangularBoard)
-        {
-            var dots = new GameObject("Dots").transform;
-            dots.SetParent(_content, false);
-
-            for (int y = 0; y < Geometry.Height; y++)
-            {
-                for (int x = 0; x < Geometry.Width; x++)
-                {
-                    if (!HasDot(initialState, new Cell(x, y), rectangularBoard))
-                        continue;
-
-                    var dot = Primitives.Create(PrimitiveType.Cylinder, $"Dot_{x}_{y}");
-
-                    var renderer = dot.GetComponent<MeshRenderer>();
-                    renderer.sharedMaterial = _dotMaterial;
-                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-                    Transform t = dot.transform;
-                    t.SetParent(dots, false);
-                    t.position = Geometry.CellToWorld(new Cell(x, y)) + Vector3.up * 0.002f;
-                    t.localScale = new Vector3(DotSize, 0.002f, DotSize);
-                    _dots.Add(t);
-                }
-            }
-        }
-
-        // --- Level sonu (R-TRN-03) ----------------------------------------------
-
-        // Dalgada bir noktanın en büyük ölçeği (referansta "büyüyerek dalgalanır";
-        // oran ölçülmedi, ASSUMED).
-        public const float WavePeakScale = 1.8f;
-
-        // Dalganın bir noktadan geçiş genişliği (dalga süresine oranla).
-        private const float WaveWidth = 0.45f;
-
-        // Dalga tahta merkezinden dışa doğru yayılır. Yön referansta belirtilmedi
-        // (ASSUMED). 'distance01': noktanın merkeze uzaklığı (0 merkez, 1 köşe).
-        public static float WaveScale(float time01, float distance01)
-        {
-            float start = distance01 * (1f - WaveWidth);
-            float u = (time01 - start) / WaveWidth;
-
-            if (u <= 0f || u >= 1f)
-                return 1f;
-
-            return 1f + (WavePeakScale - 1f) * Mathf.Sin(Mathf.PI * u);
-        }
+        public static float WaveScale(float time01, float distance01) => ClearWave.Scale(time01, distance01);
 
         // ALL CLEAR'dan sonra: noktalar dalgalanır (waveDuration), sonra noktalar
-        // ve köprü/tünel/ok küçülüp kaybolur (fadeDuration). GameController'ın
-        // coroutine'i içinde çalışır; level yeniden kurulursa birlikte durur.
-        public IEnumerator PlayClearWave(float waveDuration, float fadeDuration)
-        {
-            if (Geometry == null)
-                yield break;
-
-            float maxDistance = new Vector2(Geometry.Width, Geometry.Height).magnitude * 0.5f;
-            var distances = new float[_dots.Count];
-            var dotScales = new Vector3[_dots.Count];
-
-            for (int i = 0; i < _dots.Count; i++)
-            {
-                Vector3 p = _dots[i].localPosition;
-                distances[i] = Mathf.Clamp01(new Vector2(p.x, p.z).magnitude / Mathf.Max(0.01f, maxDistance));
-                dotScales[i] = _dots[i].localScale;
-            }
-
-            for (float t = 0f; t < waveDuration; t += Time.deltaTime)
-            {
-                for (int i = 0; i < _dots.Count; i++)
-                {
-                    float scale = WaveScale(t / waveDuration, distances[i]);
-                    _dots[i].localScale = new Vector3(dotScales[i].x * scale, dotScales[i].y, dotScales[i].z * scale);
-                }
-
-                yield return null;
-            }
-
-            var markerScales = new Vector3[_markers.Count];
-
-            for (int i = 0; i < _markers.Count; i++)
-                markerScales[i] = _markers[i].localScale;
-
-            for (float t = 0f; t < fadeDuration; t += Time.deltaTime)
-            {
-                float k = 1f - t / fadeDuration;
-                SetScales(k, dotScales, markerScales);
-                yield return null;
-            }
-
-            SetScales(0f, dotScales, markerScales);
-        }
-
-        private void SetScales(float factor, Vector3[] dotScales, Vector3[] markerScales)
-        {
-            for (int i = 0; i < _dots.Count; i++)
-                _dots[i].localScale = new Vector3(dotScales[i].x * factor, dotScales[i].y, dotScales[i].z * factor);
-
-            for (int i = 0; i < _markers.Count; i++)
-                _markers[i].localScale = markerScales[i] * factor;
-        }
+        // ve köprü/tünel/ok küçülüp kaybolur (fadeDuration).
+        public IEnumerator PlayClearWave(float waveDuration, float fadeDuration) =>
+            ClearWave.Play(this, waveDuration, fadeDuration);
 
         private void EnsureMaterials()
         {
-            if (_snakeMaterials != null)
+            if (_materials != null)
                 return;
 
-            _snakeMaterials = new Material[snakeColors.Length];
-            _tailMaterials = new Material[snakeColors.Length];
-
-            for (int i = 0; i < snakeColors.Length; i++)
+            _materials = new BoardMaterials(blockMaterial, new BoardMaterials.Palette
             {
-                Material skin = CreateMaterial($"Snake_{(SnakeColor)i}", snakeColors[i]);
-                if (skin.HasProperty("_SideScale"))
-                {
-                    skin.SetFloat("_SideScale", 0.39f);
-                    skin.SetFloat("_SideGamma", 1.27f);
-                }
-                _snakeMaterials[i] = skin;
-                Color tip = snakeColors[i] * 1.055f;
-                tip.a = 1f;
-                _tailMaterials[i] = new Material(skin) { color = tip, name = $"Tail_{(SnakeColor)i}" };
-                _materials.Add(_tailMaterials[i]);
-            }
-
-            _groundMaterial = backgroundMaterial != null ? backgroundMaterial : CreateMaterial("Ground", groundColor);
-            _dotMaterial = CreateMaterial("Dot", dotColor);
-            _eyeWhiteMaterial = CreateMaterial("EyeWhite", eyeWhiteColor);
-            _pupilMaterial = CreateMaterial("Pupil", pupilColor);
-            _tongueMaterial = CreateMaterial("Tongue", tongueColor);
-            _bridgeArchTrim = CreateMaterial("BridgeArchTrim", new Color32(210, 149, 94, 255));
-            _bridgeDeckMaterial = CreateMaterial("BridgeDeck", bridgeDeckColor);
-            _bridgeAsphaltMaterial = CreateMaterial("BridgeAsphalt", bridgeAsphaltColor);
-            if (_bridgeAsphaltMaterial.HasProperty("_RoadShading"))
-                _bridgeAsphaltMaterial.SetFloat("_RoadShading", 1f);
-            _bridgeDashMaterial = CreateMaterial("BridgeDash", bridgeDashColor);
-            _burrowMaterial = CreateMaterial("Burrow", burrowColor);
-
-            // Referansta delik tam siyah; blok materyalinin parlaklığı (0,15)
-            // siyahı ~RGB(33, 35, 39) griye çekiyordu.
-            _burrowMaterial.SetFloat("_Smoothness", 0f);
-            _burrowRimMaterial = CreateMaterial("BurrowRim", burrowRimColor);
-            _burrowRimMaterial.EnableKeyword("_BURROW_RIM");
-            _arrowMaterial = CreateMaterial("Arrow", arrowColor);
-        }
-
-        private Material CreateMaterial(string materialName, Color color)
-        {
-            var material = new Material(blockMaterial) { name = materialName, color = color };
-            _materials.Add(material);
-            return material;
+                Background = backgroundMaterial,
+                Snakes = snakeColors,
+                Ground = groundColor,
+                Dot = dotColor,
+                EyeWhite = eyeWhiteColor,
+                Pupil = pupilColor,
+                Tongue = tongueColor,
+                BridgeDeck = bridgeDeckColor,
+                BridgeAsphalt = bridgeAsphaltColor,
+                BridgeDash = bridgeDashColor,
+                Burrow = burrowColor,
+                BurrowRim = burrowRimColor,
+                Arrow = arrowColor
+            });
         }
 
         private void OnDestroy()
         {
-            foreach (var material in _materials)
-                DestroyOwned(material);
-
-            if (_arrowMesh != null)
-                DestroyOwned(_arrowMesh);
+            _materials?.DestroyAll();
+            _decor.DestroyMeshes();
         }
 
-        private static void DestroyOwned(Object target)
+        internal static void DestroyOwned(Object target)
         {
             if (Application.isPlaying)
                 Destroy(target);

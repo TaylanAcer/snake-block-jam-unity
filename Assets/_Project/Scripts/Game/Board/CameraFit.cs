@@ -61,5 +61,32 @@ namespace SnakeBlockJam.Game
             float visibleHeight = screenHeight / pixelsPerUnit;
             return visibleHeight / (2f * Mathf.Tan(verticalFov * 0.5f * Mathf.Deg2Rad));
         }
+
+        // Kamerayı tahta ortasına bakacak ve hücre boyutu ekrana uyacak şekilde koyar.
+        // Portrede bölümün kamera çerçevesi (cameraScale, cameraDownPixels) uygulanır.
+        // 'targetHeight': kameranın baktığı nokta (blok yarı yüksekliği).
+        public static void Place(
+            Camera targetCamera, float screenWidth, float screenHeight, int boardWidth, int boardHeight,
+            Settings settings, float cameraScale, int cameraDownPixels, float fieldOfView, float pitch,
+            float targetHeight)
+        {
+            float cellPixels = CellPixels(screenWidth, screenHeight, boardWidth, boardHeight, settings);
+            float shiftPixels = 0f;
+            if (screenHeight > screenWidth)
+            {
+                cellPixels = Mathf.Min(cellPixels * cameraScale,
+                    settings.BoardHeightFill * screenHeight / boardHeight);
+                shiftPixels = screenWidth * cameraDownPixels / ReferenceWidth;
+            }
+            float distance = DistanceForPixelsPerUnit(cellPixels, screenHeight, fieldOfView);
+
+            Quaternion rotation = Quaternion.Euler(pitch, 0f, 0f);
+            Vector3 target = Vector3.up * targetHeight;
+
+            target += rotation * Vector3.up * (shiftPixels / cellPixels);
+            targetCamera.fieldOfView = fieldOfView;
+            targetCamera.transform.SetPositionAndRotation(
+                target - rotation * Vector3.forward * distance, rotation);
+        }
     }
 }

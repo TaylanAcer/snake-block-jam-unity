@@ -440,15 +440,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.91764706, g: 0.95686275, b: 0.9843137, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 87e48d9a72c345e48b7ff6cad8aacf36, type: 3}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 0ec5d27f53264dbfbfc65f341844124c, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -1182,9 +1182,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 7d165eafcf924bd9bcecf06b2aeecee0, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 8477bc2b3ade485bac25516ecb40d011, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -2339,81 +2339,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 604710957}
   m_CullTransparentMesh: 1
---- !u!1 &614601401
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 614601404}
-  - component: {fileID: 614601403}
-  - component: {fileID: 614601402}
-  m_Layer: 0
-  m_Name: BulbGlow
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &614601402
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 614601401}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: f49bf10a330f4a50ad400d9ae58e73be, type: 3}
-  m_Type: 0
-  m_PreserveAspect: 0
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
---- !u!222 &614601403
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 614601401}
-  m_CullTransparentMesh: 1
---- !u!224 &614601404
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 614601401}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1587179335}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 32, y: 151}
-  m_SizeDelta: {x: 570, y: 570}
-  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &641595574
 GameObject:
   m_ObjectHideFlags: 0
@@ -2472,8 +2397,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: e3ad4fb0b0e94328871275c4af61c3e4, type: 3}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 589cf5bfaca24b498e29ec0976c36609, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -5153,7 +5078,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 152155381}
-  - {fileID: 614601404}
   - {fileID: 2119268449}
   - {fileID: 2096603325}
   - {fileID: 1666248804}
@@ -6843,14 +6767,13 @@ MonoBehaviour:
   illustrations:
   - {fileID: 21300000, guid: bc787c8bea7b4c72b0110d8d16f5401d, type: 3}
   - {fileID: 21300000, guid: bcb61723356a4bb399a17603a98bd24b, type: 3}
-  - {fileID: 21300000, guid: 82102de05b744ad9af53d7e4b26279a2, type: 3}
-  - {fileID: 21300000, guid: d907babea63148339747e4f615101b23, type: 3}
+  - {fileID: 21300000, guid: 86b3c9d434584e4c9dd6db1fe2dc636c, type: 3}
+  - {fileID: 21300000, guid: 800f91614ddd4580b8424c7969232b90, type: 3}
   - {fileID: 21300000, guid: c3258e6156ce43c0be64900bf170745d, type: 3}
   guide: {fileID: 46459145}
   hintButton: {fileID: 1463251009}
   shovelButton: {fileID: 1859253048}
   card: {fileID: 1587179335}
-  bulbGlow: {fileID: 614601402}
   freeHand: {fileID: 414646810}
   freeRing: {fileID: 1682916532}
   tapBanner: {fileID: 1575113842}

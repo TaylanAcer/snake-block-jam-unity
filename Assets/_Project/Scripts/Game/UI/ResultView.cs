@@ -95,7 +95,7 @@ namespace SnakeBlockJam.Game
             if (blueHeader == null)
                 blueHeader = skin.sprite;
             skin.sprite = completed ? completedRibbon : blueHeader;
-            skin.type = completed ? Image.Type.Simple : Image.Type.Sliced;
+            skin.type = !completed && skin.hasBorder ? Image.Type.Sliced : Image.Type.Simple;
             header.sizeDelta = completed ? new Vector2(840f, 210f) : new Vector2(560f, 110f);
             ((RectTransform)Card).sizeDelta = new Vector2(900f, completed ? 1120f : 1010f);
             ((RectTransform)buttonText.transform.parent).anchoredPosition = new Vector2(0f, completed ? 68f : 120f);

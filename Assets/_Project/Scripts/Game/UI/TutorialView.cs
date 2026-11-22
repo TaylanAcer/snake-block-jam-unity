@@ -29,7 +29,6 @@ namespace SnakeBlockJam.Game
         [SerializeField] private RectTransform hintButton;
         [SerializeField] private RectTransform shovelButton;
         [SerializeField] private RectTransform card;
-        [SerializeField] private Image bulbGlow;
         [SerializeField] private RectTransform freeHand;
         [SerializeField] private Image freeRing;
         [SerializeField] private GameObject tapBanner;
@@ -127,7 +126,6 @@ namespace SnakeBlockJam.Game
             title.text = Titles[index];
             description.text = Descriptions[index];
             picture.sprite = illustrations[index];
-            bulbGlow.gameObject.SetActive(controller.Level.tutorial == TutorialKind.Hint);
         }
 
         public void Dismiss()
@@ -197,12 +195,6 @@ namespace SnakeBlockJam.Game
                 cardVisibility.interactable = t >= 1f;
                 card.localScale = Vector3.one * Mathf.LerpUnclamped(0.72f, 1f, GuideMotion.EaseOutBack(t));
                 card.anchoredPosition = Vector2.down * (56f * (1f - GuideMotion.EaseOutBack(t)));
-
-                if (bulbGlow.gameObject.activeSelf)
-                {
-                    float glow = Mathf.Sin((Time.time - showAt) * 2f);
-                    bulbGlow.color = new Color(1f, 0.73f, 0.26f, 0.30f + 0.12f * glow);
-                }
             }
             else if (cardPhase == CardPhase.Closing)
             {

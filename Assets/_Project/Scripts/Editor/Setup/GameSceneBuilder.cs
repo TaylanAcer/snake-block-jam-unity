@@ -276,7 +276,6 @@ namespace SnakeBlockJam.EditorTools
         private static readonly Color HudDarkGreen = new Color32(0x2E, 0x7D, 0x1F, 0xFF);
         private static readonly Color TextOutline = new Color32(0x1D, 0x3A, 0x4F, 0xFF);
 
-        private static readonly Color WindowBody = new Color32(0xEA, 0xF4, 0xFB, 0xFF);
         private static readonly Color DarkText = new Color32(0x33, 0x3A, 0x48, 0xFF);
 
         private static void CreateHud(Transform canvas, GameController controller)
@@ -523,16 +522,17 @@ namespace SnakeBlockJam.EditorTools
             Stretch(inner);
             inner.offsetMin = new Vector2(18f, 24f);
             inner.offsetMax = new Vector2(-18f, -24f);
-            CreateImage(inner, WindowBody, "Panel");
+            CreateImage(inner, Color.white, "RetryPaper");
 
             RectTransform header = CreateRect("Header", card);
             header.anchorMin = header.anchorMax = new Vector2(0.5f, 1f);
             header.sizeDelta = new Vector2(560f, 110f);
-            CreateImage(header, Color.white, "Glass");
+            CreateImage(header, Color.white, "TutorialHeader");
             Text title = CreateText("Title", header, "TAMAMLANDI", 60, Color.white);
             title.gameObject.AddComponent<Outline>().effectColor = TextOutline;
 
-            var retrySymbol = Icon("RetrySymbol", card, "Restart", 175f, 0f, 112f);
+            var retrySymbol = Icon("RetrySymbol", card, "RetryEmblem", 175f, 0f, 112f);
+            retrySymbol.GetComponent<Image>().preserveAspect = true;
             var trophy = Icon("Trophy", card, "Trophy", 690f, 0f, 50f);
             trophy.gameObject.SetActive(false);
 
@@ -609,7 +609,6 @@ namespace SnakeBlockJam.EditorTools
             AddTutorialShadow(header, new Vector2(0f, -7f));
             Text title = CreateText("Title", header, "", 54, Color.white);
             OutlineText(title, 3f);
-            var bulbGlow = Icon("BulbGlow", card, "LampGlow", 570f, 32f, 151f).GetComponent<Image>();
             var picture = Icon("Picture", card, "Bridge", 605f, 0f, 120f);
             picture.GetComponent<Image>().preserveAspect = true;
             RectTransform line = CreateRect("Description", card);
@@ -670,7 +669,6 @@ namespace SnakeBlockJam.EditorTools
             SetReference(view, "hintButton", canvas.Find("Boosters/HintButton"));
             SetReference(view, "shovelButton", canvas.Find("Boosters/ShovelButton"));
             SetReference(view, "card", card);
-            SetReference(view, "bulbGlow", bulbGlow);
             SetReference(view, "freeHand", freeHand);
             SetReference(view, "freeRing", freeRing);
             SetReference(view, "tapBanner", banner.gameObject);
@@ -678,8 +676,8 @@ namespace SnakeBlockJam.EditorTools
             SetReference(view, "tapHand", tapHand);
             SetReference(view, "tapRing", tapRing);
             view.Configure(controller, overlay.gameObject, title, description, picture.GetComponent<Image>(),
-                new[] { InterfaceSprite("Bridge"), InterfaceSprite("Tunnel"), InterfaceSprite("Bulb"),
-                        InterfaceSprite("Spade"), InterfaceSprite("Arrow") });
+                new[] { InterfaceSprite("Bridge"), InterfaceSprite("Tunnel"), InterfaceSprite("TutorialBulb"),
+                        InterfaceSprite("TutorialShovel"), InterfaceSprite("Arrow") });
             overlay.gameObject.SetActive(false);
         }
 

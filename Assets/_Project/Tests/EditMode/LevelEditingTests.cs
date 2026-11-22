@@ -70,6 +70,53 @@ public class LevelEditingTests
         Assert.AreEqual(4, snake.body.Count);
     }
 
+    // Çok hücreli yılanın yönü gövdeden gelir; ters çevirmek baş ile kuyruğu
+    // yer değiştirir, yön yeni boyun → baştan hesaplanır. Katmanlar hücresinde kalır.
+    [Test]
+    public void ReverseSnake_MultiCell_SwapsHeadAndTail()
+    {
+        BridgeData bridge = LevelEditing.StartBridge(_level, C(3, 3));
+        LevelEditing.ExtendBridge(bridge, C(4, 3));
+        SnakeData snake = LevelEditing.StartSnake(_level, C(1, 3), SnakeColor.Red);
+        LevelEditing.ExtendSnake(snake, C(2, 3));
+        LevelEditing.ExtendSnake(snake, C(3, 3));
+        LevelEditing.ToggleLayer(_level, C(3, 3));
+        Assert.AreEqual(Direction.Left, snake.direction);
+
+        Assert.IsTrue(LevelEditing.ReverseSnake(snake));
+
+        Assert.That(Cells(snake), Is.EqualTo(new[] { C(3, 3), C(2, 3), C(1, 3) }));
+        Assert.AreEqual(Direction.Right, snake.direction);
+        Assert.AreEqual(BoardLayer.BridgeTop, snake.body[0].layer);
+        Assert.AreEqual(BoardLayer.Ground, snake.body[2].layer);
+    }
+
+    // Tek hücreli yılanda ters çevirmek yönü 180° döndürür.
+    [Test]
+    public void ReverseSnake_SingleCell_FlipsDirection()
+    {
+        SnakeData snake = LevelEditing.StartSnake(_level, C(2, 2), SnakeColor.Red, Direction.Up);
+
+        Assert.IsTrue(LevelEditing.ReverseSnake(snake));
+
+        Assert.That(Cells(snake), Is.EqualTo(new[] { C(2, 2) }));
+        Assert.AreEqual(Direction.Down, snake.direction);
+    }
+
+    [Test]
+    public void ReverseSnake_Twice_RestoresOriginal()
+    {
+        SnakeData snake = LevelEditing.StartSnake(_level, C(1, 1), SnakeColor.Red);
+        LevelEditing.ExtendSnake(snake, C(2, 1));
+        LevelEditing.ExtendSnake(snake, C(2, 2));
+
+        LevelEditing.ReverseSnake(snake);
+        LevelEditing.ReverseSnake(snake);
+
+        Assert.That(Cells(snake), Is.EqualTo(new[] { C(1, 1), C(2, 1), C(2, 2) }));
+        Assert.AreEqual(Direction.Left, snake.direction);
+    }
+
     [Test]
     public void StartSnake_IdsAreUnique()
     {

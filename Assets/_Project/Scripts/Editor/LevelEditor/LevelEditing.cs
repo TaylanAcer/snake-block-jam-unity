@@ -114,6 +114,26 @@ namespace SnakeBlockJam.EditorTools
             snake.direction = DirectionBetween(snake.body[1].cell, snake.body[0].cell);
         }
 
+        // Yılanın yönünü tersine çevirir. Çok hücreli yılanda baş ile kuyruk yer
+        // değiştirir (gövde ters sıralanır, her segment hücresi ve katmanıyla
+        // kalır) ve yön yeni boyun → baştan hesaplanır. Tek hücreli yılanda yön
+        // 180° döner. Yeni yerleşimin geçerliliğini (ör. köprü ucu) validator söyler.
+        public static bool ReverseSnake(SnakeData snake)
+        {
+            if (snake == null || snake.body.Count == 0)
+                return false;
+
+            if (snake.body.Count == 1)
+            {
+                snake.direction = snake.direction.Opposite();
+                return true;
+            }
+
+            snake.body.Reverse();
+            UpdateDirection(snake);
+            return true;
+        }
+
         // Köprü hücresindeki segmenti Zemin ↔ Üst yapar (R-BRG-03/10). Hücrede
         // önce üstteki segment seçilir. Köprü dışındaysa false.
         public static bool ToggleLayer(LevelData level, Vector2Int cell)

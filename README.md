@@ -59,6 +59,7 @@ LevelData / LevelCatalog ──► GameController ◄── InputHandler
 
 1. Üstteki alandan bölüm seçin. **Kopyala** ile bir bölümden başlayabilir veya **Yeni** ile boş tahta oluşturabilirsiniz.
 2. Yılan ve köprü araçlarıyla sürükleyerek çizin. Tünel ve yön okunu hücreye tıklayarak yerleştirin. Köprü hücrelerinde **Zemin / Üst** seçimi yüzeyi belirler.
+   - Yılan baştan kuyruğa çizilir. Çok hücreli yılanın yönü gövdeden gelir (boyun → baş), bu yüzden "Yön" alanı kilitlidir. Yılanı **Seç** aracıyla seçip **Yönü ters çevir** ile baş ve kuyruğu yer değiştirebilirsiniz. Tek hücreli yılanda yön elle seçilir; buton yönü 180° döndürür.
 3. Doğrulama panelindeki hataları düzeltin (çakışma, tahta dışı, çözülemezlik vb.).
 4. **Kaydet**; yeni bölümse **Kataloğa ekle**.
 5. **▶ Oyna** seçili bölümü doğrudan oyunda başlatır.
@@ -81,7 +82,7 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 
 ## Doğrulama
 
-- **Otomatik testler:** Unity Test Runner ile 392 EditMode ve 61 PlayMode testi (21 Kasım 2026). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır.
+- **Otomatik testler:** Unity Test Runner ile 401 EditMode ve 64 PlayMode testi (22 Kasım 2026, temiz klonda batchmode). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır.
 - **Dayanıklılık testi (`StressTests`):** 20 bölümde rastgele oynayan test. Dokunuşlar (yılan, boş hücre, ekran noktası, aynı karede hızlı seri), İpucu, Kürek, kart kapatma, pencere butonu ve bölümü yeniden başlatma karışık gelir; bitiş ve kayıp ekranlarında da dokunulur. Hata, exception veya takılma testi düşürür. Ayrıca L1 → L20 → L1 tam tur oynanır. Teslim öncesi 3 turla koşuldu: ~4.950 hamle, hata yok.
 - **Fiziksel cihaz (Samsung Galaxy A13, Android 12, Mali-G52):**
   - 20 bölüm baştan sona oynandı (performans optimizasyonu öncesi build): 20 ALL CLEAR, 1 HAMLE YOK, 419 hamle. Unity hatası, exception, çökme veya ANR görülmedi.

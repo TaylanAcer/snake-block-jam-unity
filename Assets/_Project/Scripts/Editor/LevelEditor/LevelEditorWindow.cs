@@ -264,7 +264,8 @@ namespace SnakeBlockJam.EditorTools
                     snakeColor = (SnakeColor)EditorGUILayout.EnumPopup("Renk", snakeColor);
                     EditorGUILayout.HelpBox(
                         "Baştan başla, kuyruğa doğru sürükle. Geri sürüklemek son hücreyi siler. " +
-                        "Kuyruğa tıklayıp sürüklemek yılanı uzatır. Yön boyun → baş.", MessageType.None);
+                        "Kuyruğa tıklayıp sürüklemek yılanı uzatır. Yön boyun → baş; " +
+                        "Seç aracıyla seçip 'Yönü ters çevir' ile çevrilir.", MessageType.None);
                     break;
                 case Tool.Bridge:
                     EditorGUILayout.HelpBox("Köprü yolunu sürükleyerek çiz (düz veya L).", MessageType.None);
@@ -304,6 +305,19 @@ namespace SnakeBlockJam.EditorTools
                     Undo.RecordObject(level, "Edit snake");
                     _selectedSnake.color = color;
                     _selectedSnake.direction = direction;
+                    MarkChanged();
+                }
+
+                if (_selectedSnake.body.Count > 1)
+                    EditorGUILayout.HelpBox(
+                        "Yön gövdeden gelir (boyun → baş). Çevirmek için aşağıdaki butonu kullan " +
+                        "veya yılanı karşı uçtan başlayarak yeniden çiz.", MessageType.None);
+
+                if (GUILayout.Button(new GUIContent("Yönü ters çevir (baş ↔ kuyruk)",
+                        "Çok hücreli yılanda baş ile kuyruk yer değiştirir; tek hücrelide yön 180° döner.")))
+                {
+                    Undo.RecordObject(level, "Reverse snake");
+                    LevelEditing.ReverseSnake(_selectedSnake);
                     MarkChanged();
                 }
 

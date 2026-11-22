@@ -2,6 +2,17 @@
 
 Oreon Studios Unity case çalışması: Snake Block Jam'in ilk 20 bölümünün Unity klonu. Portre ekranda bir yılanın herhangi bir hücresine dokunarak onu başının baktığı yönde hareket ettirirsiniz; amaç tahtayı boşaltmaktır. Köprüler iki katmanda geçiş sağlar, tüneller kaçış noktasıdır, oklar başın yönünü değiştirir. İpucu kaçabilecek bir yılanı gösterir, Kürek seçtiğiniz yılanı kaldırır.
 
+## Teslim
+
+| | |
+|---|---|
+| Android APK | [SnakeBlockJam.apk](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/SnakeBlockJam.apk) (release, ARMv7 + ARM64) |
+| Oynanış videosu (L1–L20, kesintisiz, Galaxy A13) | [Full_Gameplay_720P.mp4](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Full_Gameplay_720P.mp4) |
+| Bölüm klipleri (L1–L20 ayrı ayrı + HAMLE YOK) | [Seviyeler.zip](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Seviyeler.zip) |
+| Mekanik ve booster klipleri (köprü, tünel, ok, İpucu, Kürek, HAMLE YOK) | [Mekanikler.zip](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Mekanikler.zip) |
+
+Hepsi [v1.0 sürümünde](https://github.com/TaylanAcer/snake-block-jam-unity/releases/tag/v1.0).
+
 ## Kurulum
 
 | | |
@@ -83,9 +94,20 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 
 Ölçülemeyenler (ör. çarpma sonrası giriş kilidinin kesin süresi, şahin gözünün tetikleyicisi, titreşim) kodda varsayım olarak işaretlendi.
 
+## Kararlılık ve çökme önlemleri
+
+- **Kurallar tek yerde ve doğrulanarak:** Oyun kuralları Unity'den bağımsız `Core`'da. `BoardState` bölümü kurarken çakışma, tahta dışı hücre, geçersiz köprü/tünel/ok gibi hataları yakalar; Level Editor aynı kontrolleri ve çözülebilirliği gösterir, hata varken **▶ Oyna** kapalıdır. 20 bölümün hepsi bu kontrollerden geçer (`LevelValidatorTests.AllCatalogLevels_PassValidation`), yani oyunda bozuk veriyle karşılaşılmaz.
+- **Hamle bölünmez:** Hamle uygulanmadan önce bütün koşullar kontrol edilir, sonra durum değişir (`BoardState.Apply`). Oyun bitmişken, dokunuş kilidi açıkken veya booster uygun değilken (`CanUseBoosters`) dokunuş hiçbir şey değiştirmez.
+- **Bölüm geçişlerinde artık iş kalmaz:** Bölüm yüklenirken bütün coroutine'ler durur, eski tahta ve yılan görünümleri silinir. Biten eski animasyonların geri bildirimleri yeni bölüme iletilmez. Olay abonelikleri `OnDisable`'da kaldırılır.
+- **Kaynak sızıntısı yok:** Runtime'da üretilen materyal ve mesh'ler sahibi yok olurken silinir. Cihazda 20 bölüm boyunca bellek sabit kaldı (aşağıda).
+- **Platforma dayanıklılık:** Collider'sız primitive'ler (IL2CPP'nin fizik modülünü atması Android'de hataya yol açıyordu). Titreşim API'si yoksa yedeğe düşer (`Haptics`, try/catch). Kayıtlı ilerleme yalnızca bölüm numarasıdır; bulunamazsa sahnedeki bölüm açılır.
+- **Release ayarı:** IL2CPP, ARMv7 + ARM64. Release build'de bilgi loglarına yığın izi eklenmez (CPU ve bellek tasarrufu), uyarı ve hatalar izini korur.
+- **Test:** Otomatik testler ve rastgele oynayan stres testi editörde; Android `monkey` ve uzun oynanış gerçek cihazda ve emülatörde (Doğrulama).
+
 ## Doğrulama
 
-- **Otomatik testler:** Unity Test Runner ile 401 EditMode ve 64 PlayMode testi (22 Kasım 2026, temiz klonda batchmode). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır.
+- **Otomatik testler:** Unity Test Runner ile 401 EditMode ve 64 PlayMode testi (22 Kasım 2026, temiz klonda batchmode). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır. Çalıştırmak için **Window → General → Test Runner** → EditMode veya PlayMode → **Run All**.
+- **Refactor doğrulaması (22 Kasım):** `BoardView` ve `SnakeView` sorumluluklarına göre bölündü. Önce ve sonra L1–L20 sabit kare adımıyla aynı senaryoda oynatıldı; her karede tahtadaki bütün objelerin konumu, ölçeği, görünürlüğü, mesh'i ve materyali ile dokunma seçimi kaydedildi. 7.819 karenin hepsi birebir aynı çıktı.
 - **Dayanıklılık testi (`StressTests`):** 20 bölümde rastgele oynayan test. Dokunuşlar (yılan, boş hücre, ekran noktası, aynı karede hızlı seri), İpucu, Kürek, kart kapatma, pencere butonu ve bölümü yeniden başlatma karışık gelir; bitiş ve kayıp ekranlarında da dokunulur. Hata, exception veya takılma testi düşürür. Ayrıca L1 → L20 → L1 tam tur oynanır. Teslim öncesi 3 turla koşuldu: ~4.950 hamle, hata yok.
 - **Fiziksel cihaz (Samsung Galaxy A13, Android 12, Mali-G52):**
   - 20 bölüm baştan sona oynandı (performans optimizasyonu öncesi build): 20 ALL CLEAR, 1 HAMLE YOK, 419 hamle. Unity hatası, exception, çökme veya ANR görülmedi.
@@ -97,7 +119,11 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
   - Bellek 270–341 MB, sızıntı yok.
   - Optimizasyon sonrası tam çözünürlükte bir kare ~22 ms; L1'de karelerin %97,8'i tam 33 ms (sabit 30 FPS).
   - Bellek ayırma (development build, otomatik oynama L1–L9): boşta kare başına ≈ 0 B; ayırma sadece dokunuş anında (kare başı ortalama 0,5–1,5 KB) ve bölüm yüklemede (tek seferlik 130–570 KB). GC toplaması ~10 sn'de bir, Mono heap 3–4 MB.
-- **Bölüm düzenleri:** 20 bölümün render'ı, referans videolardaki açılış sonrası karelerle renk maskesiyle karşılaştırıldı. L15'te 11 yılanın başı geride okunmuştu (başlangıç karesi açılış animasyonu bitmeden çekilmiş); düzeltildi ve hücre hücre eşleşiyor. L10/L19'daki kısa köprüler 1 hücreye düşürüldü. 21 Kasım'da ikinci bir kontrol yapıldı: her bölümün videosu bölüm sonuna kadar tarandı, yılanlar kaçtıkça açılan grid noktaları ve başlangıçtaki her hücre bizim render'la karşılaştırıldı. Noktalar 20 bölümde de uyuşuyor. L4'te bir yılanın kuyruğu bir hücre kısaydı, düzeltildi. 22 Kasım: L15'te aşağı bakan 6 yılanın başı bir hücre fazla uzundu (önündeki yılanla iç içe görünüyordu). Diğer bölümlerdeki 55 aşağı bakan başla karşılaştırılarak düzeltildi. 331 yılanın rengi referansla yılan yılan karşılaştırıldı; hepsi aynı (ton farkı ΔE ≤ 2,4).
+- **Bölüm düzenleri:** 20 bölümün render'ı, referans videolardaki açılış sonrası karelerle renk maskesiyle karşılaştırıldı. L15'te 11 yılanın başı geride okunmuştu (başlangıç karesi açılış animasyonu bitmeden çekilmiş); düzeltildi ve hücre hücre eşleşiyor. L10/L19'daki kısa köprüler 1 hücreye düşürüldü. 21 Kasım'da ikinci bir kontrol yapıldı: her bölümün videosu bölüm sonuna kadar tarandı, yılanlar kaçtıkça açılan grid noktaları ve başlangıçtaki her hücre bizim render'la karşılaştırıldı. Noktalar 20 bölümde de uyuşuyor. L4'te bir yılanın kuyruğu bir hücre kısaydı, düzeltildi. 22 Kasım: L15'te aşağı bakan 6 yılanın başı bir hücre fazla uzundu (önündeki yılanla iç içe görünüyordu). Diğer bölümlerdeki 55 aşağı bakan başla karşılaştırılarak düzeltildi. 331 yılanın rengi referansla yılan yılan karşılaştırıldı; hepsi aynı (ton farkı ΔE ≤ 2,4). 23 Kasım: Galaxy A13'te çekilen tam oynanış kaydındaki 20 bölüm başlangıcı referans karelerle hizalanıp karşılaştırıldı. Düzen, yılan renkleri (yanlış renk < %0,4), hamle sayıları, Hard işareti ve booster stokları eşleşiyor.
+- **Son APK ile cihazda dayanıklılık (23 Kasım, Galaxy A13, USB):**
+  - Android `monkey`: 20.000 rastgele olay (dokunma, geri/menü tuşları, uygulamadan çıkıp dönme). 1.348 hamle, 43 HAMLE YOK → Tekrar Dene.
+  - Bölüm bölüm sürücü (adb): L1–L20'nin her birinde önce rastgele dokunuşlar (rastgele yılanlar, boş alan, aynı anda seri dokunuş, İpucu ve Kürek butonları, Kürek ile yılan seçimi), sonra bölüm çözülüp Devam ile sonrakine geçildi. Kartlar ve ücretsiz ilk İpucu/Kürek rehberleri dahil; 20 bölümün hepsi tamamlandı.
+  - İkisi boyunca (~35 dk) oyun süreci hiç yeniden başlamadı. Unity hatası, exception, çökme ve ANR yok. Bellek 222–233 MB (PSS) aralığında kaldı.
 - **Emülatör:** Android 15 Pixel 8 AVD'de L1–L20 geçildi. 21 Kasım: Android 16 AVD'de release APK ile Android `monkey` testi yapıldı (20.000 rastgele olay; dokunma, kaydırma, uygulamadan çıkıp dönme, sistem tuşları). Sonuç: 790 hamle, L1–L6, çökme/ANR/Unity hatası yok. Uygulama zorla kapatılıp açılınca kaldığı bölümden devam etti. Not: Aynı gün Pixel 8 AVD'de (16 KB sayfa boyutlu x86_64 imaj, ps16k) emülatörün ARM çeviri katmanı açılışta çöktü (`berberis: Cannot process signal 11`, Vulkan başlatılırken). Çöküş çeviri katmanının içinde, oyun kodunda değil. Gerçek ARM cihazlarda çeviri katmanı yok.
 
 ![Release APK ekranları](Media/android-release.png)
@@ -105,7 +131,7 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 ## Kullanılan araçlar
 
 - **OpenAI Codex:** Uygulama, test yürütme ve referans karelerin karşılaştırılması.
-- **Claude Code (Anthropic):** Fiziksel cihaz testi ve hata ayıklama (`adb` ile dokunuş, kare süresi, GPU/CPU, bellek ölçümü), dokunma seçimi ve parmak toleransı, çarpma titreşimi, açılış sesi senkronu, şahin gözü, performans analizi ve optimizasyonu (gövde birleştirme, mesh sadeleştirme, mobil grafik ayarı, kare temposu).
+- **Claude Code (Anthropic):** Fiziksel cihaz testi ve hata ayıklama (`adb` ile dokunuş, kare süresi, GPU/CPU, bellek ölçümü), dokunma seçimi ve parmak toleransı, çarpma titreşimi, açılış sesi senkronu, şahin gözü, performans analizi ve optimizasyonu (gövde birleştirme, mesh sadeleştirme, mobil grafik ayarı, kare temposu). Teslim öncesi tarama, `BoardView`/`SnakeView` refactor'ı ve davranış izi doğrulaması, Level Editor yön ters çevirme, cihazda `monkey` testi, oynanış kaydının bölüm ve mekanik kliplerine bölünmesi ve referansla karşılaştırılması.
 - **REA (reverse-engineer-anything):** Referans oyunun APK'sının dosya envanteri. Unity serileştirilmiş dosyaları (`globalgamemanagers`, `level0`, `resources.assets`) kendi Python betikleriyle salt okunur incelendi; Unity sürümü, sınıf adları ve ayarlar not edildi. Koddan veya asset'lerden hiçbir şey projeye alınmadı. Sınıf adları yalnızca yorum (INFERRED) olarak kullanıldı; oynanış kurallarının kaynağı referans videoları ve ekran görüntüleri.
 - **ImageGen:** Özgün kupa, Hard ikonu ve köprü/tünel/ok tanıtım çizimleri (kullanıcı onayıyla).
 - **Game feel analizi:** REA envanterinden sonra 21 referans kaydı için Python ile yazılmış salt okunur araçlar: MP4 konteyner zaman damgası okuma, Windows Media Foundation ile kare çözme, dokunuş başına hareket ölçümü (kaçış hızı ve süresi), vinyet ve ses başlangıcı tespiti, zaman damgalı kare şeritleri.

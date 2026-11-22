@@ -13,6 +13,8 @@ Oreon Studios Unity case çalışması: Snake Block Jam'in ilk 20 bölümünün 
 
 Hepsi [v1.0 sürümünde](https://github.com/TaylanAcer/snake-block-jam-unity/releases/tag/v1.0).
 
+**APK kurulumu:** Tek dosya; ek veri (OBB) yok, Android 7.1 (API 25) ve üstü. Telefonda indirip açın; Android sorarsa tarayıcıya veya dosya yöneticisine "bilinmeyen uygulamaları yükleme" izni verin.
+
 ## Kurulum
 
 | | |

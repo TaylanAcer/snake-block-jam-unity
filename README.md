@@ -7,6 +7,7 @@ Oreon Studios Unity case çalışması: Snake Block Jam'in ilk 20 bölümünün 
 | | |
 |---|---|
 | Android APK | [SnakeBlockJam.apk](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/SnakeBlockJam.apk) (release, ARMv7 + ARM64) |
+| **Özet video (2:18): temel oynanış, köprü, tünel, ok, İpucu, Kürek, Hard, HAMLE YOK** | [Ozet_Oynanis.mp4](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Ozet_Oynanis.mp4) |
 | Oynanış videosu (L1–L20, kesintisiz, Galaxy A13) | [Full_Gameplay_720P.mp4](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Full_Gameplay_720P.mp4) |
 | Bölüm klipleri (L1–L20 ayrı ayrı + HAMLE YOK) | [Seviyeler.zip](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Seviyeler.zip) |
 | Mekanik ve booster klipleri (köprü, tünel, ok, İpucu, Kürek, HAMLE YOK) | [Mekanikler.zip](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Mekanikler.zip) |

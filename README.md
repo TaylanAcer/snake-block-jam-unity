@@ -85,6 +85,10 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 - **Dayanıklılık testi (`StressTests`):** 20 bölümde rastgele oynayan test. Dokunuşlar (yılan, boş hücre, ekran noktası, aynı karede hızlı seri), İpucu, Kürek, kart kapatma, pencere butonu ve bölümü yeniden başlatma karışık gelir; bitiş ve kayıp ekranlarında da dokunulur. Hata, exception veya takılma testi düşürür. Ayrıca L1 → L20 → L1 tam tur oynanır. Teslim öncesi 3 turla koşuldu: ~4.950 hamle, hata yok.
 - **Fiziksel cihaz (Samsung Galaxy A13, Android 12, Mali-G52):**
   - 20 bölüm baştan sona oynandı (performans optimizasyonu öncesi build): 20 ALL CLEAR, 1 HAMLE YOK, 419 hamle. Unity hatası, exception, çökme veya ANR görülmedi.
+  - **Son tur (22 Kasım, temiz klondan derlenen release APK):** 20 bölüm oynandı, uygulama arada kapatılıp açıldı. Toplam 460 hamle: 292 kaçış, 38 tünel, 130 çarpma, 2 Kürek. 3 HAMLE YOK alındı, hepsi Tekrar Dene ile geçildi. Hata, exception, çökme veya ANR yok.
+    - Kare temposu: 13.882 karenin %99,5'i 33 ms aralıkla geldi (ortalama 29,9 FPS). 100 ms üstü tek kare oldu.
+    - Bellek (RSS): ilk bölümlerde yüklemeyle 234 → ~270 MB, sonra L20'ye kadar 266–282 MB'ta sabit; sızıntı yok.
+    - Pil sıcaklığı 30,0 → 33,8 °C; ısınmada FPS düşüşü görülmedi.
   - Dokunuştan hamleye gecikme: medyan 15 ms.
   - Bellek 270–341 MB, sızıntı yok.
   - Optimizasyon sonrası tam çözünürlükte bir kare ~22 ms; L1'de karelerin %97,8'i tam 33 ms (sabit 30 FPS).

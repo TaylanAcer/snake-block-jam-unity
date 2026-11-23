@@ -2,6 +2,12 @@
 
 Oreon Studios Unity case çalışması: Snake Block Jam'in ilk 20 bölümünün Unity klonu. Portre ekranda bir yılanın herhangi bir hücresine dokunarak onu başının baktığı yönde hareket ettirirsiniz; amaç tahtayı boşaltmaktır. Köprüler iki katmanda geçiş sağlar, tüneller kaçış noktasıdır, oklar başın yönünü değiştirir. İpucu kaçabilecek bir yılanı gösterir, Kürek seçtiğiniz yılanı kaldırır.
 
+- **Hazır:** İlk 20 bölüm (düzen, renk ve hamle sayıları referansla eşleşiyor), Köprü / Tünel / Ok, İpucu / Kürek, kazanma ve kaybetme akışı, Level Editor (yeni bölüm, düzenleme, doğrulama, ▶ Oyna).
+- **Hızlı bakış:** [2 dakikalık özet video](https://github.com/TaylanAcer/snake-block-jam-unity/releases/download/v1.0/Ozet_Oynanis.mp4); APK ve diğer videolar aşağıdaki Teslim tablosunda.
+- **Açmak için:** Unity 6000.3.28f1 ile açıp `Assets/_Project/Scenes/Game.unity` → Play. Ek paket veya içe aktarma adımı yok.
+- **Test:** 401 EditMode + 64 PlayMode testi; Galaxy A13'te 20 bölüm, `monkey` ve sıfırdan kurulum testi, çökme yok.
+- **Bilinen eksikler:** 30 FPS kararı, referansta ölçülemeyen tetikler (varsayım), kapsam dışı metagame; ayrıntı [aşağıda](#bilinen-eksikler-ve-kararlar).
+
 ## Teslim
 
 | | |
@@ -55,7 +61,7 @@ LevelData / LevelCatalog ──► GameController ◄── InputHandler
     - Tahta: `BoardMaterials` (runtime materyaller), `BoardDecorBuilder` (zemin, noktalar, köprü, tünel, ok, kıymık sistemleri), `SnakePicker` (dokunma seçimi ve parmak toleransı), `ClearWave` (bölüm sonu dalgası), `CameraFit` (kamera çerçevesi).
     - Yılan: `SnakeFace` (göz, dil, sersem gözler), `SnakeBodyBaker` (dururken tek mesh), `SnakeDent` (göçük), `SnakeShovelRemoval` ve `SnakeChipEmitter` (kürek ve kıymıklar), `SnakeParts` (parça kurulumu).
     - Diğer: `BridgeView`, `BlockMesh`, `ArrowMesh`, `HawkEye`, `DebrisBurst`.
-  - `Gameplay/`: `GameController` (akış, evreler, booster'lar), `InputHandler` (Pointer API, mouse ve dokunma ortak), `FeelSettings` (bütün süre ve hızlar tek ScriptableObject'te).
+  - `Gameplay/`: `GameController` (akış, evreler, booster'lar), `InputHandler` (Pointer API, mouse ve dokunma ortak), `FeelSettings` (animasyon süre ve hızları tek ScriptableObject'te).
   - `UI/`: HUD, sonuç ekranları, booster'lar, geri bildirim (vinyet, seri yazıları), tanıtım kartları.
   - `Audio/`: `SfxPlayer` (olaylara bağlı sesler), `SfxSynth` (kodla üretilen kayma sesi), `Haptics` (Android `VibrationEffect`).
 - **Editor** (`Scripts/Editor`): Level Editor, JSON içe aktarıcı, sahne üreticisi, Android builder.
@@ -66,7 +72,8 @@ LevelData / LevelCatalog ──► GameController ◄── InputHandler
 2. **Köprüde hücre başına iki katman.** Doluluk `(hücre, katman)` çifti olarak tutulur (`Ground`, `BridgeTop`). Böylece aynı hücrede biri üstte biri altta iki yılan bulunabilir ve bir yılan aynı köprü hücresinden bir kez alttan bir kez üstten geçebilir (L19). Üst kata yalnızca köprü uçlarından, yol doğrultusunda girilir.
 3. **Tek çözücü.** Bir yılanın kaçması diğerlerinin yolunu açar. Bu yüzden açgözlü (greedy) çözüm, bölüm çözülebiliyorsa bir çözüm bulur. Aynı `Solver` Level Editor'de bölümü doğrular ve İpucu, dokunma öğreticisi ve dürtme için kaçabilen hedefi seçer.
 4. **Kanıta dayalı kurallar.** Her mekanik referans kayıtlarından "doğrulandı / gözlendi / ölçüldü / varsayım" olarak etiketlendi. Doğrulanmamış davranış kural olarak kodlanmadı; zorunlu varsayımlar (ör. yılanın kendi gövdesinin engel olmaması) kodda ve bu README'de belirtildi.
-5. **Ayarlar veride, kural kodda.** Bölümler `LevelData` asset'leri (yerleşim, stok, booster açılışı, tanıtım kartı, kamera çerçevesi), bütün süre ve hızlar `FeelSettings` asset'i. Yeni bölüm veya his ayarı için kod değişmez.
+   - **Koddaki etiketler:** `R-XXX-NN` (ör. `R-BRG-08`), referans kayıtlarının analizinde çıkarılan kural numaralarıdır (`MV` hamle, `COL` çarpışma, `BRG` köprü, `BUR` tünel, `ARW` ok, `HNT` İpucu, `SHV` Kürek, `WIN`/`LOS` kazanma/kaybetme, `TRN` geçişler). Yanlarındaki `VERIFIED`, `OBSERVED`, `MEASURED`, `INFERRED`, `ASSUMED`, `UNKNOWN` kuralın kanıt düzeyini gösterir. `spec §`, `yol haritası §`, `Faz N` ve `learning/NN` ise geliştirme sırasında tutulan yerel analiz notlarına atıftır; bu notlar repoya dahil değil, gereken her karar kod yorumunda ve bu README'de açıklanmıştır.
+5. **Ayarlar veride, kural kodda.** Bölümler `LevelData` asset'leri (yerleşim, stok, booster açılışı, tanıtım kartı, kamera çerçevesi), animasyon süre ve hızları `FeelSettings` asset'i. Yeni bölüm veya his ayarı için kod değişmez. Tek istisna şahin gözünün tetik eşikleri: referansta ölçülemediği için varsayım olarak `GameController`'da isimli sabitler.
 6. **Görünenle seçim.** Dokunma, ekrandan atılan ışının yılanın görünen parçalarıyla (blok, göz, dil, kuyruk ucu) kesişmesiyle seçilir; tam isabet yoksa ~3 mm'lik parmak toleransı uygulanır. Eğik kamerada sadece blok üst yüzüne bakan eski yöntem, 20 bölümde göz ve dil üzerindeki örnek noktaların %12–48'ini kaçırıyordu; yeni yöntemde kaçırma yok.
 7. **Cihazda ölçerek optimizasyon.** Galaxy A13'te darboğaz önce GPU, sonra çizim çağrısı sayısı çıktı. Duran yılanların gövdesi tek mesh'te birleştirilir (yılan başına ~40 yerine 2 çizim çağrısı; hareket, göçük veya kürek başlarken parçalara dönülür). Mobil grafik ayarında HDR kapatıldı, MSAA 2× yapıldı. Telefonda sabit 30 FPS ve tam çözünürlük; masaüstü ve editörde 60.
 
@@ -112,21 +119,18 @@ Mekanikler ve zamanlamalar referans oyunun 21 oynanış kaydından (L1–L20, 72
 - **Otomatik testler:** Unity Test Runner ile 401 EditMode ve 64 PlayMode testi (22 Kasım 2026, temiz klonda batchmode). Kurallar, hamle simülasyonu, köprü/tünel/ok etkileşimleri, booster'lar, level verisi, editör doğrulaması, dokunma seçimi, kazanma/kaybetme akışı ve his eğrileri kapsanır. Çalıştırmak için **Window → General → Test Runner** → EditMode veya PlayMode → **Run All**.
 - **Refactor doğrulaması (22 Kasım):** `BoardView` ve `SnakeView` sorumluluklarına göre bölündü. Önce ve sonra L1–L20 sabit kare adımıyla aynı senaryoda oynatıldı; her karede tahtadaki bütün objelerin konumu, ölçeği, görünürlüğü, mesh'i ve materyali ile dokunma seçimi kaydedildi. 7.819 karenin hepsi birebir aynı çıktı.
 - **Dayanıklılık testi (`StressTests`):** 20 bölümde rastgele oynayan test. Dokunuşlar (yılan, boş hücre, ekran noktası, aynı karede hızlı seri), İpucu, Kürek, kart kapatma, pencere butonu ve bölümü yeniden başlatma karışık gelir; bitiş ve kayıp ekranlarında da dokunulur. Hata, exception veya takılma testi düşürür. Ayrıca L1 → L20 → L1 tam tur oynanır. Teslim öncesi 3 turla koşuldu: ~4.950 hamle, hata yok.
-- **Fiziksel cihaz (Samsung Galaxy A13, Android 12, Mali-G52):**
-  - 20 bölüm baştan sona oynandı (performans optimizasyonu öncesi build): 20 ALL CLEAR, 1 HAMLE YOK, 419 hamle. Unity hatası, exception, çökme veya ANR görülmedi.
-  - **Son tur (22 Kasım, temiz klondan derlenen release APK):** 20 bölüm oynandı, uygulama arada kapatılıp açıldı. Toplam 460 hamle: 292 kaçış, 38 tünel, 130 çarpma, 2 Kürek. 3 HAMLE YOK alındı, hepsi Tekrar Dene ile geçildi. Hata, exception, çökme veya ANR yok.
+- **Fiziksel cihaz (Samsung Galaxy A13, Android 12, Mali-G52).** Ölçümler build sırasıyla. Bellek iki türlü raporlandı: PSS (paylaşılan sayfalar bölünerek, düşük çıkar) ve RSS (uygulamanın kullandığı toplam fiziksel bellek).
+  - **20 Kasım, optimizasyon öncesi build:** 20 bölüm baştan sona: 20 ALL CLEAR, 1 HAMLE YOK, 419 hamle; Unity hatası, exception, çökme veya ANR yok. Bellek (PSS) 270–341 MB, sızıntı yok. Dokunuştan hamleye gecikme medyan 15 ms.
+  - **20 Kasım, optimizasyon sonrası (development build):** tam çözünürlükte bir kare ~22 ms; L1'de karelerin %97,8'i tam 33 ms (sabit 30 FPS). Bellek ayırma (otomatik oynama L1–L9): boşta kare başına ≈ 0 B; ayırma sadece dokunuş anında (kare başı ortalama 0,5–1,5 KB) ve bölüm yüklemede (tek seferlik 130–570 KB). GC toplaması ~10 sn'de bir, Mono heap 3–4 MB.
+  - **22 Kasım, temiz klondan derlenen release APK:** 20 bölüm, uygulama arada kapatılıp açıldı. 460 hamle: 292 kaçış, 38 tünel, 130 çarpma, 2 Kürek; 3 HAMLE YOK, hepsi Tekrar Dene ile geçildi. Hata, exception, çökme veya ANR yok.
     - Kare temposu: 13.882 karenin %99,5'i 33 ms aralıkla geldi (ortalama 29,9 FPS). 100 ms üstü tek kare oldu.
     - Bellek (RSS): ilk bölümlerde yüklemeyle 234 → ~270 MB, sonra L20'ye kadar 266–282 MB'ta sabit; sızıntı yok.
     - Pil sıcaklığı 30,0 → 33,8 °C; ısınmada FPS düşüşü görülmedi.
-  - Dokunuştan hamleye gecikme: medyan 15 ms.
-  - Bellek 270–341 MB, sızıntı yok.
-  - Optimizasyon sonrası tam çözünürlükte bir kare ~22 ms; L1'de karelerin %97,8'i tam 33 ms (sabit 30 FPS).
-  - Bellek ayırma (development build, otomatik oynama L1–L9): boşta kare başına ≈ 0 B; ayırma sadece dokunuş anında (kare başı ortalama 0,5–1,5 KB) ve bölüm yüklemede (tek seferlik 130–570 KB). GC toplaması ~10 sn'de bir, Mono heap 3–4 MB.
 - **Bölüm düzenleri:** 20 bölümün render'ı, referans videolardaki açılış sonrası karelerle renk maskesiyle karşılaştırıldı. L15'te 11 yılanın başı geride okunmuştu (başlangıç karesi açılış animasyonu bitmeden çekilmiş); düzeltildi ve hücre hücre eşleşiyor. L10/L19'daki kısa köprüler 1 hücreye düşürüldü. 21 Kasım'da ikinci bir kontrol yapıldı: her bölümün videosu bölüm sonuna kadar tarandı, yılanlar kaçtıkça açılan grid noktaları ve başlangıçtaki her hücre bizim render'la karşılaştırıldı. Noktalar 20 bölümde de uyuşuyor. L4'te bir yılanın kuyruğu bir hücre kısaydı, düzeltildi. 22 Kasım: L15'te aşağı bakan 6 yılanın başı bir hücre fazla uzundu (önündeki yılanla iç içe görünüyordu). Diğer bölümlerdeki 55 aşağı bakan başla karşılaştırılarak düzeltildi. 331 yılanın rengi referansla yılan yılan karşılaştırıldı; hepsi aynı (ton farkı ΔE ≤ 2,4). 23 Kasım: Galaxy A13'te çekilen tam oynanış kaydındaki 20 bölüm başlangıcı referans karelerle hizalanıp karşılaştırıldı. Düzen, yılan renkleri (yanlış renk < %0,4), hamle sayıları, Hard işareti ve booster stokları eşleşiyor.
-- **Son APK ile cihazda dayanıklılık (23 Kasım, Galaxy A13, USB):**
+- **23 Kasım, son APK (v1.0) ile cihazda dayanıklılık (Galaxy A13, USB):**
   - Android `monkey`: 20.000 rastgele olay (dokunma, geri/menü tuşları, uygulamadan çıkıp dönme). 1.348 hamle, 43 HAMLE YOK → Tekrar Dene.
   - Bölüm bölüm sürücü (adb): L1–L20'nin her birinde önce rastgele dokunuşlar (rastgele yılanlar, boş alan, aynı anda seri dokunuş, İpucu ve Kürek butonları, Kürek ile yılan seçimi), sonra bölüm çözülüp Devam ile sonrakine geçildi. Kartlar ve ücretsiz ilk İpucu/Kürek rehberleri dahil; 20 bölümün hepsi tamamlandı.
-  - İkisi boyunca (~35 dk) oyun süreci hiç yeniden başlamadı. Unity hatası, exception, çökme ve ANR yok. Bellek 222–233 MB (PSS) aralığında kaldı.
+  - İkisi boyunca (~35 dk) oyun süreci hiç yeniden başlamadı. Unity hatası, exception, çökme ve ANR yok. Bellek (PSS) 222–233 MB aralığında kaldı, sızıntı yok.
 - **Emülatör:** Android 15 Pixel 8 AVD'de L1–L20 geçildi. 21 Kasım: Android 16 AVD'de release APK ile Android `monkey` testi yapıldı (20.000 rastgele olay; dokunma, kaydırma, uygulamadan çıkıp dönme, sistem tuşları). Sonuç: 790 hamle, L1–L6, çökme/ANR/Unity hatası yok. Uygulama zorla kapatılıp açılınca kaldığı bölümden devam etti. Not: Aynı gün Pixel 8 AVD'de (16 KB sayfa boyutlu x86_64 imaj, ps16k) emülatörün ARM çeviri katmanı açılışta çöktü (`berberis: Cannot process signal 11`, Vulkan başlatılırken). Çöküş çeviri katmanının içinde, oyun kodunda değil. Gerçek ARM cihazlarda çeviri katmanı yok.
 
 ![Release APK ekranları](Media/android-release.png)

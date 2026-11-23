@@ -42,6 +42,15 @@ namespace SnakeBlockJam.Game
         [SerializeField] private BoardView boardView;
         [SerializeField] private Camera gameCamera;
 
+        // Şahin gözü (R-FX-07): referansta tetik ölçülemedi, eşikler ASSUMED.
+        // Ardışık kaçış serisi bu sayıyı geçince, bölümde ilk kez bu kadar kaçıştan
+        // sonra, iki şahin arasında en az bu kadar kaçış ve süre varken bu olasılıkla.
+        private const int HawkStreakThreshold = 3;
+        private const int HawkFirstEligibleEscape = 4;
+        private const int HawkEscapeGap = 6;
+        private const float HawkMinIntervalSeconds = 5f;
+        private const float HawkChance = 0.12f;
+
         private int _consecutiveEscapes;
         private int _praiseCount;
         private int _nextHawkEligible;
@@ -233,7 +242,7 @@ namespace SnakeBlockJam.Game
 
             _consecutiveEscapes = 0;
             _praiseCount = 0;
-            _nextHawkEligible = 4;
+            _nextHawkEligible = HawkFirstEligibleEscape;
             _lastHawkTime = float.NegativeInfinity;
             State = new BoardState(level.ToDefinition());
             boardView.Build(level, State);
@@ -345,11 +354,11 @@ namespace SnakeBlockJam.Game
                     _praiseCount++;
                 boardView.PlayEscape(result, feel.escapeSpeed, gameCamera, praise);
                 _consecutiveEscapes++;
-                if (_consecutiveEscapes > 3 && State.EscapedCount >= _nextHawkEligible &&
-                    Time.time - _lastHawkTime >= 5f && UnityEngine.Random.value < 0.12f)
+                if (_consecutiveEscapes > HawkStreakThreshold && State.EscapedCount >= _nextHawkEligible &&
+                    Time.time - _lastHawkTime >= HawkMinIntervalSeconds && UnityEngine.Random.value < HawkChance)
                 {
                     boardView.ShowHawkEye(head, gameCamera, feel.hawkEyeDuration);
-                    _nextHawkEligible = State.EscapedCount + 6;
+                    _nextHawkEligible = State.EscapedCount + HawkEscapeGap;
                     _lastHawkTime = Time.time;
                 }
             }
